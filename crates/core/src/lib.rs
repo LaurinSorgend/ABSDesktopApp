@@ -5,4 +5,5 @@ pub mod cover_cache;
 pub mod credentials;
 pub mod db;
 pub mod engine;
+pub mod playback;
 pub mod sync;

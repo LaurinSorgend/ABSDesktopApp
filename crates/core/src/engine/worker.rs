@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use super::live::{Followup, LiveState};
+use super::playback::{self, PlaybackCommand};
 use super::{Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, SYNC_INTERVAL_SETTING};
 use crate::account::{AccountError, Session, add_account, lock, restore_account};
 use crate::credentials::Credentials;
@@ -27,11 +28,11 @@ enum Conn {
 }
 
 /// State shared by the engine's tasks.
-struct Shared {
-    db: Mutex<Db>,
+pub(super) struct Shared {
+    pub(super) db: Mutex<Db>,
     credentials: Credentials,
     http: Client,
-    emit: Emit,
+    pub(super) emit: Emit,
     conns: Mutex<HashMap<String, Conn>>,
     syncing: Mutex<HashSet<String>>,
     last_sync: Mutex<HashMap<String, Instant>>,
@@ -73,12 +74,14 @@ async fn main_loop(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Co
     for account in accounts {
         start_connect(&shared, account);
     }
+    let (playback, playback_commands) = mpsc::unbounded_channel();
+    let playback_task = tokio::spawn(playback::run(shared.clone(), playback_commands));
     let mut tick = tokio::time::interval(TICK);
     tick.tick().await;
     loop {
         tokio::select! {
             command = commands.recv() => match command {
-                Some(command) => handle(&shared, command),
+                Some(command) => handle(&shared, &playback, command),
                 None => break,
             },
             _ = tick.tick() => {
@@ -86,10 +89,36 @@ async fn main_loop(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Co
             }
         }
     }
+    drop(playback);
+    let _ = playback_task.await;
 }
 
-fn handle(shared: &Arc<Shared>, command: Command) {
+fn handle(
+    shared: &Arc<Shared>,
+    playback: &mpsc::UnboundedSender<PlaybackCommand>,
+    command: Command,
+) {
+    let forward = |command| {
+        let _ = playback.send(command);
+    };
     match command {
+        Command::StartPlayback {
+            account_id,
+            item_id,
+        } => forward(PlaybackCommand::Start {
+            account_id,
+            item_id,
+        }),
+        Command::ReportPlayback {
+            position,
+            playing,
+            force_sync,
+        } => forward(PlaybackCommand::Report {
+            position,
+            playing,
+            force_sync,
+        }),
+        Command::StopPlayback => forward(PlaybackCommand::Stop),
         Command::AddAccount {
             url,
             username,
@@ -339,7 +368,7 @@ fn sync_interval(shared: &Shared) -> Duration {
 }
 
 /// Connected sessions, all or the one of `account_id`.
-fn sessions(shared: &Shared, account_id: Option<&str>) -> Vec<Arc<Session>> {
+pub(super) fn sessions(shared: &Shared, account_id: Option<&str>) -> Vec<Arc<Session>> {
     lock_map(&shared.conns)
         .values()
         .filter_map(|conn| match conn {

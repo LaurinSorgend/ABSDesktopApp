@@ -5,6 +5,7 @@
 //! socket whose events update the database.
 
 mod live;
+mod playback;
 mod worker;
 
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ use tokio::sync::mpsc;
 
 use crate::credentials::Credentials;
 use crate::db::Account;
+use crate::playback::PlayStart;
 use crate::sync::CatalogReport;
 
 /// Setting key for the catalog re-sync interval in minutes.
@@ -36,6 +38,21 @@ pub enum Command {
     SyncNow {
         account_id: Option<String>,
     },
+    /// Start a server session for an item; answered with `PlaybackStarted`.
+    /// Closes the previous session first.
+    StartPlayback {
+        account_id: String,
+        item_id: String,
+    },
+    /// The player's state, about once a second and right after pause, seek or
+    /// chapter change (`force_sync`).
+    ReportPlayback {
+        position: f64,
+        playing: bool,
+        force_sync: bool,
+    },
+    /// Close the session, as on stop.
+    StopPlayback,
 }
 
 /// Notifications for the UI.
@@ -77,6 +94,15 @@ pub enum Event {
     /// Items were added, changed or removed by a realtime event.
     CatalogChanged {
         account_id: String,
+    },
+    /// Session started; load these tracks into the player.
+    PlaybackStarted(Box<PlayStart>),
+    PlaybackFailed {
+        message: String,
+    },
+    /// New HTTP headers for the player after a token refresh.
+    PlaybackHeaders {
+        headers: Vec<String>,
     },
     SyncFailed {
         account_id: String,
