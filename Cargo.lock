@@ -72,10 +72,13 @@ dependencies = [
 name = "abs-player"
 version = "0.1.0"
 dependencies = [
+ "abs-api",
  "anyhow",
  "libmpv2",
  "reqwest",
  "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
