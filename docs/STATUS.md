@@ -11,7 +11,7 @@ Open before Phase 0 exit criteria are met:
 - Linux (GNOME and KDE on Wayland): system libmpv, MPRIS via souvlaki, `abs-reader` through `build_gtk`, fractional scaling in Slint, memory as PSS from `/proc/<pid>/smaps_rollup`. Needs a Linux machine.
 - LGPL libmpv build for Windows releases. The dev build (`scripts/fetch-libmpv.ps1`, shinchiro 20261021) is GPL and 116 MB.
 - CI has never run: there is no GitHub remote yet.
-- Measure the symphonia fallback on the 40 h M4B before Phase 1.7 (libmpv/FFmpeg costs about 110 MB extra for long single-file M4B because of the MP4 sample index).
+- Long single-file M4B costs about 110 MB extra in libmpv/FFmpeg (MP4 sample index). symphonia 0.5.5 needs only 13 MB there but its AAC decoder fails on the fixture; see `docs/spike-findings.md`. Revisit after dogfooding.
 
 ## Facts Phase 1 builds on
 
@@ -67,4 +67,10 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - Events used: `init`, `auth_failed`, `user_item_progress_updated`, `item_added`/`item_updated`/`items_added`/`items_updated`, `item_removed`, `library_*`, `user_session_closed` (names checked in `SocketAuthority.js` of 2.26.3 and 2.37.2).
 - The engine runs one realtime task per connected account. Progress events update the `progress` table, item events update the catalog (unknown library triggers a catalog sync), and a reconnect pulls progress.
 
-Next: 1.7 player.
+1.7 is done (`abs-player`, no dependency on `abs-api`):
+- `Player` trait and `MpvPlayer`: tracks as an mpv playlist, global time mapped with `timeline::locate`, cross-track seeks applied on `FileLoaded`, position events every 250 ms, `Ended` after the last track. Demuxer cache capped at 8/2 MiB, mpv's own scripts and `media-controls` off.
+- `controller::Controller`: skip back/forward (10/30 s default), next/previous chapter (restart if more than 3 s in), speed, volume, sleep timer (fixed time or end of chapter) with a 10 s fade.
+- `media_controls`: `MediaControls` trait with a souvlaki implementation and `MediaKey` mapping.
+- Tests: unit tests, plus `cargo test -p abs-player --features integration` playing the fixtures through libmpv with `ao=null`.
+
+Next: 1.8 playback sessions in `core`.
