@@ -23,6 +23,8 @@ pub struct Manifest {
     pub version: u32,
     pub account_id: String,
     pub item_id: String,
+    #[serde(default)]
+    pub library_id: String,
     pub title: String,
     pub author: Option<String>,
     pub duration: f64,
@@ -83,6 +85,7 @@ pub fn plan(
         version: MANIFEST_VERSION,
         account_id: account_id.to_owned(),
         item_id: item.id.clone(),
+        library_id: item.library_id.clone(),
         title: metadata.title.clone().unwrap_or_default(),
         author: metadata.author_name.clone().or_else(|| {
             let names: Vec<_> = metadata.authors.iter().map(|a| a.name.as_str()).collect();

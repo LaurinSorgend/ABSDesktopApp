@@ -1,4 +1,5 @@
-//! Playing downloaded files: tracks and chapters come from the manifest.
+//! Playing without a server session: from downloaded files, or after the server went
+//! away. Listening is recorded as a local session and sent on reconnect.
 
 use std::path::Path;
 use std::sync::Mutex;
@@ -8,29 +9,67 @@ use abs_api::models::Chapter;
 
 use super::{ListenTracker, PlayStart, TrackSource, store_local};
 use crate::account::{AccountError, lock};
-use crate::db::{Db, DownloadState};
+use crate::db::{Db, DownloadState, LocalSessionRow, now_ms};
 use crate::downloads::{self, Manifest};
 
-/// Playback of a downloaded item without a server session.
+/// Playback recorded as a local session.
 pub struct LocalPlayback {
-    pub account_id: String,
-    pub item_id: String,
     pub tracker: ListenTracker,
+    record: LocalSessionRow,
 }
 
 impl LocalPlayback {
+    /// A new local session for an item about to play from `start.start_time`.
     pub fn new(start: &PlayStart) -> Self {
-        Self {
-            account_id: start.account_id.clone(),
-            item_id: start.item_id.clone(),
-            tracker: ListenTracker::new(Instant::now(), start.start_time, start.duration),
-        }
+        let tracker = ListenTracker::new(Instant::now(), start.start_time, start.duration);
+        Self::resume(start, tracker)
     }
 
-    /// Stores the position locally.
+    /// Takes over the tracker of a server session that lost its server.
+    pub fn resume(start: &PlayStart, tracker: ListenTracker) -> Self {
+        let now = now_ms();
+        let record = LocalSessionRow {
+            id: format!("play_local_{}", uuid::Uuid::new_v4()),
+            account_id: start.account_id.clone(),
+            item_id: start.item_id.clone(),
+            library_id: start.library_id.clone(),
+            title: start.title.clone(),
+            author: start.author.clone().unwrap_or_default(),
+            duration: start.duration,
+            start_position: tracker.position(),
+            position: tracker.position(),
+            time_listening: 0.0,
+            started_at: now,
+            updated_at: now,
+            decision: None,
+        };
+        Self { tracker, record }
+    }
+
+    pub fn account_id(&self) -> &str {
+        &self.record.account_id
+    }
+
+    pub fn item_id(&self) -> &str {
+        &self.record.item_id
+    }
+
+    /// The `play_local_` id, so a flush can leave the running session alone.
+    pub fn session_id(&self) -> &str {
+        &self.record.id
+    }
+
+    /// Stores the position, and the session once something was listened to.
     pub fn sync(&mut self, db: &Mutex<Db>) -> Result<(), AccountError> {
         let sync = self.tracker.take_sync(Instant::now());
-        store_local(db, &self.account_id, &self.item_id, &sync)
+        store_local(db, &self.record.account_id, &self.record.item_id, &sync)?;
+        self.record.position = sync.current_time;
+        self.record.time_listening += sync.time_listened;
+        self.record.updated_at = now_ms();
+        if self.record.time_listening > 0.0 {
+            lock(db).store().local_sessions().save(&self.record)?;
+        }
+        Ok(())
     }
 }
 
@@ -57,6 +96,7 @@ fn from_manifest(dir: &Path, manifest: Manifest, position: f64) -> PlayStart {
     PlayStart {
         account_id: manifest.account_id,
         item_id: manifest.item_id,
+        library_id: manifest.library_id,
         title: manifest.title,
         author: manifest.author,
         tracks: manifest

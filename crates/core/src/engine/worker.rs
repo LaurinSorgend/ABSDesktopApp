@@ -9,6 +9,7 @@ use tokio::task::JoinHandle;
 
 use super::downloads;
 use super::live::{Followup, LiveState};
+use super::offline;
 use super::playback::{self, PlaybackCommand};
 use super::requests;
 use super::{Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, SYNC_INTERVAL_SETTING};
@@ -48,6 +49,10 @@ pub(super) struct Shared {
     pub(super) cover_downloads: Semaphore,
     pub(super) download_root: std::path::PathBuf,
     pub(super) download_tasks: Mutex<downloads::Tasks>,
+    /// The local session being recorded right now; flushes leave it alone.
+    pub(super) running_local: Mutex<Option<String>>,
+    /// Conflicts the UI was told about, by account and item.
+    pub(super) conflicts_shown: Mutex<HashSet<(String, String)>>,
     credentials: Credentials,
     http: Client,
     pub(super) emit: Emit,
@@ -70,6 +75,8 @@ pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit
         cover_downloads: Semaphore::new(PARALLEL_COVER_DOWNLOADS),
         download_root: parts.download_root,
         download_tasks: Mutex::default(),
+        running_local: Mutex::default(),
+        conflicts_shown: Mutex::default(),
         credentials: parts.credentials,
         http,
         emit,
@@ -148,6 +155,7 @@ fn handle(
             tokio::spawn(remove(shared.clone(), account_id));
         }
         Command::SetServerUrls { account_id, urls } => set_server_urls(shared, &account_id, &urls),
+        command @ Command::ResolveConflict { .. } => offline::handle(shared, command),
         Command::SyncNow { account_id } => {
             for session in sessions(shared, account_id.as_deref()) {
                 tokio::spawn(sync(shared.clone(), session));
@@ -325,7 +333,7 @@ async fn sync(shared: Arc<Shared>, session: Arc<Session>) {
     }
 }
 
-async fn sync_all(shared: &Shared, session: &Session) -> Result<(), AccountError> {
+async fn sync_all(shared: &Arc<Shared>, session: &Arc<Session>) -> Result<(), AccountError> {
     let account_id = session.account.id.clone();
     let report = sync_catalog(session, &shared.db).await?;
     (shared.emit)(Event::CatalogSynced {
@@ -339,6 +347,7 @@ async fn sync_all(shared: &Shared, session: &Session) -> Result<(), AccountError
             item_ids,
         });
     }
+    offline::flush(shared.clone(), session.clone()).await;
     Ok(())
 }
 
@@ -355,6 +364,9 @@ async fn on_tick(shared: Arc<Shared>) {
         }
     }
     check_connections(&shared).await;
+    for session in sessions(&shared, None) {
+        tokio::spawn(offline::flush(shared.clone(), session));
+    }
     reconnect_offline(&shared);
     downloads::schedule(&shared);
     let interval = sync_interval(&shared);
