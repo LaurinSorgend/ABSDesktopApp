@@ -4,6 +4,7 @@ x-abs: &abs
   restart: unless-stopped
   environment:
     TZ: UTC
+    RATE_LIMIT_AUTH_MAX: "0"
   healthcheck:
     test: ["CMD", "wget", "-qO-", "http://localhost/healthcheck"]
     interval: 5s

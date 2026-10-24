@@ -54,7 +54,7 @@ class Capture:
 
     def save(self, name, value):
         path = self.dir / f"{name}.json"
-        path.write_text(json.dumps(redact(value), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(redact(value), indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
         print(f"wrote {path}")
 
     def get(self, name, path):
