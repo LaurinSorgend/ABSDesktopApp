@@ -17,6 +17,11 @@ pub fn data_dir() -> PathBuf {
     override_dir().unwrap_or_else(|| platform_dir("APPDATA", "XDG_DATA_HOME", ".local/share"))
 }
 
+/// Default folder for downloads, until the user picks another.
+pub fn download_dir() -> PathBuf {
+    data_dir().join("downloads")
+}
+
 /// The cover cache; safe to delete.
 pub fn cache_dir() -> PathBuf {
     override_dir()

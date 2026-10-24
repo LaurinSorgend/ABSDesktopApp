@@ -4,6 +4,7 @@
 //! blocks on network or database work. Each connected account also has a realtime
 //! socket whose events update the database.
 
+mod downloads;
 mod live;
 mod playback;
 mod requests;
@@ -115,6 +116,29 @@ pub enum Command {
     /// New cover cache cap; also stored as a setting.
     SetCoverCacheSize {
         megabytes: u64,
+    },
+    /// Queue an item for download; replaces an earlier download of it.
+    Download {
+        account_id: String,
+        item_id: String,
+    },
+    PauseDownload {
+        account_id: String,
+        item_id: String,
+    },
+    /// Puts a paused or failed download back in the queue.
+    ResumeDownload {
+        account_id: String,
+        item_id: String,
+    },
+    /// Cancels a download or removes a finished one, with its files.
+    DeleteDownload {
+        account_id: String,
+        item_id: String,
+    },
+    /// Folder for new downloads; `None` goes back to the default. Existing downloads stay where they are.
+    SetDownloadRoot {
+        path: Option<PathBuf>,
     },
 }
 
@@ -235,6 +259,18 @@ pub enum Event {
         account_id: String,
         item_id: String,
     },
+    /// A download was queued, started, paused, finished, failed or removed.
+    DownloadsChanged {
+        account_id: String,
+        item_id: String,
+    },
+    /// Bytes on disk of a running download, at most twice a second.
+    DownloadProgress {
+        account_id: String,
+        item_id: String,
+        bytes_done: u64,
+        size: u64,
+    },
     /// A request other than sync or playback failed.
     RequestFailed {
         account_id: String,
@@ -246,6 +282,8 @@ pub enum Event {
 pub struct EngineConfig {
     pub db_path: PathBuf,
     pub cover_root: PathBuf,
+    /// Default folder for downloads; the `download_root` setting overrides it.
+    pub download_root: PathBuf,
     pub credentials: Credentials,
 }
 
@@ -283,6 +321,7 @@ impl Engine {
                 let parts = worker::Parts {
                     db,
                     covers,
+                    download_root: config.download_root,
                     credentials: config.credentials,
                 };
                 worker::run(parts, receiver, Box::new(on_event))

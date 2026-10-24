@@ -7,6 +7,7 @@ use abs_api::reqwest::Client;
 use tokio::sync::{Semaphore, mpsc};
 use tokio::task::JoinHandle;
 
+use super::downloads;
 use super::live::{Followup, LiveState};
 use super::playback::{self, PlaybackCommand};
 use super::requests;
@@ -34,6 +35,7 @@ enum Conn {
 pub(super) struct Parts {
     pub(super) db: Db,
     pub(super) covers: CoverCache,
+    pub(super) download_root: std::path::PathBuf,
     pub(super) credentials: Credentials,
 }
 
@@ -42,6 +44,8 @@ pub(super) struct Shared {
     pub(super) db: Mutex<Db>,
     pub(super) covers: CoverCache,
     pub(super) cover_downloads: Semaphore,
+    pub(super) download_root: std::path::PathBuf,
+    pub(super) download_tasks: Mutex<downloads::Tasks>,
     credentials: Credentials,
     http: Client,
     pub(super) emit: Emit,
@@ -62,6 +66,8 @@ pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit
         db: Mutex::new(parts.db),
         covers: parts.covers,
         cover_downloads: Semaphore::new(PARALLEL_COVER_DOWNLOADS),
+        download_root: parts.download_root,
+        download_tasks: Mutex::default(),
         credentials: parts.credentials,
         http,
         emit,
@@ -79,6 +85,7 @@ async fn main_loop(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Co
         .accounts()
         .list()
         .unwrap_or_default();
+    downloads::recover(&shared);
     (shared.emit)(Event::AccountsLoaded(accounts.clone()));
     for account in accounts {
         start_connect(&shared, account);
@@ -143,6 +150,11 @@ fn handle(
                 tokio::spawn(sync(shared.clone(), session));
             }
         }
+        command @ (Command::Download { .. }
+        | Command::PauseDownload { .. }
+        | Command::ResumeDownload { .. }
+        | Command::DeleteDownload { .. }
+        | Command::SetDownloadRoot { .. }) => downloads::handle(shared, command),
         request => requests::handle(shared, request),
     }
 }
@@ -215,6 +227,7 @@ async fn connected(shared: &Arc<Shared>, session: Session) {
     if let Some(old) = lock_map(&shared.live).insert(account_id, task) {
         old.abort();
     }
+    downloads::schedule(shared);
     sync(shared.clone(), session).await;
 }
 
@@ -268,6 +281,7 @@ async fn remove(shared: Arc<Shared>, account_id: String) {
     if let Some(task) = lock_map(&shared.live).remove(&account_id) {
         task.abort();
     }
+    downloads::forget_account(&shared, &account_id).await;
     let conn = lock_map(&shared.conns).remove(&account_id);
     if let Some(Conn::Connected(session)) = conn {
         let _ = session.client.logout().await;
@@ -338,6 +352,7 @@ async fn on_tick(shared: Arc<Shared>) {
         }
     }
     reconnect_offline(&shared);
+    downloads::schedule(&shared);
     let interval = sync_interval(&shared);
     for session in sessions(&shared, None) {
         let last = lock_map(&shared.last_sync)
@@ -393,6 +408,6 @@ fn set_conn(shared: &Shared, account_id: &str, conn: Conn) {
     lock_map(&shared.conns).insert(account_id.to_owned(), conn);
 }
 
-fn lock_map<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+pub(super) fn lock_map<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|p| p.into_inner())
 }

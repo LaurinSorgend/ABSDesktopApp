@@ -5,7 +5,8 @@ use std::sync::mpsc::{Receiver, channel};
 use std::time::Duration;
 
 use abs_core::credentials::Credentials;
-use abs_core::db::{Db, ItemQuery};
+use abs_core::db::{Db, DownloadRow, DownloadState, ItemQuery};
+use abs_core::downloads;
 use abs_core::engine::{Command, Engine, EngineConfig, Event, GroupKind};
 
 const WAIT: Duration = Duration::from_secs(30);
@@ -15,6 +16,7 @@ fn start(db_path: &std::path::Path, credentials: &Credentials) -> (Engine, Recei
     let config = EngineConfig {
         db_path: db_path.to_owned(),
         cover_root: db_path.with_file_name("covers"),
+        download_root: db_path.with_file_name("downloads"),
         credentials: credentials.clone(),
     };
     let engine = Engine::start(config, move |event| {
@@ -359,4 +361,109 @@ async fn first_item(client: &abs_api::AbsClient) -> String {
         .await
         .unwrap();
     items.results[0].id.clone()
+}
+
+#[test]
+fn download_pause_resume_restart_and_delete() {
+    let server =
+        std::env::var("ABS_TEST_SERVER").unwrap_or_else(|_| "http://localhost:13379".into());
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("app.db");
+    let credentials = Credentials::memory();
+    let (engine, events) = start(&db_path, &credentials);
+    engine.send(Command::AddAccount {
+        url: server,
+        username: "listener".into(),
+        password: "listener-pass".into(),
+    });
+    let account_id = wait_for(&events, |e| match e {
+        Event::AccountAdded(account) => Some(account.id.clone()),
+        _ => None,
+    });
+    wait_for(&events, |e| {
+        matches!(e, Event::CatalogSynced { .. }).then_some(())
+    });
+    let item_id = multi_file_book(&db_path, &account_id);
+    let key = (account_id.clone(), item_id.clone());
+    engine.send(Command::Download {
+        account_id: account_id.clone(),
+        item_id: item_id.clone(),
+    });
+    wait_for(&events, |e| {
+        matches!(e, Event::DownloadProgress { .. }).then_some(())
+    });
+    engine.send(Command::PauseDownload {
+        account_id: account_id.clone(),
+        item_id: item_id.clone(),
+    });
+    let state = wait_download(&events, &db_path, &key, |s| {
+        matches!(s, DownloadState::Paused | DownloadState::Done)
+    });
+    if state == DownloadState::Paused {
+        engine.send(Command::ResumeDownload {
+            account_id: account_id.clone(),
+            item_id: item_id.clone(),
+        });
+    }
+    wait_download(&events, &db_path, &key, |s| s == DownloadState::Done);
+    let row = download(&db_path, &key).unwrap();
+    assert_eq!(row.bytes_done, row.size);
+    let manifest = downloads::read_manifest(&row.dir).unwrap();
+    assert_eq!(manifest.tracks.len(), 5);
+    assert!(row.dir.join(downloads::COVER_FILE).is_file());
+    engine.shutdown();
+
+    let (engine, events) = start(&db_path, &credentials);
+    wait_for(&events, |e| {
+        matches!(e, Event::AccountsLoaded(_)).then_some(())
+    });
+    assert_eq!(download(&db_path, &key).unwrap().state, DownloadState::Done);
+    engine.send(Command::DeleteDownload {
+        account_id,
+        item_id,
+    });
+    wait_for(&events, |e| {
+        matches!(e, Event::DownloadsChanged { .. }).then_some(())
+    });
+    assert!(download(&db_path, &key).is_none());
+    assert!(!row.dir.exists());
+}
+
+fn multi_file_book(db_path: &std::path::Path, account_id: &str) -> String {
+    let db = Db::open(db_path).unwrap();
+    let (library, _) = audiobooks(db_path, account_id);
+    let items = db
+        .store()
+        .catalog()
+        .items_page(account_id, &ItemQuery::new(&library), 0, 10)
+        .unwrap();
+    let book = items
+        .iter()
+        .find(|i| i.title.starts_with("The Happy Prince and"));
+    book.unwrap().remote_id.clone()
+}
+
+fn download(db_path: &std::path::Path, key: &(String, String)) -> Option<DownloadRow> {
+    let db = Db::open(db_path).unwrap();
+    db.store().downloads().get(&key.0, &key.1).unwrap()
+}
+
+/// Waits for download events until the stored state passes `done`.
+fn wait_download(
+    events: &Receiver<Event>,
+    db_path: &std::path::Path,
+    key: &(String, String),
+    done: impl Fn(DownloadState) -> bool,
+) -> DownloadState {
+    loop {
+        if let Some(row) = download(db_path, key) {
+            assert_ne!(row.state, DownloadState::Failed, "{:?}", row.error);
+            if done(row.state) {
+                return row.state;
+            }
+        }
+        wait_for(events, |e| {
+            matches!(e, Event::DownloadsChanged { .. }).then_some(())
+        });
+    }
 }

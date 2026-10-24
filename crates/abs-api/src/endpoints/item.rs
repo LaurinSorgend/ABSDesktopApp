@@ -31,7 +31,10 @@ impl AbsClient {
         let url = self.url(&format!("api/items/{item_id}/file/{ino}/download"))?;
         let request = match offset {
             0 => self.http().get(url),
-            _ => self.http().get(url).header(RANGE, format!("bytes={offset}-")),
+            _ => self
+                .http()
+                .get(url)
+                .header(RANGE, format!("bytes={offset}-")),
         };
         self.send(request).await
     }

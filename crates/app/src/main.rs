@@ -96,6 +96,7 @@ fn start_engine(
     let config = EngineConfig {
         db_path: db_path.to_owned(),
         cover_root: cover_dir.to_owned(),
+        download_root: paths::download_dir(),
         credentials,
     };
     Engine::start(config, move |event| forward(event, &decoder)).context("start the engine")
