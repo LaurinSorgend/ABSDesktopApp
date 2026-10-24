@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use abs_api::http_client;
 use abs_core::account::{Session, add_account};
 use abs_core::credentials::Credentials;
-use abs_core::db::{Db, ItemSort};
+use abs_core::db::{Db, ItemQuery};
 use abs_core::playback::{self, ActivePlayback};
 use abs_core::sync::sync_catalog;
 
@@ -44,9 +44,7 @@ async fn setup(server: &str) -> (Mutex<Db>, Arc<Session>, String) {
             .catalog()
             .items_page(
                 &session.account.id,
-                &library.remote_id,
-                ItemSort::Title,
-                false,
+                &ItemQuery::new(&library.remote_id),
                 0,
                 1,
             )

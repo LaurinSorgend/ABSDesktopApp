@@ -2,7 +2,7 @@ use abs_api::Raw;
 use abs_api::models::{Libraries, LibraryItem, Page};
 
 use super::*;
-use crate::db::{Db, NewAccount};
+use crate::db::{Db, NewAccount, ProgressRow};
 
 fn fixture(name: &str) -> String {
     let path = format!(
@@ -65,15 +65,74 @@ fn converts_expanded_items() {
 fn pages_sort_and_count() {
     let (db, account, library) = seeded();
     let catalog = db.store().catalog();
-    assert_eq!(catalog.item_count(&account, &library).unwrap(), 2);
+    assert_eq!(
+        catalog
+            .item_count(&account, &ItemQuery::new(&library))
+            .unwrap(),
+        2
+    );
     let page = catalog
-        .items_page(&account, &library, ItemSort::Title, false, 0, 1)
+        .items_page(&account, &ItemQuery::new(&library), 0, 1)
         .unwrap();
     assert_eq!(page[0].title, "The Happy Prince and Other Tales");
-    let page = catalog
-        .items_page(&account, &library, ItemSort::Duration, true, 0, 10)
-        .unwrap();
+    let by_duration = ItemQuery {
+        sort: ItemSort::Duration,
+        desc: true,
+        ..ItemQuery::new(&library)
+    };
+    let page = catalog.items_page(&account, &by_duration, 0, 10).unwrap();
     assert_eq!(page[0].title, "The Happy Prince Marathon");
+}
+
+#[test]
+fn filters_by_progress_and_keeps_id_order() {
+    let (db, account, library) = seeded();
+    let store = db.store();
+    let catalog = store.catalog();
+    let all = catalog
+        .items_page(&account, &ItemQuery::new(&library), 0, 10)
+        .unwrap();
+    let started = ProgressRow {
+        item_id: all[1].remote_id.clone(),
+        current_time: 60.0,
+        progress: 0.25,
+        is_finished: false,
+        ebook_location: None,
+        ebook_progress: None,
+        updated_at: 1,
+    };
+    store.progress().upsert(&account, &started).unwrap();
+    let query = |filter| ItemQuery {
+        filter,
+        ..ItemQuery::new(&library)
+    };
+    let in_progress = catalog
+        .items_page(&account, &query(ProgressFilter::InProgress), 0, 10)
+        .unwrap();
+    assert_eq!(in_progress.len(), 1);
+    assert_eq!(in_progress[0].progress, 0.25);
+    let not_started = query(ProgressFilter::NotStarted);
+    assert_eq!(catalog.item_count(&account, &not_started).unwrap(), 1);
+    let finished = query(ProgressFilter::Finished);
+    assert_eq!(catalog.item_count(&account, &finished).unwrap(), 0);
+
+    let ids = [
+        all[1].remote_id.as_str(),
+        "missing",
+        all[0].remote_id.as_str(),
+    ];
+    let by_ids = catalog.items_by_ids(&account, &ids).unwrap();
+    assert_eq!(
+        by_ids,
+        [all[1].clone(), all[0].clone()].map(|mut i| {
+            i.progress = if i.remote_id == started.item_id {
+                0.25
+            } else {
+                0.0
+            };
+            i
+        })
+    );
 }
 
 #[test]
@@ -91,7 +150,12 @@ fn search_matches_prefixes_and_survives_updates() {
     catalog.upsert_items(&account, &[renamed]).unwrap();
     assert!(catalog.search(None, "marathon", 10).unwrap().is_empty());
     assert_eq!(catalog.search(None, "complete", 10).unwrap().len(), 1);
-    assert_eq!(catalog.item_count(&account, &library).unwrap(), 2);
+    assert_eq!(
+        catalog
+            .item_count(&account, &ItemQuery::new(&library))
+            .unwrap(),
+        2
+    );
 }
 
 #[test]
@@ -99,7 +163,7 @@ fn retain_and_library_removal_delete_items() {
     let (db, account, library) = seeded();
     let catalog = db.store().catalog();
     let page = catalog
-        .items_page(&account, &library, ItemSort::Title, false, 0, 10)
+        .items_page(&account, &ItemQuery::new(&library), 0, 10)
         .unwrap();
     let deleted = catalog
         .retain_items(&account, &library, &[page[0].remote_id.as_str()])
@@ -108,7 +172,12 @@ fn retain_and_library_removal_delete_items() {
     assert!(catalog.search(None, "marathon", 10).unwrap().is_empty());
 
     catalog.replace_libraries(&account, &[]).unwrap();
-    assert_eq!(catalog.item_count(&account, &library).unwrap(), 0);
+    assert_eq!(
+        catalog
+            .item_count(&account, &ItemQuery::new(&library))
+            .unwrap(),
+        0
+    );
     assert!(catalog.libraries(&account).unwrap().is_empty());
 }
 
