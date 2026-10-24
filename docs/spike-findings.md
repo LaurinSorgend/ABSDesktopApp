@@ -23,3 +23,30 @@ Measured against the Docker test servers (ABS 2.26.3 and 2.37.2) with `cargo run
 - Skia isn't compiled in by default (`renderer-skia` feature); `SLINT_BACKEND=winit-skia` falls back to FemtoVG.
 - One decoded 320 px cover is 400 KB, so 64 MB holds about 160 covers. Scrolling a 500-item library twice decoded 765 covers. A smaller decode size (exact physical tile size) or a 32 MB cap are the obvious levers.
 - Open: scrolling smoothness, HiDPI on Windows and fractional scaling on Wayland still need a manual check.
+
+## libmpv playback (0.5)
+
+`cargo run -p abs-player --example mpv_spike --release` against ABS 2.37.2 on localhost, `ao=null`, libmpv from shinchiro's build 20261021 (`scripts/fetch-libmpv.ps1`).
+
+- Direct play works with `http-header-fields=Authorization: Bearer <token>` and the session's `contentUrl` prefixed with the server URL.
+- Multi-file book: tracks loaded as a playlist (`loadfile replace`, then `append`). Mapping global time to `(track, offset)` with `startOffset` and switching via `playlist-pos` then `seek absolute` landed exactly on the target for 5 %, 45 % and 90 %. Switching tracks emits `END_FILE` with reason `STOP` (2), which isn't an error.
+- 40 h M4B: open to first audio 462 ms; seeks to 10 %, 50 % and 95 % each took 23-25 ms until `PLAYBACK_RESTART`. This is localhost; a remote server adds its round trip time per seek.
+- Speed 0.75x to 3.0x: audio advances at the expected rate and mpv logs `[autoaspeed] adding scaletempo2`, so pitch is preserved without extra configuration.
+- The shinchiro DLL is 116 MB with everything enabled (Vulkan, libplacebo, Lua, JavaScript, libbluray, ...) and is GPL. It also has `win32-smtc`, mpv's own Windows media controls, which the app must turn off (`media-controls=no`) or use instead of souvlaki (see 0.6).
+
+Private working set (`mpv_idle` example, one URL, `ao=null`):
+
+| Case | Private WS |
+|---|---|
+| libmpv loaded, idle handle | 6.8 MB |
+| MP3 track, default cache (150 MiB forward) | 67.4 MB |
+| MP3 track, `demuxer-max-bytes=8MiB`, `demuxer-max-back-bytes=2MiB` | 24.5 MB |
+| 40 h M4B, default cache | 335.0 MB |
+| 40 h M4B, 8 MiB cap | 133.9 MB |
+| 40 h M4B, `cache=no` | 122.7 MB |
+
+- The default demuxer cache downloads up to 150 MiB ahead; capping it is required.
+- The 40 h M4B costs about 110 MB more than an MP3 track no matter the cache settings. That is FFmpeg's MP4 demuxer keeping its sample tables and index for all ~3.1 million AAC frames in memory. A 20 h M4B at 44.1 kHz has the same frame count, so this hits common single-file books, not only the fixture.
+- Disabling libmpv's built-in Lua scripts (`load-scripts=no` and friends) made no measurable difference.
+
+Options for the M4B index cost, to decide in 0.8: accept it in the playing budget; ask ABS to transcode to HLS for long single-file books (more server CPU); or compare with the symphonia fallback, which reads MP4 sample tables lazily.
