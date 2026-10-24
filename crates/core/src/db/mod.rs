@@ -14,7 +14,7 @@ use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
 
 pub use accounts::{Account, Accounts, NewAccount};
-pub use catalog::{Catalog, ItemRow, ItemSort, ItemSummary, LibraryRow};
+pub use catalog::{Catalog, ItemQuery, ItemRow, ItemSort, ItemSummary, LibraryRow, ProgressFilter};
 pub use progress::{BookmarkRow, Progress, ProgressRow};
 pub use queue::{PendingSync, Queue};
 pub use settings::Settings;

@@ -58,6 +58,50 @@ pub struct ItemSummary {
     pub series: Option<String>,
     pub duration: Option<f64>,
     pub cover_etag: Option<String>,
+    /// Listening progress from 0 to 1; 0 when never started.
+    pub progress: f64,
+    pub is_finished: bool,
+}
+
+/// Which items of a library a page shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ItemQuery<'q> {
+    pub library_id: &'q str,
+    pub sort: ItemSort,
+    pub desc: bool,
+    pub filter: ProgressFilter,
+}
+
+impl<'q> ItemQuery<'q> {
+    /// All items by title.
+    pub fn new(library_id: &'q str) -> Self {
+        Self {
+            library_id,
+            sort: ItemSort::Title,
+            desc: false,
+            filter: ProgressFilter::All,
+        }
+    }
+}
+
+/// Filter by listening state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProgressFilter {
+    All,
+    NotStarted,
+    InProgress,
+    Finished,
+}
+
+impl ProgressFilter {
+    fn condition(self) -> &'static str {
+        match self {
+            Self::All => "1",
+            Self::NotStarted => "coalesce(p.position, 0) = 0 AND coalesce(p.is_finished, 0) = 0",
+            Self::InProgress => "p.position > 0 AND p.is_finished = 0",
+            Self::Finished => "p.is_finished = 1",
+        }
+    }
 }
 
 /// Sort orders for [`Catalog::items_page`].
@@ -72,13 +116,13 @@ pub enum ItemSort {
 impl ItemSort {
     fn order_by(self, desc: bool) -> String {
         let column = match self {
-            Self::Title => "title_sort COLLATE NOCASE",
-            Self::Author => "author COLLATE NOCASE",
-            Self::AddedAt => "added_at",
-            Self::Duration => "duration",
+            Self::Title => "item.title_sort COLLATE NOCASE",
+            Self::Author => "item.author COLLATE NOCASE",
+            Self::AddedAt => "item.added_at",
+            Self::Duration => "item.duration",
         };
         let direction = if desc { "DESC" } else { "ASC" };
-        format!("{column} {direction}, title_sort COLLATE NOCASE, remote_id")
+        format!("{column} {direction}, item.title_sort COLLATE NOCASE, item.remote_id")
     }
 }
 
@@ -197,35 +241,53 @@ impl<'a> Catalog<'a> {
         )?)
     }
 
-    pub fn item_count(&self, account_id: &str, library_id: &str) -> DbResult<i64> {
-        Ok(self.conn.query_row(
-            "SELECT count(*) FROM item WHERE account_id = ?1 AND library_id = ?2",
-            [account_id, library_id],
-            |r| r.get(0),
-        )?)
+    /// Number of items matching the query.
+    pub fn item_count(&self, account_id: &str, query: &ItemQuery<'_>) -> DbResult<i64> {
+        let sql = format!(
+            "SELECT count(*) {FROM_ITEM} WHERE item.account_id = ?1 AND item.library_id = ?2
+             AND {}",
+            query.filter.condition()
+        );
+        Ok(self
+            .conn
+            .query_row(&sql, [account_id, query.library_id], |r| r.get(0))?)
     }
 
     /// One page of a library, for the grid.
     pub fn items_page(
         &self,
         account_id: &str,
-        library_id: &str,
-        sort: ItemSort,
-        desc: bool,
+        query: &ItemQuery<'_>,
         offset: u64,
         limit: u64,
     ) -> DbResult<Vec<ItemSummary>> {
         let sql = format!(
-            "{SELECT_SUMMARY} FROM item WHERE account_id = ?1 AND library_id = ?2
-             ORDER BY {} LIMIT ?3 OFFSET ?4",
-            sort.order_by(desc)
+            "{SELECT_SUMMARY} {FROM_ITEM} WHERE item.account_id = ?1 AND item.library_id = ?2
+             AND {} ORDER BY {} LIMIT ?3 OFFSET ?4",
+            query.filter.condition(),
+            query.sort.order_by(query.desc)
         );
         let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(
-            params![account_id, library_id, limit as i64, offset as i64],
+            params![account_id, query.library_id, limit as i64, offset as i64],
             summary_row,
         )?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// The items with these ids, in the given order; unknown ids are skipped.
+    pub fn items_by_ids(&self, account_id: &str, ids: &[&str]) -> DbResult<Vec<ItemSummary>> {
+        let sql = format!(
+            "{SELECT_SUMMARY} {FROM_ITEM} WHERE item.account_id = ?1 AND item.remote_id = ?2"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let mut items = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(item) = stmt.query_row([account_id, id], summary_row).optional()? {
+                items.push(item);
+            }
+        }
+        Ok(items)
     }
 
     /// The full server JSON of one item.
@@ -252,7 +314,7 @@ impl<'a> Catalog<'a> {
         };
         let sql = format!(
             "{SELECT_SUMMARY} FROM item_fts JOIN item ON item.rowid = item_fts.rowid
-             WHERE item_fts MATCH ?1 AND (?2 IS NULL OR item.account_id = ?2)
+             {JOIN_PROGRESS} WHERE item_fts MATCH ?1 AND (?2 IS NULL OR item.account_id = ?2)
              ORDER BY bm25(item_fts) LIMIT ?3"
         );
         let mut stmt = self.conn.prepare(&sql)?;
@@ -285,7 +347,14 @@ const UPSERT_ITEM: &str = "INSERT INTO item(account_id, remote_id, library_id, t
         added_at = excluded.added_at, updated_at = excluded.updated_at, raw_json = excluded.raw_json";
 
 const SELECT_SUMMARY: &str = "SELECT item.account_id, item.remote_id, item.library_id, item.title,
-    item.author, item.narrator, item.series, item.duration, item.cover_etag";
+    item.author, item.narrator, item.series, item.duration, item.cover_etag,
+    coalesce(p.progress, 0), coalesce(p.is_finished, 0)";
+
+const JOIN_PROGRESS: &str =
+    "LEFT JOIN progress p ON p.account_id = item.account_id AND p.item_id = item.remote_id";
+
+const FROM_ITEM: &str = "FROM item LEFT JOIN progress p
+    ON p.account_id = item.account_id AND p.item_id = item.remote_id";
 
 fn summary_row(row: &Row<'_>) -> rusqlite::Result<ItemSummary> {
     Ok(ItemSummary {
@@ -298,6 +367,8 @@ fn summary_row(row: &Row<'_>) -> rusqlite::Result<ItemSummary> {
         series: row.get(6)?,
         duration: row.get(7)?,
         cover_etag: row.get(8)?,
+        progress: row.get(9)?,
+        is_finished: row.get(10)?,
     })
 }
 

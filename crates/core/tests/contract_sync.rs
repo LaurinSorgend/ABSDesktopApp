@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use abs_api::http_client;
 use abs_core::account::{add_account, restore_account};
 use abs_core::credentials::Credentials;
-use abs_core::db::{Db, ItemSort};
+use abs_core::db::{Db, ItemQuery};
 use abs_core::sync::{sync_catalog, sync_progress};
 
 fn servers() -> Vec<String> {
@@ -83,8 +83,10 @@ fn grid_count(db: &Mutex<Db>, account_id: &str) -> i64 {
         .find(|l| l.name == "Grid")
         .unwrap();
     let first = catalog
-        .items_page(account_id, &grid.remote_id, ItemSort::Title, false, 0, 1)
+        .items_page(account_id, &ItemQuery::new(&grid.remote_id), 0, 1)
         .unwrap();
     assert_eq!(first.len(), 1);
-    catalog.item_count(account_id, &grid.remote_id).unwrap()
+    catalog
+        .item_count(account_id, &ItemQuery::new(&grid.remote_id))
+        .unwrap()
 }
