@@ -204,7 +204,7 @@ Goal: a good single-view player on a data model that already supports many accou
 ### 1.10 CI and builds
 - [ ] CI job with the Docker ABS services running the integration tests on Linux.
 - [ ] Release workflow on tags: Windows zip (exe + libmpv DLLs + license files), Linux AppImage.
-- [ ] Include third-party license texts (libmpv, FFmpeg LGPL, Slint, crates via `cargo-about`).
+- [x] Include third-party license texts (libmpv, FFmpeg LGPL, Slint, crates via `cargo-about`).
 
 ### 1.11 Dogfooding
 - [ ] Use the app for a week alongside the phone app.

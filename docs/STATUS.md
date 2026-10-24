@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-10-24.
+Last updated 2026-10-25.
 
 ## Phase 0: done on Windows, Linux open
 
@@ -10,7 +10,7 @@ Open before Phase 0 exit criteria are met:
 
 - Linux (GNOME and KDE on Wayland): system libmpv, MPRIS via souvlaki, `abs-reader` through `build_gtk`, fractional scaling in Slint, memory as PSS from `/proc/<pid>/smaps_rollup`. Needs a Linux machine.
 - LGPL libmpv build for Windows releases. The dev build (`scripts/fetch-libmpv.ps1`, shinchiro 20261021) is GPL and 116 MB.
-- CI has never run: there is no GitHub remote yet.
+- CI and the release workflow have never run: there is no GitHub remote yet.
 - Long single-file M4B costs about 110 MB extra in libmpv/FFmpeg (MP4 sample index). symphonia 0.5.5 needs only 13 MB there but its AAC decoder fails on the fixture; see `docs/spike-findings.md`. Revisit after dogfooding.
 
 ## Facts Phase 1 builds on
@@ -88,4 +88,12 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - Found on a real server: home shelves such as "continue series" send `media.metadata.series` as one object. `abs-api` accepts both, and shelves skip entities they cannot decode.
 - Not done: no UI automation tests; theme swatches do not refresh when the system switches light/dark while the settings page is open.
 
-Next: hands-on pass of 1.9, then 1.10 CI and builds.
+1.10 is written, not yet run on GitHub (no remote):
+- `ci.yml`: `check` (fmt, clippy, unit tests) on Windows and Linux; `integration` on Linux fetches the fixtures (cached by the script's hash), starts both Docker servers and runs `cargo test --workspace --features abs-api/integration,abs-core/integration,abs-player/integration`. That command passes locally against both servers.
+- `docker/init_server.py` now waits until the scans finish, so one run sets up a fresh server.
+- `release.yml` on `v*` tags: `scripts/package-windows.ps1` (zip with exe, `libmpv-2.dll`, LICENSE, README, `THIRD-PARTY-LICENSES.html` from cargo-about, mpv/FFmpeg/font licenses) and `scripts/package-linux.sh` (AppImage via linuxdeploy on Ubuntu 22.04), then a draft GitHub release. The Windows zip builds and starts locally (61 MB, most of it libmpv); the Linux script has not run yet.
+- cargo-about config is `packaging/about.toml`; it needs `cargo install cargo-about --features cli`.
+- App icon: `packaging/icons/` from `packaging/make_icon.py`, used as the window icon. The exe has no embedded icon yet. Release builds use the Windows GUI subsystem (no console).
+- The Windows zip ships the GPL shinchiro libmpv; that is allowed under our GPL-3.0 license, but the 116 MB size stays a reason for our own build.
+
+Next: run both workflows once a GitHub remote exists, the hands-on pass of 1.9, then 1.11 dogfooding.
