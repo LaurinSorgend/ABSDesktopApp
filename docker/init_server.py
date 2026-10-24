@@ -1,6 +1,6 @@
 """Initialise a fresh Audiobookshelf test server.
 
-Creates the root admin, a second user and one library per fixture folder,
+Creates the root admin, two more users and one library per fixture folder,
 then starts a scan and adds one collection and one series. Safe to rerun: existing users and libraries are kept.
 
 Usage: python docker/init_server.py http://localhost:13379
@@ -12,7 +12,10 @@ import urllib.error
 import urllib.request
 
 ADMIN = {"username": "admin", "password": "admin-pass"}
-USER = {"username": "listener", "password": "listener-pass", "type": "user"}
+USERS = [
+    {"username": "listener", "password": "listener-pass", "type": "user", "isActive": True},
+    {"username": "leaver", "password": "leaver-pass", "type": "user", "isActive": True},
+]
 COLLECTION = "Fixture favourites"
 SERIES = "Fixture series"
 LIBRARIES = [
@@ -53,13 +56,17 @@ def login(base):
     return user.get("accessToken") or user["token"]
 
 
-def ensure_user(base, token):
-    """Create the second, non-admin user."""
-    users = request(base, "GET", "/api/users", token=token)["users"]
-    if any(u["username"] == USER["username"] for u in users):
-        return
-    request(base, "POST", "/api/users", USER, token)
-    print(f"created user {USER['username']}")
+def ensure_users(base, token):
+    """Create the non-admin users. `leaver` is only used by logout tests."""
+    users = {u["username"]: u for u in request(base, "GET", "/api/users", token=token)["users"]}
+    for spec in USERS:
+        existing = users.get(spec["username"])
+        if not existing:
+            request(base, "POST", "/api/users", spec, token)
+            print(f"created user {spec['username']}")
+        elif not existing["isActive"]:
+            request(base, "PATCH", f"/api/users/{existing['id']}", {"isActive": True}, token)
+            print(f"activated user {spec['username']}")
 
 
 def ensure_libraries(base, token):
@@ -106,7 +113,7 @@ def main():
     try:
         ensure_root(base)
         token = login(base)
-        ensure_user(base, token)
+        ensure_users(base, token)
         ensure_libraries(base, token)
         ensure_collection(base, token)
         ensure_series(base, token)
