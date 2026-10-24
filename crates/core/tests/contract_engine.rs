@@ -306,16 +306,17 @@ fn ui_requests() {
         time: 12.0,
         title: "Engine".into(),
     });
+    wait_for(&events, |e| {
+        matches!(e, Event::BookmarksChanged { .. }).then_some(())
+    });
     request(Command::RemoveBookmark {
         account_id: account(),
         item_id: item.clone(),
         time: 12.0,
     });
-    for _ in 0..2 {
-        wait_for(&events, |e| {
-            matches!(e, Event::BookmarksChanged { .. }).then_some(())
-        });
-    }
+    wait_for(&events, |e| {
+        matches!(e, Event::BookmarksChanged { .. }).then_some(())
+    });
     engine.shutdown();
 }
 
@@ -411,6 +412,17 @@ fn download_pause_resume_restart_and_delete() {
     let manifest = downloads::read_manifest(&row.dir).unwrap();
     assert_eq!(manifest.tracks.len(), 5);
     assert!(row.dir.join(downloads::COVER_FILE).is_file());
+    engine.send(Command::StartPlayback {
+        account_id: account_id.clone(),
+        item_id: item_id.clone(),
+    });
+    let started = wait_for(&events, |e| match e {
+        Event::PlaybackStarted(start) => Some(start.clone()),
+        _ => None,
+    });
+    assert!(started.local && started.http_headers.is_empty());
+    assert!(std::path::Path::new(&started.tracks[4].url).is_file());
+    assert_eq!(started.chapters.len(), manifest.chapters.len());
     engine.shutdown();
 
     let (engine, events) = start(&db_path, &credentials);
