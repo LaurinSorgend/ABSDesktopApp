@@ -49,4 +49,6 @@ cargo test -p abs-api --features integration   # contract tests against both Doc
 python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 ```
 
-Next: 1.3 storage in `core`.
+1.3 is done: `abs_core::db` (rusqlite 0.40 bundled, WAL, foreign keys, `rusqlite_migration`). `Db::store()` gives the repositories (accounts, catalog, progress, queue, settings), `Db::write` runs them in one transaction. Item search uses an FTS5 external-content table kept in sync by triggers. The progress column is `position`, because `current_time` is an SQLite keyword. Item rows also have `added_at`, which the plan's schema lacked.
+
+Next: 1.4 credentials (keyring) and cover cache.

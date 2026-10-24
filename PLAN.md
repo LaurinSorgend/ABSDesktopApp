@@ -138,8 +138,8 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Token test: refresh rotation, expired access token recovery.
 
 ### 1.3 `core`: storage
-- [ ] `rusqlite` with WAL and foreign keys; migrations via `rusqlite_migration`.
-- [ ] Schema v1:
+- [x] `rusqlite` with WAL and foreign keys; migrations via `rusqlite_migration`.
+- [x] Schema v1:
   - `server(id, name)`, `server_url(server_id, url, priority)`
   - `account(id uuid, server_id, user_id, username, device_id, created_at)`
   - `library(account_id, remote_id, name, media_type, raw_json)`
@@ -149,7 +149,7 @@ Goal: a good single-view player on a data model that already supports many accou
   - `pending_sync(id, account_id, kind, payload, created_at)`
   - `setting(key, value)`
   - FTS5 table over title, author, narrator, series.
-- [ ] Repository layer with one module per table group; no SQL outside `core::db`.
+- [x] Repository layer with one module per table group; no SQL outside `core::db`.
 
 ### 1.4 `core`: credentials and cover cache
 - [ ] `keyring-core` with the Windows store and the zbus Secret Service store; entries keyed by account UUID.
