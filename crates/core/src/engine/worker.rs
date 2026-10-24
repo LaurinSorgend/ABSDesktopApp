@@ -4,18 +4,21 @@ use std::time::{Duration, Instant};
 
 use abs_api::Realtime;
 use abs_api::reqwest::Client;
-use tokio::sync::mpsc;
+use tokio::sync::{Semaphore, mpsc};
 use tokio::task::JoinHandle;
 
 use super::live::{Followup, LiveState};
 use super::playback::{self, PlaybackCommand};
+use super::requests;
 use super::{Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, SYNC_INTERVAL_SETTING};
 use crate::account::{AccountError, Session, add_account, lock, restore_account};
+use crate::cover_cache::CoverCache;
 use crate::credentials::Credentials;
 use crate::db::{Account, Db};
 use crate::sync::{sync_catalog, sync_progress};
 
 const TICK: Duration = Duration::from_secs(60);
+const PARALLEL_COVER_DOWNLOADS: usize = 6;
 
 type Emit = Box<dyn Fn(Event) + Send + Sync>;
 
@@ -27,9 +30,18 @@ enum Conn {
     NeedsLogin,
 }
 
+/// What the engine thread starts with.
+pub(super) struct Parts {
+    pub(super) db: Db,
+    pub(super) covers: CoverCache,
+    pub(super) credentials: Credentials,
+}
+
 /// State shared by the engine's tasks.
 pub(super) struct Shared {
     pub(super) db: Mutex<Db>,
+    pub(super) covers: CoverCache,
+    pub(super) cover_downloads: Semaphore,
     credentials: Credentials,
     http: Client,
     pub(super) emit: Emit,
@@ -40,20 +52,17 @@ pub(super) struct Shared {
 }
 
 /// Runs until the command channel closes.
-pub(super) fn run(
-    db: Db,
-    credentials: Credentials,
-    commands: mpsc::UnboundedReceiver<Command>,
-    emit: Emit,
-) {
+pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit: Emit) {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .expect("engine runtime");
     let http = abs_api::http_client().expect("http client");
     let shared = Arc::new(Shared {
-        db: Mutex::new(db),
-        credentials,
+        db: Mutex::new(parts.db),
+        covers: parts.covers,
+        cover_downloads: Semaphore::new(PARALLEL_COVER_DOWNLOADS),
+        credentials: parts.credentials,
         http,
         emit,
         conns: Mutex::default(),
@@ -134,6 +143,7 @@ fn handle(
                 tokio::spawn(sync(shared.clone(), session));
             }
         }
+        request => requests::handle(shared, request),
     }
 }
 

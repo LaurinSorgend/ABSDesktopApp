@@ -5,7 +5,8 @@ use std::sync::mpsc::{Receiver, channel};
 use std::time::Duration;
 
 use abs_core::credentials::Credentials;
-use abs_core::engine::{Command, Engine, EngineConfig, Event};
+use abs_core::db::{Db, ItemQuery};
+use abs_core::engine::{Command, Engine, EngineConfig, Event, GroupKind};
 
 const WAIT: Duration = Duration::from_secs(30);
 
@@ -13,6 +14,7 @@ fn start(db_path: &std::path::Path, credentials: &Credentials) -> (Engine, Recei
     let (sender, events) = channel();
     let config = EngineConfig {
         db_path: db_path.to_owned(),
+        cover_root: db_path.with_file_name("covers"),
         credentials: credentials.clone(),
     };
     let engine = Engine::start(config, move |event| {
@@ -32,7 +34,9 @@ fn wait_for<T>(events: &Receiver<Event>, mut pick: impl FnMut(&Event) -> Option<
         assert!(
             !matches!(
                 event,
-                Event::AddAccountFailed { .. } | Event::SyncFailed { .. }
+                Event::AddAccountFailed { .. }
+                    | Event::SyncFailed { .. }
+                    | Event::RequestFailed { .. }
             ),
             "{event:?}"
         );
@@ -181,6 +185,154 @@ fn playback_session_through_the_engine() {
         Some(703.0),
         "closing on exit sends the last position"
     );
+}
+
+#[test]
+fn ui_requests() {
+    let server =
+        std::env::var("ABS_TEST_SERVER").unwrap_or_else(|_| "http://localhost:13379".into());
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("app.db");
+    let (engine, events) = start(&db_path, &Credentials::memory());
+    engine.send(Command::AddAccount {
+        url: server,
+        username: "admin".into(),
+        password: "admin-pass".into(),
+    });
+    let account_id = wait_for(&events, |e| match e {
+        Event::AccountAdded(account) => Some(account.id.clone()),
+        _ => None,
+    });
+    wait_for(&events, |e| {
+        matches!(e, Event::CatalogSynced { .. }).then_some(())
+    });
+    let (library_id, item) = audiobooks(&db_path, &account_id);
+    let request = |command: Command| engine.send(command);
+    let account = || account_id.clone();
+
+    request(Command::LoadCover {
+        account_id: account(),
+        item_id: item.clone(),
+        etag: Some("e1".into()),
+        width: 120,
+    });
+    let cover = wait_for(&events, |e| match e {
+        Event::CoverLoaded { bytes, .. } => Some(bytes.clone()),
+        _ => None,
+    });
+    assert!(
+        cover.is_some_and(|b| b.starts_with(b"RIFF")),
+        "a WebP cover"
+    );
+
+    request(Command::LoadItem {
+        account_id: account(),
+        item_id: item.clone(),
+    });
+    let json = wait_for(&events, |e| match e {
+        Event::ItemLoaded { json, .. } => Some(json.clone()),
+        _ => None,
+    });
+    assert!(json.contains("\"chapters\""));
+
+    request(Command::LoadShelves {
+        account_id: account(),
+        library_id: library_id.clone(),
+    });
+    let shelves = wait_for(&events, |e| match e {
+        Event::ShelvesLoaded { shelves, .. } => Some(shelves.clone()),
+        _ => None,
+    });
+    assert!(!shelves.is_empty());
+
+    request(Command::SearchServer {
+        account_id: account(),
+        library_id: library_id.clone(),
+        text: "marathon".into(),
+    });
+    let hits = wait_for(&events, |e| match e {
+        Event::SearchResults { item_ids, .. } => Some(item_ids.clone()),
+        _ => None,
+    });
+    assert!(!hits.is_empty());
+
+    for (kind, name) in [
+        (GroupKind::Series, "Fixture series"),
+        (GroupKind::Collections, "Fixture favourites"),
+        (GroupKind::Authors, "Oscar Wilde"),
+    ] {
+        request(Command::LoadGroups {
+            account_id: account(),
+            library_id: library_id.clone(),
+            kind,
+        });
+        let groups = wait_for(&events, |e| match e {
+            Event::GroupsLoaded { groups, .. } => Some(groups.clone()),
+            _ => None,
+        });
+        let group = groups.into_iter().find(|g| g.name == name).unwrap();
+        assert!(group.count >= 1, "{name}");
+        if kind == GroupKind::Authors {
+            request(Command::LoadAuthorItems {
+                account_id: account(),
+                library_id: library_id.clone(),
+                author_id: group.id.clone(),
+            });
+            let ids = wait_for(&events, |e| match e {
+                Event::GroupItems { item_ids, .. } => Some(item_ids.clone()),
+                _ => None,
+            });
+            assert!(!ids.is_empty());
+        } else {
+            assert!(!group.item_ids.is_empty(), "{name}");
+        }
+    }
+
+    for finished in [true, false] {
+        request(Command::SetFinished {
+            account_id: account(),
+            item_id: item.clone(),
+            finished,
+        });
+        wait_for(&events, |e| {
+            matches!(e, Event::ProgressChanged { .. }).then_some(())
+        });
+    }
+    request(Command::AddBookmark {
+        account_id: account(),
+        item_id: item.clone(),
+        time: 12.0,
+        title: "Engine".into(),
+    });
+    request(Command::RemoveBookmark {
+        account_id: account(),
+        item_id: item.clone(),
+        time: 12.0,
+    });
+    for _ in 0..2 {
+        wait_for(&events, |e| {
+            matches!(e, Event::BookmarksChanged { .. }).then_some(())
+        });
+    }
+    engine.shutdown();
+}
+
+/// The Audiobooks library and its first item, read through a second connection as the app does.
+fn audiobooks(db_path: &std::path::Path, account_id: &str) -> (String, String) {
+    let db = Db::open(db_path).unwrap();
+    let store = db.store();
+    let library = store
+        .catalog()
+        .libraries(account_id)
+        .unwrap()
+        .into_iter()
+        .find(|l| l.name == "Audiobooks")
+        .unwrap();
+    let items = store
+        .catalog()
+        .items_page(account_id, &ItemQuery::new(&library.remote_id), 0, 1)
+        .unwrap();
+    (library.remote_id, items[0].remote_id.clone())
 }
 
 async fn server_progress(server: &str, item_id: &str) -> Option<f64> {
