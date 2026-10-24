@@ -202,7 +202,7 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Hands-on pass of every screen against both test servers and a real library.
 
 ### 1.10 CI and builds
-- [ ] CI job with the Docker ABS services running the integration tests on Linux.
+- [x] CI job with the Docker ABS services running the integration tests on Linux.
 - [ ] Release workflow on tags: Windows zip (exe + libmpv DLLs + license files), Linux AppImage.
 - [x] Include third-party license texts (libmpv, FFmpeg LGPL, Slint, crates via `cargo-about`).
 
