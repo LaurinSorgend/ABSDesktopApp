@@ -57,3 +57,20 @@ Options for the M4B index cost, to decide in 0.8: accept it in the playing budge
 
 - Windows: the HWND comes from Slint through `raw-window-handle` 0.6 (`slint` feature `raw-window-handle-06`), read 200 ms after the event loop starts. `MediaControls::new`, `attach` and `set_metadata` with a `file://` cover succeed.
 - Open: SMTC overlay content, media keys and position display need a manual check on Windows 11. MPRIS on GNOME and KDE (Wayland) is untested; it needs a Linux machine.
+
+## Reader helper (0.7)
+
+`cargo run -p abs-reader --release -- <book> [saved CFI]` with foliate-js pinned at `78914ae` (2026-05-01) as a submodule in `vendor/foliate-js`.
+
+- tao 0.37 + wry 0.57. The custom protocol `abs` serves the host page, foliate-js files and the book bytes; WebView2 exposes it as `http://abs.localhost`, other platforms as `abs://localhost`. No localhost server, no token in JS. Paths outside the foliate folder are rejected.
+- CSP on the host page: `default-src 'self'`, scripts from `'self'` only, `blob:` allowed for frames, styles, images and fonts because foliate renders sections from blob URLs.
+- Windows 11, all three formats open and report `toc`, `relocate {cfi, fraction, chapter}` and `ready` over stdout:
+
+| Fixture | Private WS, reader + WebView2 tree (7 processes) |
+|---|---|
+| EPUB (Alice, Gutenberg) | 80.7 MB |
+| CBZ (24 pages) | 80.9 MB |
+| PDF (12 MB scan, foliate's bundled PDF.js) | 100.6 MB |
+
+- Passing a saved CFI (`epubcfi(/6/14!/4/2)`) opens at Chapter V, fraction 0.307.
+- Open: GNOME and KDE on Wayland (`build_gtk` path is written but not run yet), `set_memory_usage_level` when hidden.
