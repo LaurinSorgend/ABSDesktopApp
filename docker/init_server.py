@@ -16,6 +16,7 @@ USER = {"username": "listener", "password": "listener-pass", "type": "user"}
 LIBRARIES = [
     {"name": "Audiobooks", "mediaType": "book", "folders": [{"fullPath": "/media/audiobooks"}]},
     {"name": "Ebooks", "mediaType": "book", "folders": [{"fullPath": "/media/ebooks"}]},
+    {"name": "Grid", "mediaType": "book", "folders": [{"fullPath": "/media/grid"}]},
 ]
 
 
