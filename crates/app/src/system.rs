@@ -52,7 +52,7 @@ fn attach_media_controls(window: &AppWindow) {
 fn on_close() -> CloseRequestResponse {
     let keep_running = Rc::new(Cell::new(false));
     let answer = keep_running.clone();
-    with_app(move |app| answer.set(app.is_playing() && app.close_to_tray() && cfg!(windows)));
+    with_app(move |app| answer.set(app.keeps_running_on_close()));
     if !keep_running.get() {
         let _ = slint::quit_event_loop();
     }

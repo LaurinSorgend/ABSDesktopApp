@@ -11,6 +11,7 @@ mod playback;
 mod settings;
 mod system;
 mod theme;
+mod tray;
 
 use std::path::Path;
 use std::rc::Rc;
