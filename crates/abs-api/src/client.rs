@@ -10,6 +10,7 @@ use crate::models::Status;
 use crate::version::{Feature, ServerVersion};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const PING_TIMEOUT: Duration = Duration::from_secs(10);
 const USER_AGENT: &str = concat!("abs-desktop/", env!("CARGO_PKG_VERSION"));
 
 /// HTTP client for one account on one Audiobookshelf server.
@@ -57,6 +58,12 @@ impl AbsClient {
             refresh_lock: tokio::sync::Mutex::new(()),
             sink: Box::new(()),
         })
+    }
+
+    /// `GET /ping` without auth: fails with [`Error::Network`] when the server is gone.
+    pub async fn ping(&self) -> Result<()> {
+        let request = self.http.get(self.url("ping")?).timeout(PING_TIMEOUT);
+        check(request.send().await?).await.map(drop)
     }
 
     /// Sets where new refresh tokens are stored.

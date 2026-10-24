@@ -120,3 +120,14 @@ async fn create_api_key(server: &str) -> String {
         .unwrap();
     response["apiKey"]["apiKey"].as_str().unwrap().to_owned()
 }
+
+#[tokio::test]
+async fn ping_answers_without_login() {
+    for server in common::servers() {
+        let (client, _) = common::client(&server).await;
+        client
+            .ping()
+            .await
+            .unwrap_or_else(|e| panic!("{server}: {e}"));
+    }
+}
