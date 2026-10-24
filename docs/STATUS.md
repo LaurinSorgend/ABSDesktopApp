@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-10-25.
+Last updated 2026-10-24.
 
 ## Phase 0: done on Windows, Linux open
 
