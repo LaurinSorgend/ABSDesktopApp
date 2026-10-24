@@ -9,3 +9,4 @@ CLAUDE.md
 /docker/data/
 /fixtures/media/
 /vendor/libmpv/
+/dist/
