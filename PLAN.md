@@ -111,31 +111,31 @@ Goal: prove the risky parts and measure memory before writing real code. Spike c
 Goal: a good single-view player on a data model that already supports many accounts.
 
 ### 1.1 `abs-api`: client and auth
-- [ ] `AbsClient` per account: base URL, shared `reqwest::Client` (rustls), token state.
-- [ ] Models with `#[serde(default)]`, unknown fields ignored, and the raw JSON kept alongside typed fields.
-- [ ] Auth:
-  - [ ] `login(username, password)` with `x-return-tokens: true`.
-  - [ ] `login_api_key(key)` as an alternative.
-  - [ ] Parse the JWT `exp` claim; schedule refresh before expiry. Never hard-code lifetimes.
-  - [ ] Single in-flight refresh per account (mutex or `tokio::sync::OnceCell`-style guard).
-  - [ ] Persist the new refresh token before dropping the old one (rotation on every use).
-  - [ ] On 401: refresh once, retry once, then surface "login required".
-  - [ ] `logout()` via `POST /logout` with `x-refresh-token`.
-- [ ] Version gating: read `serverVersion` from `/status`, expose `supports(feature)`.
-- [ ] Respect `ROUTER_BASE_PATH` (server under a subpath).
-- [ ] Endpoints for the MVP:
+- [x] `AbsClient` per account: base URL, shared `reqwest::Client` (rustls), token state.
+- [x] Models with `#[serde(default)]`, unknown fields ignored, and the raw JSON kept alongside typed fields.
+- [x] Auth:
+  - [x] `login(username, password)` with `x-return-tokens: true`.
+  - [x] `login_api_key(key)` as an alternative.
+  - [x] Parse the JWT `exp` claim; schedule refresh before expiry. Never hard-code lifetimes.
+  - [x] Single in-flight refresh per account (mutex or `tokio::sync::OnceCell`-style guard).
+  - [x] Persist the new refresh token before dropping the old one (rotation on every use).
+  - [x] On 401: refresh once, retry once, then surface "login required".
+  - [x] `logout()` via `POST /logout` with `x-refresh-token`.
+- [x] Version gating: read `serverVersion` from `/status`, expose `supports(feature)`.
+- [x] Respect `ROUTER_BASE_PATH` (server under a subpath).
+- [x] Endpoints for the MVP:
   - `GET /api/me`, `GET /api/me/progress` (2.36+, else login payload `mediaProgress`)
   - `GET /api/libraries`, `GET /api/libraries/:id/items` (paginated, `minified=1`, base64 filters)
   - library-scoped series, authors, collections, search, personalized shelves
   - `GET /api/items/:id?expanded=1`
   - `POST /api/items/:id/play`, `POST /api/session/:id/sync`, `POST /api/session/:id/close`
   - bookmarks create/update/delete
-- [ ] Error type: network, auth, server (status + body), decode.
+- [x] Error type: network, auth, server (status + body), decode.
 
 ### 1.2 `abs-api`: contract tests
-- [ ] Integration tests behind a `--features integration` flag, run against both Docker servers.
-- [ ] One test per endpoint used: request succeeds, response decodes.
-- [ ] Token test: refresh rotation, expired access token recovery.
+- [x] Integration tests behind a `--features integration` flag, run against both Docker servers.
+- [x] One test per endpoint used: request succeeds, response decodes.
+- [x] Token test: refresh rotation, expired access token recovery.
 
 ### 1.3 `core`: storage
 - [ ] `rusqlite` with WAL and foreign keys; migrations via `rusqlite_migration`.

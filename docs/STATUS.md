@@ -19,6 +19,10 @@ Open before Phase 0 exit criteria are met:
 - File downloads honour `Range` (206 with `Content-Range`) on 2.26.3 and 2.37.2.
 - `POST /api/items/:id/play` with `deviceInfo`, `mediaPlayer`, `supportedMimeTypes` returns `audioTracks` with relative `contentUrl`, `startOffset`, `duration`.
 - libmpv needs `demuxer-max-bytes`/`demuxer-max-back-bytes` capped and `media-controls=no`. Track switches emit `END_FILE` reason `STOP` (2), not an error.
+- Access tokens live 12 h on 2.26.3 and 1 h on 2.37.2; read `exp`, never assume. 2.26.3 tokens have no `jti`, so two logins of one user in the same second get identical tokens, and logging out one ends both.
+- API keys (`POST /api/api-keys`) work as bearer tokens on both versions and have no `exp`.
+- `GET /api/me/progress` is 404 on 2.26.3 and works on 2.37.2. `abs-api` gates it at 2.36.0 (from the plan, not verified against release notes).
+- The auth rate limiter is configured only by env (`RATE_LIMIT_AUTH_MAX`, `0` turns it off); the test servers turn it off.
 - Workspace MSRV is 1.92 (Slint 1.18). reqwest 0.13 uses the `rustls` feature (aws-lc-rs).
 
 ## Dev setup
@@ -35,6 +39,14 @@ Logins: `admin` / `admin-pass`, `listener` / `listener-pass`.
 
 Spikes: `cargo run --release` with `-p abs-api --example smoke`, `-p abs-desktop --example cover_grid` (`SPIKE_AUTOSCROLL=1`), `-p abs-player --example mpv_spike`, `-p abs-player --example mpv_idle`, `-p abs-desktop --example media_controls` (plays audio), `-p abs-reader -- <book> [cfi]`.
 
-## Next: Phase 1
+## Phase 1
 
-Start with 1.1 (`abs-api` client and auth) and 1.2 (contract tests against both Docker servers), then 1.3 storage.
+1.1 and 1.2 are done. `abs-api` has `AbsClient` (single-flight refresh, one retry on 401, `TokenSink` for refresh tokens), typed models with `Raw<T>` for raw JSON, and the MVP endpoints. Tests:
+
+```
+cargo test -p abs-api                          # unit tests + decode of fixtures/api/<version>/
+cargo test -p abs-api --features integration   # contract tests against both Docker servers
+python fixtures/capture_api.py <url>           # refresh the JSON fixtures
+```
+
+Next: 1.3 storage in `core`.
