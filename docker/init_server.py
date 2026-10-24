@@ -79,16 +79,19 @@ def ensure_libraries(base, token):
         print(f"library {spec['name']} ({lib['id']}) scanning")
 
 
+def item_count(base, token, library_id):
+    """Items in a library; 0 while a fresh server answers without a total."""
+    page = request(base, "GET", f"/api/libraries/{library_id}/items?limit=1", token=token)
+    return page.get("total", 0) if isinstance(page, dict) else 0
+
+
 def wait_for_scans(base, token, timeout=300):
     """Wait until every library has items and the counts stop changing."""
     deadline = time.monotonic() + timeout
     last = None
     while time.monotonic() < deadline:
         libraries = request(base, "GET", "/api/libraries", token=token)["libraries"]
-        counts = [
-            request(base, "GET", f"/api/libraries/{lib['id']}/items?limit=1", token=token)["total"]
-            for lib in libraries
-        ]
+        counts = [item_count(base, token, lib["id"]) for lib in libraries]
         if all(counts) and counts == last:
             print(f"scans done: {counts}")
             return
