@@ -187,16 +187,19 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Use HLS only if the server returns it; libmpv plays it as is.
 
 ### 1.9 `app`: UI
-- [ ] Add-account screen and account switcher (one active account in the MVP).
-- [ ] Home: continue listening, recently added, personalized shelves.
-- [ ] Library grid with sort and filter; series, authors, collections views.
-- [ ] Search (local FTS5 first, server search as fallback).
-- [ ] Item detail: description, chapters, progress, play, mark finished.
-- [ ] Player bar + full player view: cover, chapter list, speed, sleep timer, bookmarks.
-- [ ] Settings: accounts, playback (skip intervals, default speed), cache size.
-- [ ] Keyboard shortcuts (space, arrows, chapter jumps).
-- [ ] Optional tray icon (`tray-icon`) with play/pause; close-to-tray while playing.
-- [ ] Error and offline banners; never a blank screen.
+- [x] Add-account screen and account switcher (one active account in the MVP).
+- [x] Home: continue listening, recently added, personalized shelves.
+- [x] Library grid with sort and filter; series, authors, collections views.
+- [x] Search (local FTS5 first, server search as fallback).
+- [x] Item detail: description, chapters, progress, play, mark finished.
+- [x] Player bar + full player view: cover, chapter list, speed, sleep timer, bookmarks.
+- [x] Volume and mute; player bar progress for the book, the chapter or both; chapter markers on the book bar.
+- [x] Settings: accounts, playback (skip intervals, default speed), cache size.
+- [x] Themes: system/light/dark, Catppuccin flavor per mode, accent color, `theme.json` overrides.
+- [x] Keyboard shortcuts (space, arrows, chapter jumps).
+- [x] Optional tray icon (`tray-icon`) with play/pause; close-to-tray while playing. Windows only for now.
+- [x] Error and offline banners; never a blank screen.
+- [ ] Hands-on pass of every screen against both test servers and a real library.
 
 ### 1.10 CI and builds
 - [ ] CI job with the Docker ABS services running the integration tests on Linux.

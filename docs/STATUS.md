@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-10-24.
+Last updated 2026-10-25.
 
 ## Phase 0: done on Windows, Linux open
 
@@ -79,4 +79,13 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - Engine: `StartPlayback`, `ReportPlayback`, `StopPlayback` run in order on their own task; events `PlaybackStarted`, `PlaybackFailed`, `PlaybackHeaders` (new `Authorization` after a refresh). The open session is closed when the engine shuts down.
 - Server restart (2.37.2, `docker restart`): sync answers 404, the new session takes the position. ABS also closes a user's open session when the same device id starts another one.
 
-Next: 1.9 UI.
+1.9 is implemented; the hands-on pass is open:
+- `abs-desktop` is a Slint app (`crates/app/ui/*.slint`, compiled by `build.rs`). All UI text is `@tr()`; texts Rust builds come from the `Strings` global's functions, because Slint has no Rust-side `tr!`.
+- The UI thread opens its own read connection to the database (WAL) and shows local data at once. Network data comes from engine requests (`LoadCover`, `LoadItem`, `LoadShelves`, `SearchServer`, `LoadGroups`, `LoadAuthorItems`, `SetFinished`, bookmarks). Cover bytes are decoded on a separate thread.
+- Theme: Catppuccin flavor for light and dark, accent, mode, plus `theme.json` in the data folder (`{"light": {"accent": "#d20f39"}, "dark": {...}}`; color names in `src/theme.rs`). Fonts from the design kit (Ronzino, Fira Code) are bundled as TTF with their OFL texts.
+- Tray (close to tray while playing) is Windows only; on Linux `tray-icon` needs a GTK main loop.
+- `ABS_DESKTOP_DATA_DIR=<dir>` puts database, covers and logins (as files, not the keyring) in one folder, for testing.
+- Found on a real server: home shelves such as "continue series" send `media.metadata.series` as one object. `abs-api` accepts both, and shelves skip entities they cannot decode.
+- Not done: no UI automation tests; theme swatches do not refresh when the system switches light/dark while the settings page is open.
+
+Next: hands-on pass of 1.9, then 1.10 CI and builds.
