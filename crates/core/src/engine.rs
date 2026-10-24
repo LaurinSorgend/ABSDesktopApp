@@ -6,6 +6,7 @@
 
 mod downloads;
 mod live;
+mod offline;
 mod playback;
 mod requests;
 mod worker;
@@ -122,6 +123,12 @@ pub enum Command {
     SetServerUrls {
         account_id: String,
         urls: Vec<String>,
+    },
+    /// The user's answer to `ProgressConflict`: keep the local position or take the server's.
+    ResolveConflict {
+        account_id: String,
+        item_id: String,
+        keep_local: bool,
     },
     /// Queue an item for download; replaces an earlier download of it.
     Download {
@@ -261,6 +268,9 @@ pub enum Event {
         account_id: String,
         item_id: String,
     },
+    /// Offline listening and the server disagree on an item's position; answer with
+    /// `ResolveConflict`. Sent once per item until answered.
+    ProgressConflict(crate::offline::Conflict),
     /// A download was queued, started, paused, finished, failed or removed.
     DownloadsChanged {
         account_id: String,

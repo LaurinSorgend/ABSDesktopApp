@@ -1,49 +1,16 @@
 //! The engine against the Docker servers. Run with `cargo test -p abs-core --features integration`.
 #![cfg(feature = "integration")]
 
-use std::sync::mpsc::{Receiver, channel};
-use std::time::Duration;
+mod common;
+
+use std::sync::mpsc::Receiver;
+
+use common::{start, wait_for};
 
 use abs_core::credentials::Credentials;
 use abs_core::db::{Db, DownloadRow, DownloadState, ItemQuery};
 use abs_core::downloads;
-use abs_core::engine::{Command, Engine, EngineConfig, Event, GroupKind};
-
-const WAIT: Duration = Duration::from_secs(30);
-
-fn start(db_path: &std::path::Path, credentials: &Credentials) -> (Engine, Receiver<Event>) {
-    let (sender, events) = channel();
-    let config = EngineConfig {
-        db_path: db_path.to_owned(),
-        cover_root: db_path.with_file_name("covers"),
-        download_root: db_path.with_file_name("downloads"),
-        credentials: credentials.clone(),
-    };
-    let engine = Engine::start(config, move |event| {
-        let _ = sender.send(event);
-    })
-    .unwrap();
-    (engine, events)
-}
-
-/// Waits for the first event `pick` accepts and returns what it extracted.
-fn wait_for<T>(events: &Receiver<Event>, mut pick: impl FnMut(&Event) -> Option<T>) -> T {
-    loop {
-        let event = events.recv_timeout(WAIT).expect("engine event");
-        if let Some(value) = pick(&event) {
-            return value;
-        }
-        assert!(
-            !matches!(
-                event,
-                Event::AddAccountFailed { .. }
-                    | Event::SyncFailed { .. }
-                    | Event::RequestFailed { .. }
-            ),
-            "{event:?}"
-        );
-    }
-}
+use abs_core::engine::{Command, Event, GroupKind};
 
 #[test]
 fn add_restart_and_remove_account() {

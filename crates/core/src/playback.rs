@@ -46,6 +46,7 @@ pub struct TrackSource {
 pub struct PlayStart {
     pub account_id: String,
     pub item_id: String,
+    pub library_id: String,
     pub title: String,
     pub author: Option<String>,
     pub tracks: Vec<TrackSource>,
@@ -98,20 +99,29 @@ impl ActivePlayback {
         result
     }
 
-    /// Final sync and close, on stop, item change and app exit.
-    pub async fn close(mut self, db: &Mutex<Db>) -> Result<(), AccountError> {
+    /// Final sync and close, on stop, item change and app exit. On failure the
+    /// unsent listening time stays in the tracker.
+    pub async fn close(&mut self, db: &Mutex<Db>) -> Result<(), AccountError> {
         let sync = self.tracker.take_sync(Instant::now());
         store_local(db, &self.session.account.id, &self.item_id, &sync)?;
+        let result = self.send_close(&sync).await;
+        if result.is_err() {
+            self.tracker.restore(&sync);
+        }
+        result
+    }
+
+    async fn send_close(&mut self, sync: &SessionSync) -> Result<(), AccountError> {
         let session = self.session.clone();
         let client = &session.client;
         match client
-            .close_session(&self.server_session_id, Some(&sync))
+            .close_session(&self.server_session_id, Some(sync))
             .await
         {
             Err(e) if e.status() == Some(StatusCode::NOT_FOUND) => {
                 self.restart().await?;
                 client
-                    .close_session(&self.server_session_id, Some(&sync))
+                    .close_session(&self.server_session_id, Some(sync))
                     .await?;
                 Ok(())
             }
@@ -140,15 +150,20 @@ impl ActivePlayback {
     }
 }
 
+/// How this app names itself to the server.
+pub(crate) fn device_info(session: &Session) -> DeviceInfo {
+    DeviceInfo {
+        device_id: session.account.device_id.clone(),
+        client_name: "ABS Desktop".into(),
+        client_version: env!("CARGO_PKG_VERSION").into(),
+        manufacturer: None,
+        model: Some(std::env::consts::OS.into()),
+    }
+}
+
 fn play_request(session: &Session) -> PlayRequest {
     PlayRequest {
-        device_info: DeviceInfo {
-            device_id: session.account.device_id.clone(),
-            client_name: "ABS Desktop".into(),
-            client_version: env!("CARGO_PKG_VERSION").into(),
-            manufacturer: None,
-            model: Some(std::env::consts::OS.into()),
-        },
+        device_info: device_info(session),
         media_player: "libmpv".into(),
         supported_mime_types: SUPPORTED_MIME_TYPES
             .iter()
@@ -180,6 +195,7 @@ fn play_start(
     Ok(PlayStart {
         account_id: session.account.id.clone(),
         item_id: item_id.to_owned(),
+        library_id: server.library_id.clone(),
         title: server.display_title.clone().unwrap_or_default(),
         author: server.display_author.clone(),
         tracks,
