@@ -8,6 +8,7 @@ use abs_core::engine::Command;
 use slint::{Image, ModelRc, VecModel};
 
 use super::App;
+use super::downloads::DownloadView;
 use crate::covers::LARGE_WIDTH;
 use crate::format;
 use crate::playback::view::chapter_row;
@@ -96,8 +97,12 @@ impl App {
             .collect();
         self.detail.chapters.set_vec(rows);
         let connected = self.is_connected();
+        let download = self.download_view(&account_id, item_id);
         self.ui(|ui, s| {
-            let data = detail_data(item_id, &detail, progress.as_ref(), cover, connected, s);
+            let mut data = detail_data(item_id, &detail, progress.as_ref(), cover, connected, s);
+            data.account_id = account_id.as_str().into();
+            data.can_download = connected && detail.has_audio;
+            set_download(&mut data, download);
             ui.set_detail(data);
         });
         self.detail.shown = Some(detail);
@@ -114,6 +119,21 @@ impl App {
         if let Some(detail) = self.detail.shown.clone() {
             self.show_detail(&item_id, detail);
         }
+    }
+
+    /// Updates the download controls when the item page shows this item.
+    pub(super) fn refresh_detail_download(&self, account_id: &str, item_id: &str) {
+        let shown = self.detail.item_id.as_deref() == Some(item_id)
+            && self.active.as_deref() == Some(account_id);
+        if !shown {
+            return;
+        }
+        let download = self.download_view(account_id, item_id);
+        self.ui(|ui, _| {
+            let mut data = ui.get_detail();
+            set_download(&mut data, download);
+            ui.set_detail(data);
+        });
     }
 
     pub(super) fn detail_cover(&self, item_id: &str, image: Option<&Image>) {
@@ -140,6 +160,12 @@ impl App {
             });
         }
     }
+}
+
+fn set_download(data: &mut DetailData, download: DownloadView) {
+    data.download_state = download.state;
+    data.download_text = download.text;
+    data.download_fraction = download.fraction;
 }
 
 fn detail_data(
@@ -175,6 +201,7 @@ fn detail_data(
         cover: cover.unwrap_or_default(),
         has_audio: detail.has_audio,
         chapters_note,
+        ..DetailData::default()
     }
 }
 

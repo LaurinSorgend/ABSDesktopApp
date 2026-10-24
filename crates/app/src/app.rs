@@ -4,6 +4,7 @@ mod accounts;
 mod banner;
 mod browse;
 mod detail;
+mod downloads;
 mod home;
 mod player;
 mod preferences;
@@ -53,6 +54,7 @@ pub struct App {
     home: home::Home,
     browse: browse::Browse,
     detail: detail::Detail,
+    downloads: downloads::Downloads,
     playback: Option<Playback>,
     player_view: PlayerView,
     choices: Choices,
@@ -92,6 +94,7 @@ impl App {
             home: home::Home::new(),
             browse: browse::Browse::new(),
             detail: detail::Detail::new(),
+            downloads: downloads::Downloads::new(),
             playback: parts.playback,
             player_view: PlayerView::new(),
             choices,
@@ -113,6 +116,7 @@ impl App {
             ui.set_group_rows(self.browse.group_grid.model());
             ui.set_search_rows(self.browse.search_grid.model());
             ui.set_detail_chapters(self.detail.model());
+            ui.set_downloads(self.downloads.model());
             ui.set_chapters(self.player_view.model());
             crate::playback::view::fill_options(ui, strings);
         });
@@ -196,6 +200,15 @@ impl App {
                 group_id, item_ids, ..
             } => self.group_items(&group_id, &item_ids),
             Event::BookmarksChanged { item_id, .. } => self.bookmarks_changed(&item_id),
+            Event::DownloadsChanged {
+                account_id,
+                item_id,
+            } => self.downloads_changed(&account_id, &item_id),
+            Event::DownloadProgress {
+                account_id,
+                item_id,
+                ..
+            } => self.download_progress(&account_id, &item_id),
             _ => {}
         }
     }
@@ -240,6 +253,7 @@ impl App {
     fn show_page(&mut self, page: Page) {
         if page == Page::Settings {
             self.refresh_settings();
+            self.refresh_downloads();
         }
         if page == Page::Home {
             self.refresh_home();

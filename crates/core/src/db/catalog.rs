@@ -61,6 +61,8 @@ pub struct ItemSummary {
     /// Listening progress from 0 to 1; 0 when never started.
     pub progress: f64,
     pub is_finished: bool,
+    /// A finished download exists.
+    pub downloaded: bool,
 }
 
 /// Which items of a library a page shows.
@@ -84,13 +86,14 @@ impl<'q> ItemQuery<'q> {
     }
 }
 
-/// Filter by listening state.
+/// Filter by listening state, or to finished downloads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProgressFilter {
     All,
     NotStarted,
     InProgress,
     Finished,
+    Downloaded,
 }
 
 impl ProgressFilter {
@@ -100,6 +103,7 @@ impl ProgressFilter {
             Self::NotStarted => "coalesce(p.position, 0) = 0 AND coalesce(p.is_finished, 0) = 0",
             Self::InProgress => "p.position > 0 AND p.is_finished = 0",
             Self::Finished => "p.is_finished = 1",
+            Self::Downloaded => "dl.item_id IS NOT NULL",
         }
     }
 }
@@ -348,13 +352,17 @@ const UPSERT_ITEM: &str = "INSERT INTO item(account_id, remote_id, library_id, t
 
 const SELECT_SUMMARY: &str = "SELECT item.account_id, item.remote_id, item.library_id, item.title,
     item.author, item.narrator, item.series, item.duration, item.cover_etag,
-    coalesce(p.progress, 0), coalesce(p.is_finished, 0)";
+    coalesce(p.progress, 0), coalesce(p.is_finished, 0), dl.item_id IS NOT NULL";
 
 const JOIN_PROGRESS: &str =
-    "LEFT JOIN progress p ON p.account_id = item.account_id AND p.item_id = item.remote_id";
+    "LEFT JOIN progress p ON p.account_id = item.account_id AND p.item_id = item.remote_id
+    LEFT JOIN download dl ON dl.account_id = item.account_id AND dl.item_id = item.remote_id
+        AND dl.state = 'done'";
 
 const FROM_ITEM: &str = "FROM item LEFT JOIN progress p
-    ON p.account_id = item.account_id AND p.item_id = item.remote_id";
+    ON p.account_id = item.account_id AND p.item_id = item.remote_id
+    LEFT JOIN download dl ON dl.account_id = item.account_id AND dl.item_id = item.remote_id
+        AND dl.state = 'done'";
 
 fn summary_row(row: &Row<'_>) -> rusqlite::Result<ItemSummary> {
     Ok(ItemSummary {
@@ -369,6 +377,7 @@ fn summary_row(row: &Row<'_>) -> rusqlite::Result<ItemSummary> {
         cover_etag: row.get(8)?,
         progress: row.get(9)?,
         is_finished: row.get(10)?,
+        downloaded: row.get(11)?,
     })
 }
 

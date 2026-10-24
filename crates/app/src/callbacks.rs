@@ -15,6 +15,7 @@ pub fn connect(window: &AppWindow) {
     connect_navigation(&ui);
     connect_browse(&ui);
     connect_player(&ui);
+    connect_downloads(&ui);
     connect_accounts(&ui);
 }
 
@@ -80,6 +81,19 @@ fn connect_player(ui: &Ui<'_>) {
     ui.on_toggle_mute(|| with_app(|app| app.toggle_mute()));
     ui.on_add_bookmark(|| with_app(|app| app.add_bookmark()));
     ui.on_remove_bookmark(on(|app, time: f32| app.remove_bookmark(time as f64)));
+}
+
+fn connect_downloads(ui: &Ui<'_>) {
+    ui.on_download(|account, item| with_app(move |app| app.download(&account, &item)));
+    ui.on_pause_download(|account, item| with_app(move |app| app.pause_download(&account, &item)));
+    ui.on_resume_download(|account, item| {
+        with_app(move |app| app.resume_download(&account, &item))
+    });
+    ui.on_delete_download(|account, item| {
+        with_app(move |app| app.delete_download(&account, &item))
+    });
+    ui.on_choose_download_folder(|| with_app(|app| app.choose_download_folder()));
+    ui.on_reset_download_folder(|| with_app(|app| app.reset_download_folder()));
 }
 
 fn connect_accounts(ui: &Ui<'_>) {

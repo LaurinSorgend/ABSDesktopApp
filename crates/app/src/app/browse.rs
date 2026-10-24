@@ -18,11 +18,12 @@ const SORTS: [ItemSort; 4] = [
     ItemSort::AddedAt,
     ItemSort::Duration,
 ];
-const FILTERS: [ProgressFilter; 4] = [
+const FILTERS: [ProgressFilter; 5] = [
     ProgressFilter::All,
     ProgressFilter::NotStarted,
     ProgressFilter::InProgress,
     ProgressFilter::Finished,
+    ProgressFilter::Downloaded,
 ];
 
 pub struct Browse {

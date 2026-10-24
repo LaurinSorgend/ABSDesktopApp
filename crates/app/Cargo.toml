@@ -11,6 +11,7 @@ abs-player.workspace = true
 anyhow = "1.0.104"
 image = { version = "0.25.9", default-features = false, features = ["webp", "jpeg", "png"] }
 raw-window-handle = "0.6"
+rfd = "0.17.2"
 serde_json = "1.0.154"
 slint = { version = "1.18", features = ["raw-window-handle-06"] }
 

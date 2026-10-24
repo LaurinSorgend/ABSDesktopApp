@@ -24,7 +24,7 @@ component ItemToolbar inherits HorizontalLayout {
     }
     Segmented {
         label: @tr("Filter");
-        options: [@tr("All"), @tr("Not started"), @tr("In progress"), @tr("Finished")];
+        options: [@tr("All"), @tr("Not started"), @tr("In progress"), @tr("Finished"), @tr("Downloaded")];
         selected: Ui.library-filter;
         select(index) => {
             Ui.set-filter(index);

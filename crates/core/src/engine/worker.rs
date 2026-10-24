@@ -153,8 +153,7 @@ fn handle(
         command @ (Command::Download { .. }
         | Command::PauseDownload { .. }
         | Command::ResumeDownload { .. }
-        | Command::DeleteDownload { .. }
-        | Command::SetDownloadRoot { .. }) => downloads::handle(shared, command),
+        | Command::DeleteDownload { .. }) => downloads::handle(shared, command),
         request => requests::handle(shared, request),
     }
 }

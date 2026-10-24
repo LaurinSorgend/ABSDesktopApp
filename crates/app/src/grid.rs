@@ -105,6 +105,7 @@ impl Grid {
                 tile.author = fresh.author;
                 tile.progress = fresh.progress;
                 tile.finished = fresh.finished;
+                tile.downloaded = fresh.downloaded;
             });
         }
     }
@@ -153,5 +154,6 @@ pub fn tile_for(item: &ItemSummary, cover: Option<Image>) -> TileData {
         cover: cover.unwrap_or_default(),
         progress: item.progress as f32,
         finished: item.is_finished,
+        downloaded: item.downloaded,
     }
 }
