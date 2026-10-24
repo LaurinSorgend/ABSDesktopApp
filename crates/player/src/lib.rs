@@ -1,6 +1,7 @@
 //! Audio playback, media controls and sleep timer.
 
 pub mod controller;
+pub mod media_controls;
 mod mpv;
 mod player;
 pub mod sleep;
