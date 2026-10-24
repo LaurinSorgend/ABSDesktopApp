@@ -6,13 +6,16 @@
 
 mod live;
 mod playback;
+mod requests;
 mod worker;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use tokio::sync::mpsc;
 
+use crate::cover_cache::CoverCache;
 use crate::credentials::Credentials;
 use crate::db::Account;
 use crate::playback::PlayStart;
@@ -22,6 +25,10 @@ use crate::sync::CatalogReport;
 pub const SYNC_INTERVAL_SETTING: &str = "sync_interval_minutes";
 /// Default catalog re-sync interval in minutes.
 pub const DEFAULT_SYNC_INTERVAL_MINUTES: u64 = 30;
+/// Setting key for the cover cache cap in megabytes.
+pub const COVER_CACHE_SETTING: &str = "cover_cache_mb";
+/// Default cover cache cap in megabytes.
+pub const DEFAULT_COVER_CACHE_MB: u64 = crate::cover_cache::DEFAULT_CAPACITY / (1024 * 1024);
 
 /// Requests from the UI.
 #[derive(Debug, Clone)]
@@ -53,6 +60,88 @@ pub enum Command {
     },
     /// Close the session, as on stop.
     StopPlayback,
+    /// A cover from the cache or the server; answered with `CoverLoaded`.
+    LoadCover {
+        account_id: String,
+        item_id: String,
+        /// The item's `cover_etag`; `None` means it has no cover.
+        etag: Option<String>,
+        width: u32,
+    },
+    /// The expanded item from the server; answered with `ItemLoaded`.
+    LoadItem {
+        account_id: String,
+        item_id: String,
+    },
+    /// The server's home shelves of a library; answered with `ShelvesLoaded`.
+    LoadShelves {
+        account_id: String,
+        library_id: String,
+    },
+    /// Server search, for what the local index misses; answered with `SearchResults`.
+    SearchServer {
+        account_id: String,
+        library_id: String,
+        text: String,
+    },
+    /// Series, authors or collections of a library; answered with `GroupsLoaded`.
+    LoadGroups {
+        account_id: String,
+        library_id: String,
+        kind: GroupKind,
+    },
+    /// The items of one author; answered with `GroupItems`.
+    LoadAuthorItems {
+        account_id: String,
+        library_id: String,
+        author_id: String,
+    },
+    SetFinished {
+        account_id: String,
+        item_id: String,
+        finished: bool,
+    },
+    AddBookmark {
+        account_id: String,
+        item_id: String,
+        time: f64,
+        title: String,
+    },
+    RemoveBookmark {
+        account_id: String,
+        item_id: String,
+        time: f64,
+    },
+    /// New cover cache cap; also stored as a setting.
+    SetCoverCacheSize {
+        megabytes: u64,
+    },
+}
+
+/// Ways to group a library.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GroupKind {
+    Series,
+    Authors,
+    Collections,
+}
+
+/// A series, author or collection.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Group {
+    pub id: String,
+    pub name: String,
+    pub count: u64,
+    /// The items in order; empty for authors, whose items come from `LoadAuthorItems`.
+    pub item_ids: Vec<String>,
+}
+
+/// A home shelf of books.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Shelf {
+    pub id: String,
+    pub label: String,
+    pub item_ids: Vec<String>,
 }
 
 /// Notifications for the UI.
@@ -108,12 +197,65 @@ pub enum Event {
         account_id: String,
         message: String,
     },
+    /// `bytes` is `None` when the item has no cover or it could not be loaded.
+    CoverLoaded {
+        account_id: String,
+        item_id: String,
+        width: u32,
+        bytes: Option<Arc<Vec<u8>>>,
+    },
+    /// The expanded item JSON.
+    ItemLoaded {
+        account_id: String,
+        item_id: String,
+        json: String,
+    },
+    ShelvesLoaded {
+        account_id: String,
+        library_id: String,
+        shelves: Vec<Shelf>,
+    },
+    SearchResults {
+        account_id: String,
+        text: String,
+        item_ids: Vec<String>,
+    },
+    GroupsLoaded {
+        account_id: String,
+        library_id: String,
+        kind: GroupKind,
+        groups: Vec<Group>,
+    },
+    GroupItems {
+        account_id: String,
+        group_id: String,
+        item_ids: Vec<String>,
+    },
+    BookmarksChanged {
+        account_id: String,
+        item_id: String,
+    },
+    /// A request other than sync or playback failed.
+    RequestFailed {
+        account_id: String,
+        message: String,
+    },
 }
 
 /// Where the engine keeps its data.
 pub struct EngineConfig {
     pub db_path: PathBuf,
+    pub cover_root: PathBuf,
     pub credentials: Credentials,
+}
+
+/// Why the engine could not start.
+#[derive(Debug, thiserror::Error)]
+pub enum StartError {
+    #[error(transparent)]
+    Db(#[from] crate::db::DbError),
+    #[error("cover cache: {0}")]
+    Covers(#[from] std::io::Error),
 }
 
 /// Handle to the running engine. Dropping it stops the engine.
@@ -127,12 +269,24 @@ impl Engine {
     pub fn start(
         config: EngineConfig,
         on_event: impl Fn(Event) + Send + Sync + 'static,
-    ) -> Result<Self, crate::db::DbError> {
+    ) -> Result<Self, StartError> {
         let db = crate::db::Db::open(&config.db_path)?;
+        let megabytes = db
+            .store()
+            .settings()
+            .get_or(COVER_CACHE_SETTING, DEFAULT_COVER_CACHE_MB)?;
+        let covers = CoverCache::open(&config.cover_root, megabytes * 1024 * 1024)?;
         let (commands, receiver) = mpsc::unbounded_channel();
         let thread = std::thread::Builder::new()
             .name("abs-engine".into())
-            .spawn(move || worker::run(db, config.credentials, receiver, Box::new(on_event)))
+            .spawn(move || {
+                let parts = worker::Parts {
+                    db,
+                    covers,
+                    credentials: config.credentials,
+                };
+                worker::run(parts, receiver, Box::new(on_event))
+            })
             .expect("spawn engine thread");
         Ok(Self {
             commands: Some(commands),
