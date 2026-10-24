@@ -96,4 +96,17 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - App icon: `packaging/icons/` from `packaging/make_icon.py`, used as the window icon. The exe has no embedded icon yet. Release builds use the Windows GUI subsystem (no console).
 - The Windows zip ships the GPL shinchiro libmpv; that is allowed under our GPL-3.0 license, but the 116 MB size stays a reason for our own build.
 
-Next: run both workflows once a GitHub remote exists, the hands-on pass of 1.9, then 1.11 dogfooding.
+CI runs on GitHub (private repo `LaurinSorgend/ABSDesktopApp`). The first runs found Linux-only clippy lints, a fresh server answering item counts without `total`, and Ubuntu's older libmpv lacking some options we turn off; all fixed. The release workflow has not run yet (needs a `v*` tag).
+
+1.11 dogfooding is with Laurin for a week. Phase 2 started alongside it.
+
+Phase 2, 2.1 to 2.3 are implemented:
+- Tables `download` (one row per item, with its folder) and `download_file` (one row per file, in play order, with `bytes_done`). The plan's single `download_job` table became these two.
+- `abs_core::downloads`: `plan` turns the expanded item into files and a manifest; files are fetched to `<ino>.<ext>.part` with `Range` resume, size-checked and renamed. The manifest is written as `manifest.pending.json` and renamed to `manifest.json` when every file is there, so a manifest means complete. `cover.webp` is fetched at the end, best effort.
+- Engine: `Download`, `PauseDownload`, `ResumeDownload`, `DeleteDownload`; events `DownloadsChanged`, `DownloadProgress` (at most twice a second). At most 2 items at once and 1 per server, files in order. Transient errors retry 5 times (2, 4, 8, 16 s), then the download is failed and can be retried. At start, running downloads go back in the queue and finished ones with missing or short files are fetched again. Removing an account deletes its downloads.
+- Download folder: the `download_root` setting, default `<data dir>/downloads`. Each download stores its own folder, so changing the setting only affects new downloads. 200 MB stay free beyond the download size.
+- A finished download plays from its files. With a connection the server session still runs, so listening time counts; without one, progress is only stored locally (offline session sync is 2.5).
+- UI: download, pause, resume, cancel and remove on the item page; a download badge on tiles and a "Downloaded" library filter; a Downloads section in Settings with the folder (native folder dialog via `rfd`), space used and the list.
+- Tests: `download_file_resumes_with_range` (abs-api) and `download_pause_resume_restart_and_delete` (engine, also checks local playback) pass on both servers. The UI has not been tried by hand yet.
+
+Next: 2.4 server URL list and per-account online state, 2.5 offline session sync, 2.6 the offline round-trip test.

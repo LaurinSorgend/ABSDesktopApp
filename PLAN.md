@@ -218,21 +218,21 @@ Goal: a good single-view player on a data model that already supports many accou
 ## Phase 2: Downloads and offline
 
 ### 2.1 Download manager
-- [ ] `download_job` table: account, item, file `ino`, size, bytes done, state.
-- [ ] Per-file download from `/api/items/:id/file/:ino/download` (check `canDownload` first).
-- [ ] Write to `.part`, resume with `Range` (if 0.3 showed no Range support, restart the file instead), verify size, rename.
-- [ ] Concurrency: 2-3 files total, 1 per server.
-- [ ] Pause, resume, cancel, retry with backoff; survive app restart.
-- [ ] Free disk space check before starting.
+- [x] `download_job` table: account, item, file `ino`, size, bytes done, state.
+- [x] Per-file download from `/api/items/:id/file/:ino/download` (check `canDownload` first).
+- [x] Write to `.part`, resume with `Range` (if 0.3 showed no Range support, restart the file instead), verify size, rename.
+- [x] Concurrency: 2-3 files total, 1 per server.
+- [x] Pause, resume, cancel, retry with backoff; survive app restart.
+- [x] Free disk space check before starting.
 
 ### 2.2 Storage layout
-- [ ] `<root>/<account_id>/<item_id>/<ino>.<ext>` plus `manifest.json` (item JSON, chapters, track offsets) and `cover.webp`.
-- [ ] Configurable download root; storage usage screen; delete download.
-- [ ] Startup integrity check: manifest present, file sizes match.
+- [x] `<root>/<account_id>/<item_id>/<ino>.<ext>` plus `manifest.json` (item JSON, chapters, track offsets) and `cover.webp`.
+- [x] Configurable download root; storage usage screen; delete download.
+- [x] Startup integrity check: manifest present, file sizes match.
 
 ### 2.3 Offline playback
-- [ ] Player picks local files when the download is complete; chapters and offsets come from the manifest.
-- [ ] Downloaded filter and badge in the library.
+- [x] Player picks local files when the download is complete; chapters and offsets come from the manifest.
+- [x] Downloaded filter and badge in the library.
 
 ### 2.4 Connectivity and server URLs
 - [ ] Per-server URL list (LAN, VPN, public); probe `/status` in priority order, cache the working one.
