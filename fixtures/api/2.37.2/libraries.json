@@ -1,0 +1,127 @@
+{
+  "libraries": [
+    {
+      "id": "65af3e2a-e403-4243-96d4-01a152fad9c4",
+      "name": "Audiobooks",
+      "folders": [
+        {
+          "id": "8277c845-ea4c-4281-9968-dbcd632ac908",
+          "fullPath": "/media/audiobooks",
+          "libraryId": "65af3e2a-e403-4243-96d4-01a152fad9c4",
+          "addedAt": 1792863246982
+        }
+      ],
+      "displayOrder": 1,
+      "icon": "database",
+      "mediaType": "book",
+      "provider": "google",
+      "settings": {
+        "coverAspectRatio": 1,
+        "disableWatcher": false,
+        "autoScanCronExpression": null,
+        "skipMatchingMediaWithAsin": false,
+        "skipMatchingMediaWithIsbn": false,
+        "audiobooksOnly": false,
+        "epubsAllowScriptedContent": false,
+        "hideSingleBookSeries": false,
+        "onlyShowLaterBooksInContinueSeries": false,
+        "metadataPrecedence": [
+          "folderStructure",
+          "audioMetatags",
+          "nfoFile",
+          "txtFiles",
+          "opfFile",
+          "absMetadata"
+        ],
+        "markAsFinishedPercentComplete": null,
+        "markAsFinishedTimeRemaining": 10
+      },
+      "lastScan": 1792867322787,
+      "lastScanVersion": "2.37.2",
+      "createdAt": 1792863246964,
+      "lastUpdate": 1792867322788
+    },
+    {
+      "id": "d1eb8d53-6d7e-48c7-bb93-9ae5d4300e2e",
+      "name": "Ebooks",
+      "folders": [
+        {
+          "id": "5ed7f184-8cf3-4558-8a88-777060d90470",
+          "fullPath": "/media/ebooks",
+          "libraryId": "d1eb8d53-6d7e-48c7-bb93-9ae5d4300e2e",
+          "addedAt": 1792863247056
+        }
+      ],
+      "displayOrder": 2,
+      "icon": "database",
+      "mediaType": "book",
+      "provider": "google",
+      "settings": {
+        "coverAspectRatio": 1,
+        "disableWatcher": false,
+        "autoScanCronExpression": null,
+        "skipMatchingMediaWithAsin": false,
+        "skipMatchingMediaWithIsbn": false,
+        "audiobooksOnly": false,
+        "epubsAllowScriptedContent": false,
+        "hideSingleBookSeries": false,
+        "onlyShowLaterBooksInContinueSeries": false,
+        "metadataPrecedence": [
+          "folderStructure",
+          "audioMetatags",
+          "nfoFile",
+          "txtFiles",
+          "opfFile",
+          "absMetadata"
+        ],
+        "markAsFinishedPercentComplete": null,
+        "markAsFinishedTimeRemaining": 10
+      },
+      "lastScan": 1792867322812,
+      "lastScanVersion": "2.37.2",
+      "createdAt": 1792863247031,
+      "lastUpdate": 1792867322812
+    },
+    {
+      "id": "52ea1e70-3a07-4f5f-9282-414b40586189",
+      "name": "Grid",
+      "folders": [
+        {
+          "id": "386c97b3-bd34-42bc-bfc6-cc5ad0a40e8a",
+          "fullPath": "/media/grid",
+          "libraryId": "52ea1e70-3a07-4f5f-9282-414b40586189",
+          "addedAt": 1792863437252
+        }
+      ],
+      "displayOrder": 3,
+      "icon": "database",
+      "mediaType": "book",
+      "provider": "google",
+      "settings": {
+        "coverAspectRatio": 1,
+        "disableWatcher": false,
+        "autoScanCronExpression": null,
+        "skipMatchingMediaWithAsin": false,
+        "skipMatchingMediaWithIsbn": false,
+        "audiobooksOnly": false,
+        "epubsAllowScriptedContent": false,
+        "hideSingleBookSeries": false,
+        "onlyShowLaterBooksInContinueSeries": false,
+        "metadataPrecedence": [
+          "folderStructure",
+          "audioMetatags",
+          "nfoFile",
+          "txtFiles",
+          "opfFile",
+          "absMetadata"
+        ],
+        "markAsFinishedPercentComplete": null,
+        "markAsFinishedTimeRemaining": 10
+      },
+      "lastScan": 1792867328248,
+      "lastScanVersion": "2.37.2",
+      "createdAt": 1792863437230,
+      "lastUpdate": 1792867328248
+    }
+  ]
+}
