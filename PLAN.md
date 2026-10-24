@@ -180,11 +180,11 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Media controls via souvlaki, behind its own trait (fallbacks: `windows` crate SMTC, `mpris-server`).
 
 ### 1.8 `core`: playback sessions
-- [ ] Start: `POST /api/items/:id/play` with `deviceInfo` (per-account `device_id`), `mediaPlayer`, and a full `supportedMimeTypes` list (mpeg, mp4, m4b, aac, flac, ogg, opus, webm, wav, ...).
-- [ ] Sync every 15 s while playing, and on pause, seek and chapter change (`currentTime`, `timeListened`).
-- [ ] Close on stop, item change and app exit.
-- [ ] Sync returns 404 (server restarted, sessions are in memory): start a new session at the current position.
-- [ ] Use HLS only if the server returns it; libmpv plays it as is.
+- [x] Start: `POST /api/items/:id/play` with `deviceInfo` (per-account `device_id`), `mediaPlayer`, and a full `supportedMimeTypes` list (mpeg, mp4, m4b, aac, flac, ogg, opus, webm, wav, ...).
+- [x] Sync every 15 s while playing, and on pause, seek and chapter change (`currentTime`, `timeListened`).
+- [x] Close on stop, item change and app exit.
+- [x] Sync returns 404 (server restarted, sessions are in memory): start a new session at the current position.
+- [x] Use HLS only if the server returns it; libmpv plays it as is.
 
 ### 1.9 `app`: UI
 - [ ] Add-account screen and account switcher (one active account in the MVP).
@@ -400,6 +400,6 @@ Single-maintainer or unstable dependencies each sit behind a small internal trai
 | Do file download routes support `Range`? | 0.3 |
 | Slint good enough, or switch to Qt? | 0.8 |
 | What does the web reader store for PDF and comics? | 3.1 |
-| How does session sync behave after a server restart? | 1.8 |
+| How does session sync behave after a server restart? | 1.8: sync returns 404; starting a new session and syncing again works (tested on 2.37.2) |
 | Does yaabsa already cover multi-account or OIDC? | before Phase 4 |
 | Final license | 0.1 |
