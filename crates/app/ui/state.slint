@@ -145,6 +145,16 @@ export global Ui {
     in property <string> cache-used-text;
     in property <bool> close-to-tray;
     in property <string> credentials-note;
+    in property <int> theme-mode;
+    in property <int> light-flavor;
+    in property <int> dark-flavor;
+    in property <int> accent-index;
+    in property <[color]> accent-swatches;
+    in property <[string]> accent-names;
+    in property <string> theme-file;
+    in property <string> theme-note;
+    callback edit-theme-file();
+    callback reload-theme();
     callback set-setting(string, int);
     callback use-account(string);
     callback remove-account(string);

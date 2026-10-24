@@ -5,8 +5,9 @@ use abs_core::engine::Command;
 use super::App;
 use crate::paths::dir_size;
 use crate::settings::{
-    CACHE_MEGABYTES, CLOSE_TO_TRAY, COVER_CACHE, Choices, DEFAULT_SPEED, PROGRESS_BAR, SKIP_BACK,
-    SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS,
+    ACCENT, CACHE_MEGABYTES, CLOSE_TO_TRAY, COVER_CACHE, Choices, DARK_FLAVOR, DEFAULT_SPEED,
+    LIGHT_FLAVOR, PROGRESS_BAR, SKIP_BACK, SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS,
+    THEME_MODE,
 };
 
 impl App {
@@ -48,9 +49,8 @@ impl App {
         let store = self.db.store();
         let settings = store.settings();
         let _ = match key {
-            SKIP_BACK | SKIP_FORWARD | DEFAULT_SPEED | CLOSE_TO_TRAY | PROGRESS_BAR => {
-                settings.set(key, index)
-            }
+            SKIP_BACK | SKIP_FORWARD | DEFAULT_SPEED | CLOSE_TO_TRAY | PROGRESS_BAR
+            | THEME_MODE | LIGHT_FLAVOR | DARK_FLAVOR | ACCENT => settings.set(key, index),
             COVER_CACHE => {
                 let megabytes = CACHE_MEGABYTES[index.min(CACHE_MEGABYTES.len() - 1)];
                 self.engine.send(Command::SetCoverCacheSize { megabytes });
@@ -67,6 +67,7 @@ impl App {
             };
         }
         self.apply_choices();
+        self.apply_theme();
     }
 
     pub fn close_to_tray(&self) -> bool {

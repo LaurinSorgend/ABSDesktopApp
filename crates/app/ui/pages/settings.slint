@@ -2,6 +2,33 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
 import { AccountData } from "../data.slint";
+
+/// The accent colors of the current flavor as square swatches.
+component AccentPicker inherits HorizontalLayout {
+    spacing: 4px;
+    alignment: start;
+    accessible-role: tab-list;
+    accessible-label: @tr("Accent color");
+    for swatch[index] in Ui.accent-swatches: Rectangle {
+        width: 32px;
+        height: 32px;
+        background: swatch;
+        border-width: index == Ui.accent-index ? 3px : 1px;
+        border-color: index == Ui.accent-index ? Theme.text : Theme.overlay0;
+        accessible-role: tab;
+        accessible-label: Ui.accent-names[index];
+        accessible-item-selected: index == Ui.accent-index;
+        accessible-action-default => {
+            Ui.set-setting("accent", index);
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                Ui.set-setting("accent", index);
+            }
+        }
+    }
+}
 import { Button, Heading, Label, Segmented, TextField } from "../widgets.slint";
 
 component AccountRow inherits Rectangle {
@@ -66,6 +93,70 @@ component Setting inherits VerticalLayout {
             selected: root.selected;
             select(index) => {
                 Ui.set-setting(root.key, index);
+            }
+        }
+    }
+}
+
+component Appearance inherits VerticalLayout {
+    spacing: Theme.pad;
+    Heading {
+        text: @tr("Appearance");
+        font-size: Theme.text-lg;
+    }
+    Setting {
+        title: @tr("Theme");
+        options: [@tr("System"), @tr("Light"), @tr("Dark")];
+        selected: Ui.theme-mode;
+        key: "theme_mode";
+    }
+    Setting {
+        title: @tr("Light theme");
+        options: ["Latte", "Frappé", "Macchiato", "Mocha"];
+        selected: Ui.light-flavor;
+        key: "light_flavor";
+    }
+    Setting {
+        title: @tr("Dark theme");
+        options: ["Latte", "Frappé", "Macchiato", "Mocha"];
+        selected: Ui.dark-flavor;
+        key: "dark_flavor";
+    }
+    VerticalLayout {
+        spacing: 4px;
+        Label {
+            text: @tr("Accent color: {}", Ui.accent-index >= 0 && Ui.accent-index < Ui.accent-names.length ? Ui.accent-names[Ui.accent-index] : "");
+        }
+        AccentPicker { }
+    }
+    VerticalLayout {
+        spacing: 4px;
+        Label {
+            text: @tr("Custom colors");
+        }
+        Text {
+            text: @tr("Colors in {} replace the theme's colors.", Ui.theme-file);
+            color: Theme.text;
+            wrap: word-wrap;
+        }
+        if Ui.theme-note != "": Label {
+            text: Ui.theme-note;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            alignment: start;
+            spacing: Theme.gap;
+            Button {
+                text: @tr("Edit theme file");
+                clicked => {
+                    Ui.edit-theme-file();
+                }
+            }
+            Button {
+                text: @tr("Reload");
+                clicked => {
+                    Ui.reload-theme();
+                }
             }
         }
     }
@@ -143,6 +234,7 @@ export component SettingsPage inherits Rectangle {
                 selected: Ui.close-to-tray ? 1 : 0;
                 key: "close_to_tray";
             }
+            Appearance { }
             Heading {
                 text: @tr("Storage");
                 font-size: Theme.text-lg;

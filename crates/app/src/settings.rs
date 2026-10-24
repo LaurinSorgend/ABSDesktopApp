@@ -6,6 +6,8 @@ use abs_core::db::Store;
 use abs_core::engine::{COVER_CACHE_SETTING, DEFAULT_COVER_CACHE_MB};
 use abs_player::controller::SleepChoice;
 
+use crate::theme::{self, ThemeChoice};
+
 pub const SKIP_BACK: &str = "skip_back";
 pub const SKIP_FORWARD: &str = "skip_forward";
 pub const DEFAULT_SPEED: &str = "default_speed";
@@ -14,6 +16,10 @@ pub const COVER_CACHE: &str = "cover_cache";
 pub const ACTIVE_ACCOUNT: &str = "active_account";
 pub const PROGRESS_BAR: &str = "progress_bar";
 pub const VOLUME: &str = "volume";
+pub const THEME_MODE: &str = "theme_mode";
+pub const LIGHT_FLAVOR: &str = "light_flavor";
+pub const DARK_FLAVOR: &str = "dark_flavor";
+pub const ACCENT: &str = "accent";
 
 pub const SKIP_BACK_SECONDS: [u64; 4] = [5, 10, 15, 30];
 pub const SKIP_FORWARD_SECONDS: [u64; 4] = [10, 15, 30, 60];
@@ -34,6 +40,7 @@ pub struct Choices {
     pub progress_bar: usize,
     /// Percent.
     pub volume: f64,
+    pub theme: ThemeChoice,
 }
 
 impl Choices {
@@ -54,6 +61,16 @@ impl Choices {
             default_speed: get(DEFAULT_SPEED, 1, SPEEDS.len()),
             close_to_tray: settings.get_or(CLOSE_TO_TRAY, 0u8).unwrap_or(0) == 1,
             progress_bar: get(PROGRESS_BAR, 0, 3),
+            theme: ThemeChoice {
+                mode: get(THEME_MODE, 0, 3),
+                light: get(
+                    LIGHT_FLAVOR,
+                    theme::DEFAULT_LIGHT,
+                    theme::FLAVOR_NAMES.len(),
+                ),
+                dark: get(DARK_FLAVOR, theme::DEFAULT_DARK, theme::FLAVOR_NAMES.len()),
+                accent: get(ACCENT, theme::DEFAULT_ACCENT, theme::ACCENT_NAMES.len()),
+            },
             volume: settings
                 .get_or(VOLUME, 100.0_f64)
                 .unwrap_or(100.0)

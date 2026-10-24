@@ -7,6 +7,7 @@ mod detail;
 mod home;
 mod player;
 mod preferences;
+mod themes;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -57,6 +58,7 @@ pub struct App {
     choices: Choices,
     relogin: Option<String>,
     file_credentials: bool,
+    theme_file: PathBuf,
 }
 
 /// What [`App::new`] needs besides the window.
@@ -66,6 +68,7 @@ pub struct Parts {
     pub cover_dir: PathBuf,
     pub playback: Option<Playback>,
     pub file_credentials: bool,
+    pub theme_file: PathBuf,
 }
 
 impl App {
@@ -93,9 +96,11 @@ impl App {
             choices,
             relogin: None,
             file_credentials: parts.file_credentials,
+            theme_file: parts.theme_file,
         };
         app.bind_models();
         app.apply_choices();
+        app.apply_theme();
         app
     }
 

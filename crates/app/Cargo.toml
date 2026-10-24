@@ -11,6 +11,7 @@ abs-player.workspace = true
 anyhow = "1.0.104"
 image = { version = "0.25.9", default-features = false, features = ["webp", "jpeg", "png"] }
 raw-window-handle = "0.6"
+serde_json = "1.0.154"
 slint = { version = "1.18", features = ["raw-window-handle-06"] }
 
 [build-dependencies]
@@ -19,7 +20,6 @@ slint-build = "1.18"
 [dev-dependencies]
 libmpv2 = "6"
 reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json", "query"] }
-serde_json = "1.0.154"
 souvlaki = { version = "0.8.3", default-features = false, features = ["use_zbus"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "sync"] }
 

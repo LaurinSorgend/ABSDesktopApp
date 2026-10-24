@@ -10,6 +10,7 @@ mod paths;
 mod playback;
 mod settings;
 mod system;
+mod theme;
 
 use std::path::Path;
 use std::rc::Rc;
@@ -48,6 +49,7 @@ fn main() -> anyhow::Result<()> {
             cover_dir,
             playback,
             file_credentials,
+            theme_file: theme::file_path(&data_dir),
         },
     ));
     callbacks::connect(&window);

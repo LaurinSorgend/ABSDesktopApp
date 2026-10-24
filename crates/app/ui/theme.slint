@@ -1,25 +1,59 @@
-// Catppuccin Latte (light) and Mocha (dark), following the system color scheme.
+// Theme colors: Catppuccin Latte and Mocha until Rust applies the user's choice.
 
 import { Palette } from "std-widgets.slint";
 
-export global Theme {
-    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+/// The colors of one theme; Rust fills them from the chosen flavor, accent and theme file.
+export struct Colors {
+    base: color,
+    mantle: color,
+    crust: color,
+    surface0: color,
+    surface1: color,
+    surface2: color,
+    overlay0: color,
+    overlay2: color,
+    text: color,
+    subtext: color,
+    accent: color,
+    on-accent: color,
+    red: color,
+    yellow: color,
+    green: color,
+}
 
-    out property <color> base: dark ? #1e1e2e : #eff1f5;
-    out property <color> mantle: dark ? #181825 : #e6e9ef;
-    out property <color> crust: dark ? #11111b : #dce0e8;
-    out property <color> surface0: dark ? #313244 : #ccd0da;
-    out property <color> surface1: dark ? #45475a : #bcc0cc;
-    out property <color> surface2: dark ? #585b70 : #acb0be;
-    out property <color> overlay0: dark ? #6c7086 : #9ca0b0;
-    out property <color> overlay2: dark ? #9399b2 : #7c7f93;
-    out property <color> text: dark ? #cdd6f4 : #4c4f69;
-    out property <color> subtext: dark ? #a6adc8 : #5c5f77;
-    out property <color> accent: dark ? #89b4fa : #1e66f5;
-    out property <color> on-accent: base;
-    out property <color> red: dark ? #f38ba8 : #d20f39;
-    out property <color> yellow: dark ? #f9e2af : #df8e1d;
-    out property <color> green: dark ? #a6e3a1 : #40a02b;
+export global Theme {
+    /// 0 follows the system, 1 light, 2 dark.
+    in property <int> mode;
+    in property <Colors> light-colors: {
+        base: #eff1f5, mantle: #e6e9ef, crust: #dce0e8,
+        surface0: #ccd0da, surface1: #bcc0cc, surface2: #acb0be,
+        overlay0: #9ca0b0, overlay2: #7c7f93, text: #4c4f69, subtext: #5c5f77,
+        accent: #1e66f5, on-accent: #eff1f5, red: #d20f39, yellow: #df8e1d, green: #40a02b,
+    };
+    in property <Colors> dark-colors: {
+        base: #1e1e2e, mantle: #181825, crust: #11111b,
+        surface0: #313244, surface1: #45475a, surface2: #585b70,
+        overlay0: #6c7086, overlay2: #9399b2, text: #cdd6f4, subtext: #bac2de,
+        accent: #89b4fa, on-accent: #1e1e2e, red: #f38ba8, yellow: #f9e2af, green: #a6e3a1,
+    };
+    out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
+    out property <Colors> colors: dark ? dark-colors : light-colors;
+
+    out property <color> base: colors.base;
+    out property <color> mantle: colors.mantle;
+    out property <color> crust: colors.crust;
+    out property <color> surface0: colors.surface0;
+    out property <color> surface1: colors.surface1;
+    out property <color> surface2: colors.surface2;
+    out property <color> overlay0: colors.overlay0;
+    out property <color> overlay2: colors.overlay2;
+    out property <color> text: colors.text;
+    out property <color> subtext: colors.subtext;
+    out property <color> accent: colors.accent;
+    out property <color> on-accent: colors.on-accent;
+    out property <color> red: colors.red;
+    out property <color> yellow: colors.yellow;
+    out property <color> green: colors.green;
 
     out property <string> font: "Ronzino";
     out property <string> mono: "Fira Code";

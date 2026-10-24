@@ -23,6 +23,8 @@ fn connect_navigation(ui: &Ui<'_>) {
     ui.on_back(|| with_app(|app| app.back()));
     ui.on_banner_act(|| with_app(|app| app.banner_act()));
     ui.on_banner_dismiss(|| with_app(|app| app.banner_dismiss()));
+    ui.on_edit_theme_file(|| with_app(|app| app.edit_theme_file()));
+    ui.on_reload_theme(|| with_app(|app| app.apply_theme()));
     ui.on_sync_now(|| with_app(|app| app.sync_now()));
     ui.on_set_setting(|key, index| {
         with_app(move |app| app.set_setting(&key, index.max(0) as usize))

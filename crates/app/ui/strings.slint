@@ -103,6 +103,12 @@ export global Strings {
     public pure function megabytes(count: int) -> string {
         @tr("{} MB", count)
     }
+    public pure function custom-colors-active() -> string {
+        @tr("Custom colors are in use.")
+    }
+    public pure function theme-file-error(message: string) -> string {
+        @tr("The theme file has an error and is ignored: {}", message)
+    }
     public pure function sleep-off() -> string {
         @tr("Off")
     }
