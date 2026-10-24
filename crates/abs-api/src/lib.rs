@@ -3,6 +3,7 @@
 
 mod auth;
 mod client;
+mod clock;
 mod endpoints;
 mod error;
 pub mod jwt;

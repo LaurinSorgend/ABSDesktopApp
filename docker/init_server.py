@@ -16,6 +16,7 @@ ADMIN = {"username": "admin", "password": "admin-pass"}
 USERS = [
     {"username": "listener", "password": "listener-pass", "type": "user", "isActive": True},
     {"username": "leaver", "password": "leaver-pass", "type": "user", "isActive": True},
+    {"username": "traveller", "password": "traveller-pass", "type": "user", "isActive": True},
 ]
 COLLECTION = "Fixture favourites"
 SERIES = "Fixture series"
@@ -58,7 +59,8 @@ def login(base):
 
 
 def ensure_users(base, token):
-    """Create the non-admin users. `leaver` is only used by logout tests."""
+    """Create the non-admin users. `leaver` is only used by logout and playback tests,
+    `traveller` only by the offline session tests."""
     users = {u["username"]: u for u in request(base, "GET", "/api/users", token=token)["users"]}
     for spec in USERS:
         existing = users.get(spec["username"])

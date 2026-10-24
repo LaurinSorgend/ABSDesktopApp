@@ -5,6 +5,7 @@ use reqwest::{Client, RequestBuilder, Response, StatusCode, Url};
 use serde::de::DeserializeOwned;
 
 use crate::auth::{AuthState, TokenSink};
+use crate::clock::Clock;
 use crate::error::{Error, Result};
 use crate::models::Status;
 use crate::version::{Feature, ServerVersion};
@@ -24,6 +25,7 @@ pub struct AbsClient {
     auth: Mutex<AuthState>,
     refresh_lock: tokio::sync::Mutex<()>,
     sink: Box<dyn TokenSink>,
+    clock: Clock,
 }
 
 /// A `reqwest` client with the settings this crate expects. Clone it for every account.
@@ -41,6 +43,8 @@ impl AbsClient {
     pub async fn connect(http: Client, server_url: &str) -> Result<Self> {
         let base = base_url(server_url)?;
         let response = http.get(join(&base, "status")?).send().await?;
+        let clock = Clock::default();
+        clock.note(&response);
         let status: Status = decode(check(response).await?).await?;
         let version = status
             .server_version
@@ -57,6 +61,7 @@ impl AbsClient {
             auth: Mutex::default(),
             refresh_lock: tokio::sync::Mutex::new(()),
             sink: Box::new(()),
+            clock,
         })
     }
 
@@ -64,6 +69,11 @@ impl AbsClient {
     pub async fn ping(&self) -> Result<()> {
         let request = self.http.get(self.url("ping")?).timeout(PING_TIMEOUT);
         check(request.send().await?).await.map(drop)
+    }
+
+    /// Server time minus local time in milliseconds, from the latest answer.
+    pub fn clock_offset_ms(&self) -> Option<i64> {
+        self.clock.offset()
     }
 
     /// Sets where new refresh tokens are stored.
@@ -121,7 +131,9 @@ impl AbsClient {
 
     async fn send_authorized(&self, request: RequestBuilder) -> Result<(Response, u64)> {
         let (token, generation) = self.auth_state().bearer().ok_or(Error::LoginRequired)?;
-        Ok((request.bearer_auth(token).send().await?, generation))
+        let response = request.bearer_auth(token).send().await?;
+        self.clock.note(&response);
+        Ok((response, generation))
     }
 
     /// Sends an authorized request and decodes the JSON body.

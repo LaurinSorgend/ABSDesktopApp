@@ -57,3 +57,52 @@ pub struct PlaybackSession {
     pub audio_tracks: Vec<AudioTrack>,
     pub library_item: Option<LibraryItem>,
 }
+
+/// A session listened to without a server connection, for `POST /api/session/local-all`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalSession {
+    /// `play_local_<uuid>`; the server swaps it for its own id.
+    pub id: String,
+    pub library_id: String,
+    pub library_item_id: String,
+    pub media_type: String,
+    pub display_title: String,
+    pub display_author: String,
+    pub duration: f64,
+    /// Always 3 (local).
+    pub play_method: i64,
+    pub media_player: String,
+    pub start_time: f64,
+    pub current_time: f64,
+    pub time_listening: f64,
+    /// Milliseconds since the epoch on the server's clock.
+    pub started_at: i64,
+    pub updated_at: i64,
+}
+
+/// Body of `POST /api/session/local-all`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalSessions {
+    pub device_info: DeviceInfo,
+    pub sessions: Vec<LocalSession>,
+}
+
+/// The server's answer for one local session, in the order they were sent.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct LocalSyncResult {
+    /// The server's id for the session, not the `play_local_` one.
+    pub id: String,
+    pub success: bool,
+    /// False when the server kept a newer position from another device.
+    pub progress_synced: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub(crate) struct LocalSyncResults {
+    pub results: Vec<LocalSyncResult>,
+}

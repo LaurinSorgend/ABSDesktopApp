@@ -3,7 +3,9 @@
 
 mod common;
 
-use abs_api::models::{DeviceInfo, PlayRequest, SessionSync, ShelfContent};
+use abs_api::models::{
+    DeviceInfo, LocalSession, LocalSessions, PlayRequest, SessionSync, ShelfContent,
+};
 use abs_api::{AbsClient, Error, Feature, ItemFilter, ItemsQuery};
 use reqwest::{StatusCode, header};
 
@@ -214,5 +216,55 @@ async fn download_file_resumes_with_range() {
             .unwrap();
         assert_eq!(tail.status(), StatusCode::PARTIAL_CONTENT, "{server}");
         assert_eq!(tail.bytes().await.unwrap().len(), 100, "{server}");
+    }
+}
+
+#[tokio::test]
+async fn local_sessions_update_progress_and_report_newer_server_progress() {
+    for server in common::servers() {
+        let (client, _) = common::client(&server).await;
+        client.login("traveller", "traveller-pass").await.unwrap();
+        let library = audiobooks_id(&client).await;
+        let item_id = item_titled(&client, &library, "The Happy Prince and").await;
+        let offset = client.clock_offset_ms().expect("Date header");
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
+            + offset;
+        let session = |id: &str, current_time: f64, updated_at: i64| LocalSession {
+            id: id.into(),
+            library_id: library.clone(),
+            library_item_id: item_id.clone(),
+            media_type: "book".into(),
+            display_title: "The Happy Prince".into(),
+            display_author: "Oscar Wilde".into(),
+            duration: 6682.0,
+            play_method: 3,
+            media_player: "libmpv".into(),
+            start_time: current_time - 60.0,
+            current_time,
+            time_listening: 60.0,
+            started_at: updated_at - 60_000,
+            updated_at,
+        };
+        let request = LocalSessions {
+            device_info: play_request().device_info,
+            sessions: vec![
+                session(&format!("play_local_{now}a"), 1200.0, now),
+                session(&format!("play_local_{now}b"), 300.0, now - 3_600_000),
+            ],
+        };
+        let results = client.sync_local_sessions(&request).await.unwrap();
+        assert_eq!(results.len(), 2, "{server}");
+        assert!(results.iter().all(|r| r.success), "{server}: {results:?}");
+        assert!(!results[0].id.starts_with("play_local_"), "{server}");
+        assert!(results[0].progress_synced, "{server}");
+        assert!(
+            !results[1].progress_synced,
+            "older than the first, {server}"
+        );
+        let progress = client.item_progress(&item_id).await.unwrap().unwrap();
+        assert_eq!(progress.current_time, Some(1200.0), "{server}");
     }
 }
