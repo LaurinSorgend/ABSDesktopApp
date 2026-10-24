@@ -139,6 +139,15 @@ export global Strings {
     public pure function address-needs-scheme() -> string {
         @tr("A server address starts with http:// or https://.")
     }
+    public pure function conflict(title: string, here: string, there: string) -> string {
+        @tr("While offline you listened to {} up to {}. Another device is at {}. Which position do you want to keep?", title, here, there)
+    }
+    public pure function conflict-keep(here: string) -> string {
+        @tr("Keep {}", here)
+    }
+    public pure function conflict-take(there: string) -> string {
+        @tr("Use {}", there)
+    }
     public pure function sleep-off() -> string {
         @tr("Off")
     }

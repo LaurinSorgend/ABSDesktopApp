@@ -3,6 +3,7 @@
 mod accounts;
 mod banner;
 mod browse;
+mod conflicts;
 mod detail;
 mod downloads;
 mod home;
@@ -55,6 +56,7 @@ pub struct App {
     browse: browse::Browse,
     detail: detail::Detail,
     downloads: downloads::Downloads,
+    conflicts: Vec<abs_core::offline::Conflict>,
     playback: Option<Playback>,
     player_view: PlayerView,
     choices: Choices,
@@ -95,6 +97,7 @@ impl App {
             browse: browse::Browse::new(),
             detail: detail::Detail::new(),
             downloads: downloads::Downloads::new(),
+            conflicts: Vec::new(),
             playback: parts.playback,
             player_view: PlayerView::new(),
             choices,
@@ -200,6 +203,7 @@ impl App {
                 group_id, item_ids, ..
             } => self.group_items(&group_id, &item_ids),
             Event::BookmarksChanged { item_id, .. } => self.bookmarks_changed(&item_id),
+            Event::ProgressConflict(conflict) => self.conflict_found(conflict),
             Event::DownloadsChanged {
                 account_id,
                 item_id,

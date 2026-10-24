@@ -427,6 +427,47 @@ export component Banner inherits Rectangle {
     }
 }
 
+/// A question across the top with two answers, as for a position conflict.
+export component Prompt inherits Rectangle {
+    in property <string> text;
+    in property <string> first;
+    in property <string> second;
+    callback chose(bool);
+
+    background: Theme.surface0;
+    border-width: 1px;
+    border-color: Theme.accent;
+    accessible-role: groupbox;
+    accessible-label: text;
+
+    HorizontalLayout {
+        padding: Theme.gap;
+        padding-left: Theme.pad;
+        spacing: Theme.gap;
+        Text {
+            text: root.text;
+            color: Theme.text;
+            font-size: Theme.text-sm;
+            vertical-alignment: center;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+        }
+        Button {
+            text: root.first;
+            primary: true;
+            clicked => {
+                root.chose(true);
+            }
+        }
+        Button {
+            text: root.second;
+            clicked => {
+                root.chose(false);
+            }
+        }
+    }
+}
+
 export component Heading inherits Text {
     font-size: Theme.text-xl;
     font-weight: 700;

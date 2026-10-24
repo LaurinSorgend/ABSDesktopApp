@@ -23,6 +23,12 @@ export global Ui {
     callback select-library(int);
     callback sync-now();
 
+    // Offline position conflict, one at a time
+    in property <string> conflict-text;
+    in property <string> conflict-keep-text;
+    in property <string> conflict-take-text;
+    callback resolve-conflict(bool);
+
     // Banner
     in property <string> banner-text;
     in property <int> banner-kind;
@@ -154,6 +160,8 @@ export global Ui {
     in property <int> skip-forward-index;
     in property <int> default-speed-index;
     in property <int> cache-index;
+    in property <int> conflict-index;
+    in property <[string]> conflict-options;
     in property <string> cache-used-text;
     in property <bool> close-to-tray;
     in property <string> credentials-note;

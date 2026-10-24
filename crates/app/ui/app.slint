@@ -8,7 +8,7 @@ import { Theme, Colors } from "theme.slint";
 import { Ui } from "state.slint";
 import { Strings } from "strings.slint";
 import { Page } from "data.slint";
-import { Banner, IconButton, Label } from "widgets.slint";
+import { Banner, IconButton, Label, Prompt } from "widgets.slint";
 import { BackIcon } from "icons.slint";
 import { HomePage } from "pages/home.slint";
 import { LibraryPage, GroupPage, SearchPage } from "pages/library.slint";
@@ -233,6 +233,14 @@ export component AppWindow inherits Window {
         }
 
         VerticalLayout {
+            if Ui.conflict-text != "": Prompt {
+                text: Ui.conflict-text;
+                first: Ui.conflict-keep-text;
+                second: Ui.conflict-take-text;
+                chose(keep) => {
+                    Ui.resolve-conflict(keep);
+                }
+            }
             if Ui.banner-text != "": Banner {
                 text: Ui.banner-text;
                 kind: Ui.banner-kind;
