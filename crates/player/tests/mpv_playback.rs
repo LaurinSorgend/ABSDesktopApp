@@ -13,13 +13,14 @@ use abs_player::{Media, MpvConfig, MpvPlayer, Player, PlayerEvent};
 const WAIT: Duration = Duration::from_secs(30);
 
 /// Tracks and auth header of a fresh session on the item whose title starts with `prefix`.
-async fn media(prefix: &str) -> Media {
+/// Each test logs in as a different user, since starting a session closes the user's other one.
+async fn media(prefix: &str, user: &str) -> Media {
     let server =
         std::env::var("ABS_TEST_SERVER").unwrap_or_else(|_| "http://localhost:13379".into());
     let client = AbsClient::connect(http_client().unwrap(), &server)
         .await
         .unwrap();
-    client.login("listener", "listener-pass").await.unwrap();
+    client.login(user, &format!("{user}-pass")).await.unwrap();
     let libraries = client.libraries().await.unwrap();
     let library = libraries.iter().find(|l| l.name == "Audiobooks").unwrap();
     let items = client
@@ -92,7 +93,7 @@ fn wait_ended(events: &Receiver<PlayerEvent>) {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn multi_file_book_maps_global_time() {
-    let media = media("The Happy Prince and").await;
+    let media = media("The Happy Prince and", "listener").await;
     let total = total_duration(&media.tracks);
     let (player, events) = player();
     player.load(media, 1500.0, true).unwrap();
@@ -108,7 +109,7 @@ async fn multi_file_book_maps_global_time() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn long_single_file_starts_deep_inside() {
-    let media = media("The Happy Prince Marathon").await;
+    let media = media("The Happy Prince Marathon", "admin").await;
     let (player, events) = player();
     player.load(media, 72_000.0, true).unwrap();
     wait_position(&events, 72_000.0);

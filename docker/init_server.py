@@ -1,13 +1,14 @@
 """Initialise a fresh Audiobookshelf test server.
 
 Creates the root admin, two more users and one library per fixture folder,
-then starts a scan and adds one collection and one series. Safe to rerun: existing users and libraries are kept.
+then scans them, waits for the scans and adds one collection and one series. Safe to rerun: existing users and libraries are kept.
 
 Usage: python docker/init_server.py http://localhost:13379
 """
 
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -78,6 +79,24 @@ def ensure_libraries(base, token):
         print(f"library {spec['name']} ({lib['id']}) scanning")
 
 
+def wait_for_scans(base, token, timeout=300):
+    """Wait until every library has items and the counts stop changing."""
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        libraries = request(base, "GET", "/api/libraries", token=token)["libraries"]
+        counts = [
+            request(base, "GET", f"/api/libraries/{lib['id']}/items?limit=1", token=token)["total"]
+            for lib in libraries
+        ]
+        if all(counts) and counts == last:
+            print(f"scans done: {counts}")
+            return
+        last = counts
+        time.sleep(3)
+    sys.exit(f"scans did not finish within {timeout} s")
+
+
 def ensure_collection(base, token):
     """Create one collection in the Audiobooks library once its items exist."""
     libraries = request(base, "GET", "/api/libraries", token=token)["libraries"]
@@ -115,6 +134,7 @@ def main():
         token = login(base)
         ensure_users(base, token)
         ensure_libraries(base, token)
+        wait_for_scans(base, token)
         ensure_collection(base, token)
         ensure_series(base, token)
     except urllib.error.HTTPError as err:
