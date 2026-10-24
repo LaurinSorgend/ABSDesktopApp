@@ -1,7 +1,7 @@
 """Initialise a fresh Audiobookshelf test server.
 
 Creates the root admin, a second user and one library per fixture folder,
-then starts a scan. Safe to rerun: existing users and libraries are kept.
+then starts a scan and adds one collection and one series. Safe to rerun: existing users and libraries are kept.
 
 Usage: python docker/init_server.py http://localhost:13379
 """
@@ -13,6 +13,8 @@ import urllib.request
 
 ADMIN = {"username": "admin", "password": "admin-pass"}
 USER = {"username": "listener", "password": "listener-pass", "type": "user"}
+COLLECTION = "Fixture favourites"
+SERIES = "Fixture series"
 LIBRARIES = [
     {"name": "Audiobooks", "mediaType": "book", "folders": [{"fullPath": "/media/audiobooks"}]},
     {"name": "Ebooks", "mediaType": "book", "folders": [{"fullPath": "/media/ebooks"}]},
@@ -69,6 +71,36 @@ def ensure_libraries(base, token):
         print(f"library {spec['name']} ({lib['id']}) scanning")
 
 
+def ensure_collection(base, token):
+    """Create one collection in the Audiobooks library once its items exist."""
+    libraries = request(base, "GET", "/api/libraries", token=token)["libraries"]
+    library = next(lib for lib in libraries if lib["name"] == "Audiobooks")
+    collections = request(base, "GET", f"/api/libraries/{library['id']}/collections", token=token)
+    if collections["results"]:
+        return
+    items = request(base, "GET", f"/api/libraries/{library['id']}/items?minified=1", token=token)["results"]
+    if not items:
+        print("no items scanned yet, rerun to create the collection")
+        return
+    body = {"libraryId": library["id"], "name": COLLECTION, "books": [i["id"] for i in items]}
+    request(base, "POST", "/api/collections", body, token)
+    print(f"created collection {COLLECTION}")
+
+
+def ensure_series(base, token):
+    """Put the Audiobooks items into one series, numbered by title."""
+    libraries = request(base, "GET", "/api/libraries", token=token)["libraries"]
+    library = next(lib for lib in libraries if lib["name"] == "Audiobooks")
+    items = request(base, "GET", f"/api/libraries/{library['id']}/items?minified=1", token=token)["results"]
+    items.sort(key=lambda i: i["media"]["metadata"]["title"])
+    for sequence, item in enumerate(items, start=1):
+        if item["media"]["metadata"].get("seriesName"):
+            continue
+        series = [{"name": SERIES, "sequence": str(sequence)}]
+        request(base, "PATCH", f"/api/items/{item['id']}/media", {"metadata": {"series": series}}, token)
+        print(f"added {item['media']['metadata']['title']} to {SERIES} #{sequence}")
+
+
 def main():
     base = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://localhost:13379"
     try:
@@ -76,6 +108,8 @@ def main():
         token = login(base)
         ensure_user(base, token)
         ensure_libraries(base, token)
+        ensure_collection(base, token)
+        ensure_series(base, token)
     except urllib.error.HTTPError as err:
         sys.exit(f"{err.code} {err.reason}: {err.read().decode()}")
 
