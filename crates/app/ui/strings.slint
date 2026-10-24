@@ -118,6 +118,24 @@ export global Strings {
     public pure function tray-quit() -> string {
         @tr("Quit")
     }
+    public pure function gigabytes(count: string) -> string {
+        @tr("{} GB", count)
+    }
+    public pure function download-queued() -> string {
+        @tr("Waiting to download")
+    }
+    public pure function download-running(percent: int, size: string) -> string {
+        @tr("Downloading: {} % of {}", percent, size)
+    }
+    public pure function download-paused(percent: int) -> string {
+        @tr("Paused at {} %", percent)
+    }
+    public pure function download-done(size: string) -> string {
+        @tr("Downloaded · {}", size)
+    }
+    public pure function download-failed(message: string) -> string {
+        @tr("Download failed: {}", message)
+    }
     public pure function sleep-off() -> string {
         @tr("Off")
     }

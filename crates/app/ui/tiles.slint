@@ -4,6 +4,7 @@ import { ListView, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { TileData, TileRow, ShelfData } from "data.slint";
 import { Heading } from "widgets.slint";
+import { DownloadIcon } from "icons.slint";
 
 /// A cover image, or the title on a plain square while there is none.
 export component Cover inherits Rectangle {
@@ -64,6 +65,21 @@ export component Tile inherits Rectangle {
                 height: 4px;
                 width: parent.width * (root.data.finished ? 1 : root.data.progress);
                 background: root.data.finished ? Theme.green : Theme.accent;
+            }
+            if root.data.downloaded: Rectangle {
+                x: parent.width - self.width - 6px;
+                y: 6px;
+                width: 26px;
+                height: 26px;
+                background: Theme.base;
+                border-width: 1px;
+                border-color: Theme.overlay0;
+                accessible-role: image;
+                accessible-label: @tr("Downloaded");
+                DownloadIcon {
+                    width: 16px;
+                    height: 16px;
+                }
             }
         }
         Text {

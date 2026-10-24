@@ -136,10 +136,6 @@ pub enum Command {
         account_id: String,
         item_id: String,
     },
-    /// Folder for new downloads; `None` goes back to the default. Existing downloads stay where they are.
-    SetDownloadRoot {
-        path: Option<PathBuf>,
-    },
 }
 
 /// Ways to group a library.

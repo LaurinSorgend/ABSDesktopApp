@@ -8,6 +8,7 @@ export struct TileData {
     has-cover: bool,
     progress: float,
     finished: bool,
+    downloaded: bool,
 }
 
 export struct TileRow {
@@ -72,6 +73,23 @@ export struct DetailData {
     has-cover: bool,
     has-audio: bool,
     chapters-note: string,
+    account-id: string,
+    can-download: bool,
+    /// 0 none, 1 queued, 2 downloading, 3 paused, 4 done, 5 failed.
+    download-state: int,
+    download-text: string,
+    download-fraction: float,
+}
+
+/// A row of the downloads list in the settings.
+export struct DownloadData {
+    account-id: string,
+    item-id: string,
+    title: string,
+    status: string,
+    /// As in `DetailData.download-state`.
+    state: int,
+    fraction: float,
 }
 
 export enum Page {

@@ -115,6 +115,33 @@ fn filters_by_progress_and_keeps_id_order() {
     assert_eq!(catalog.item_count(&account, &not_started).unwrap(), 1);
     let finished = query(ProgressFilter::Finished);
     assert_eq!(catalog.item_count(&account, &finished).unwrap(), 0);
+    let downloaded = query(ProgressFilter::Downloaded);
+    assert_eq!(catalog.item_count(&account, &downloaded).unwrap(), 0);
+    let new = crate::db::NewDownload {
+        account_id: &account,
+        item_id: &all[0].remote_id,
+        title: "t",
+        dir: std::path::Path::new("d"),
+        files: &[],
+    };
+    store.downloads().insert(&new).unwrap();
+    assert_eq!(
+        catalog.item_count(&account, &downloaded).unwrap(),
+        0,
+        "not done yet"
+    );
+    let done = crate::db::DownloadState::Done;
+    store
+        .downloads()
+        .set_state(&account, &all[0].remote_id, done, None)
+        .unwrap();
+    let page = catalog.items_page(&account, &downloaded, 0, 10).unwrap();
+    assert_eq!(page.len(), 1);
+    assert!(page[0].downloaded);
+    store
+        .downloads()
+        .remove(&account, &all[0].remote_id)
+        .unwrap();
 
     let ids = [
         all[1].remote_id.as_str(),

@@ -59,14 +59,6 @@ pub(super) fn handle(shared: &Arc<Shared>, command: Command) {
         } => {
             tokio::spawn(delete(shared, account_id, item_id));
         }
-        Command::SetDownloadRoot { path } => {
-            let db = lock(&shared.db);
-            let settings = db.store().settings();
-            let _ = match path {
-                Some(path) => settings.set(ROOT_SETTING, path.to_string_lossy()),
-                None => settings.remove(ROOT_SETTING),
-            };
-        }
         _ => {}
     }
 }
@@ -87,7 +79,7 @@ pub(super) fn recover(shared: &Shared) {
     }
 }
 
-/// The folder new downloads go to.
+/// The folder new downloads go to: the `download_root` setting, else the default.
 pub(super) fn root(shared: &Shared) -> PathBuf {
     lock(&shared.db)
         .store()

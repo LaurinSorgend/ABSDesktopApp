@@ -2,7 +2,7 @@
 
 import {
     TileData, TileRow, ShelfData, NamedId, GroupData, ChapterData, BookmarkData, AccountData,
-    DetailData, Page, LibraryView,
+    DetailData, DownloadData, Page, LibraryView,
 } from "data.slint";
 
 export global Ui {
@@ -73,6 +73,18 @@ export global Ui {
     callback play-item(string);
     callback play-from(string, float);
     callback set-finished(string, bool);
+
+    // Downloads, by account and item id
+    in property <[DownloadData]> downloads;
+    in property <string> download-folder;
+    in property <bool> download-folder-custom;
+    in property <string> downloads-used-text;
+    callback download(string, string);
+    callback pause-download(string, string);
+    callback resume-download(string, string);
+    callback delete-download(string, string);
+    callback choose-download-folder();
+    callback reset-download-folder();
 
     // Player
     in property <bool> has-media;

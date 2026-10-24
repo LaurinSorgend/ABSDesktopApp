@@ -1,7 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
-import { AccountData } from "../data.slint";
+import { AccountData, DownloadData } from "../data.slint";
 
 /// The accent colors of the current flavor as square swatches.
 component AccentPicker inherits HorizontalLayout {
@@ -72,6 +72,96 @@ component AccountRow inherits Rectangle {
                 Ui.remove-account(root.account.id);
             }
         }
+    }
+}
+
+component DownloadRow inherits Rectangle {
+    in property <DownloadData> download;
+    min-height: 56px;
+    border-width: 1px;
+    border-color: Theme.surface1;
+    HorizontalLayout {
+        padding: Theme.gap;
+        padding-left: Theme.pad;
+        spacing: Theme.gap;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.download.title;
+                color: Theme.text;
+                font-weight: 500;
+                overflow: elide;
+            }
+            Label {
+                text: root.download.status;
+                color: root.download.state == 5 ? Theme.red : Theme.subtext;
+                overflow: elide;
+            }
+        }
+        if root.download.state == 1 || root.download.state == 2: Button {
+            text: @tr("Pause");
+            clicked => {
+                Ui.pause-download(root.download.account-id, root.download.item-id);
+            }
+        }
+        if root.download.state == 3 || root.download.state == 5: Button {
+            text: root.download.state == 5 ? @tr("Retry") : @tr("Resume");
+            clicked => {
+                Ui.resume-download(root.download.account-id, root.download.item-id);
+            }
+        }
+        Button {
+            text: root.download.state == 4 ? @tr("Remove") : @tr("Cancel");
+            clicked => {
+                Ui.delete-download(root.download.account-id, root.download.item-id);
+            }
+        }
+    }
+}
+
+component Downloads inherits VerticalLayout {
+    spacing: Theme.pad;
+    Heading {
+        text: @tr("Downloads");
+        font-size: Theme.text-lg;
+    }
+    VerticalLayout {
+        spacing: 4px;
+        Label {
+            text: @tr("Download folder");
+        }
+        Text {
+            text: Ui.download-folder;
+            color: Theme.text;
+            wrap: word-wrap;
+        }
+        Label {
+            text: @tr("New downloads go here. Downloads already on this computer stay where they are.");
+            wrap: word-wrap;
+        }
+    }
+    HorizontalLayout {
+        alignment: start;
+        spacing: Theme.gap;
+        Button {
+            text: @tr("Choose folder…");
+            clicked => {
+                Ui.choose-download-folder();
+            }
+        }
+        if Ui.download-folder-custom: Button {
+            text: @tr("Use the default folder");
+            clicked => {
+                Ui.reset-download-folder();
+            }
+        }
+    }
+    Label {
+        text: Ui.downloads.length == 0 ? @tr("Nothing is downloaded.") : @tr("Downloads use {}.", Ui.downloads-used-text);
+    }
+    for download in Ui.downloads: DownloadRow {
+        download: download;
     }
 }
 
@@ -245,6 +335,7 @@ export component SettingsPage inherits Rectangle {
                 selected: Ui.cache-index;
                 key: "cover_cache";
             }
+            Downloads { }
         }
     }
 }

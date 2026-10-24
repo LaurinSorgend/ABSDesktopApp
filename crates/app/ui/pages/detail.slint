@@ -72,6 +72,45 @@ component Fact inherits HorizontalLayout {
     }
 }
 
+/// Download, pause, resume and remove for the item on the page.
+component DownloadControls inherits HorizontalLayout {
+    property <int> state: Ui.detail.download-state;
+    spacing: Theme.gap;
+    alignment: start;
+    if state == 0: Button {
+        text: @tr("Download");
+        enabled: Ui.detail.can-download;
+        clicked => {
+            Ui.download(Ui.detail.account-id, Ui.detail.id);
+        }
+    }
+    if state == 1 || state == 2: Button {
+        text: @tr("Pause");
+        clicked => {
+            Ui.pause-download(Ui.detail.account-id, Ui.detail.id);
+        }
+    }
+    if state == 3 || state == 5: Button {
+        text: state == 5 ? @tr("Retry") : @tr("Resume");
+        clicked => {
+            Ui.resume-download(Ui.detail.account-id, Ui.detail.id);
+        }
+    }
+    if state != 0: Button {
+        text: state == 4 ? @tr("Remove download") : @tr("Cancel download");
+        clicked => {
+            Ui.delete-download(Ui.detail.account-id, Ui.detail.id);
+        }
+    }
+    if Ui.detail.download-text != "": VerticalLayout {
+        alignment: center;
+        Label {
+            text: Ui.detail.download-text;
+            color: state == 5 ? Theme.red : Theme.subtext;
+        }
+    }
+}
+
 component DetailHeader inherits HorizontalLayout {
     spacing: 2 * Theme.pad;
     alignment: start;
@@ -144,6 +183,7 @@ component DetailHeader inherits HorizontalLayout {
                 }
             }
         }
+        if Ui.detail.has-audio: DownloadControls { }
     }
 }
 
