@@ -175,6 +175,22 @@ impl AbsClient {
         }
     }
 
+    /// Refreshes the tokens now, for example after the machine woke from sleep.
+    pub async fn refresh_now(&self) -> Result<()> {
+        let generation = self.auth_state().generation;
+        self.refresh(generation).await
+    }
+
+    /// Replaces the access token with an invalid one, to test 401 recovery.
+    #[cfg(feature = "integration")]
+    #[doc(hidden)]
+    pub fn break_access_token(&self) {
+        let mut state = self.auth_state();
+        if let Some(Credential::Session { access, .. }) = &mut state.credential {
+            *access = "invalid".into();
+        }
+    }
+
     /// Refreshes the tokens unless another caller already did since `seen_generation`.
     pub(crate) async fn refresh(&self, seen_generation: u64) -> Result<()> {
         let _single_flight = self.refresh_lock().lock().await;
