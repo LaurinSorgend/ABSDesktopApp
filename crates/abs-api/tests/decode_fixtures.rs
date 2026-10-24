@@ -46,7 +46,13 @@ fn libraries_and_items() {
         assert_eq!(items.total, 2);
         let first = &items.results[0].media.metadata;
         assert_eq!(first.author_name.as_deref(), Some("Oscar Wilde"));
-        assert!(first.series_name.as_deref().unwrap().starts_with("Fixture series"));
+        assert!(
+            first
+                .series_name
+                .as_deref()
+                .unwrap()
+                .starts_with("Fixture series")
+        );
     });
 }
 
@@ -55,7 +61,10 @@ fn expanded_items() {
     each_version(|v| {
         let multi: Raw<LibraryItem> = fixture(v, "item_multi_file");
         assert_eq!(multi.media.tracks.len(), 5);
-        assert_eq!(multi.media.metadata.series[0].sequence.as_deref(), Some("2"));
+        assert_eq!(
+            multi.media.metadata.series[0].sequence.as_deref(),
+            Some("2")
+        );
         assert_eq!(multi.media.metadata.authors[0].name, "Oscar Wilde");
         let single: Raw<LibraryItem> = fixture(v, "item_single_file");
         assert_eq!(single.media.chapters.len(), 80);
