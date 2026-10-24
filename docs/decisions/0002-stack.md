@@ -17,7 +17,7 @@ Windows 11, release builds, private working set. Details and method in `docs/spi
 
 ## Decision
 
-Slint: go. The cover grid stays within budget with the default FemtoVG renderer, and the software renderer is a fallback that saves about 60 MB if GPU memory turns out to matter more than smoothness. Smoothness, HiDPI on Windows and fractional scaling on Wayland still need a manual check.
+Slint: go. The cover grid stays within budget with the default FemtoVG renderer, and the software renderer is a fallback that saves about 60 MB if GPU memory turns out to matter more than smoothness. Scrolling and rendering on Windows 11 were checked by hand and look good; fractional scaling on Wayland is still open.
 
 libmpv: go, with conditions:
 

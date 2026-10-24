@@ -22,7 +22,8 @@ Measured against the Docker test servers (ABS 2.26.3 and 2.37.2) with `cargo run
 - The GPU renderer costs about 60 MB on top of the software renderer, mostly driver state and texture copies of the cached images.
 - Skia isn't compiled in by default (`renderer-skia` feature); `SLINT_BACKEND=winit-skia` falls back to FemtoVG.
 - One decoded 320 px cover is 400 KB, so 64 MB holds about 160 covers. Scrolling a 500-item library twice decoded 765 covers. A smaller decode size (exact physical tile size) or a 32 MB cap are the obvious levers.
-- Open: scrolling smoothness, HiDPI on Windows and fractional scaling on Wayland still need a manual check.
+- Checked by hand on Windows 11: scrolling, cover loading and rendering look good.
+- Open: fractional scaling on Wayland.
 
 ## libmpv playback (0.5)
 
