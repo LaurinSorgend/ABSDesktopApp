@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 /// A library item, minified (list endpoints) or expanded (`?expanded=1`).
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -49,6 +49,8 @@ pub struct BookMetadata {
     pub subtitle: Option<String>,
     pub authors: Vec<NamedRef>,
     pub narrators: Vec<String>,
+    /// A list, or one object on shelves such as "continue series".
+    #[serde(deserialize_with = "one_or_many")]
     pub series: Vec<SeriesRef>,
     pub genres: Vec<String>,
     pub author_name: Option<String>,
@@ -81,6 +83,25 @@ pub struct SeriesRef {
     pub id: String,
     pub name: String,
     pub sequence: Option<String>,
+}
+
+/// Accepts a list, a single value or `null`.
+fn one_or_many<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany<T> {
+        Many(Vec<T>),
+        One(T),
+    }
+    Ok(match Option::<OneOrMany<T>>::deserialize(deserializer)? {
+        Some(OneOrMany::Many(values)) => values,
+        Some(OneOrMany::One(value)) => vec![value],
+        None => Vec::new(),
+    })
 }
 
 /// A chapter in global item time (seconds).

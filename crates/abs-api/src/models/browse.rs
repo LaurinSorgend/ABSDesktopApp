@@ -134,9 +134,9 @@ impl TryFrom<RawShelf> for Shelf {
 
     fn try_from(raw: RawShelf) -> Result<Self, Self::Error> {
         let content = match raw.shelf_type.as_str() {
-            "book" => ShelfContent::Books(decode_all(raw.entities)?),
-            "series" => ShelfContent::Series(decode_all(raw.entities)?),
-            "authors" => ShelfContent::Authors(decode_all(raw.entities)?),
+            "book" => ShelfContent::Books(decode_all(raw.entities)),
+            "series" => ShelfContent::Series(decode_all(raw.entities)),
+            "authors" => ShelfContent::Authors(decode_all(raw.entities)),
             _ => ShelfContent::Other {
                 shelf_type: raw.shelf_type,
                 entities: raw.entities,
@@ -152,6 +152,11 @@ impl TryFrom<RawShelf> for Shelf {
     }
 }
 
-fn decode_all<T: serde::de::DeserializeOwned>(values: Vec<Value>) -> serde_json::Result<Vec<T>> {
-    values.into_iter().map(serde_json::from_value).collect()
+/// Decodes each entity on its own and skips those that do not fit, so one odd
+/// item does not hide the whole shelf.
+fn decode_all<T: serde::de::DeserializeOwned>(values: Vec<Value>) -> Vec<T> {
+    values
+        .into_iter()
+        .filter_map(|v| serde_json::from_value(v).ok())
+        .collect()
 }
