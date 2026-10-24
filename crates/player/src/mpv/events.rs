@@ -123,23 +123,30 @@ impl Reader {
     }
 
     /// Runs on `FileLoaded`. Reads `playlist-pos` itself because its change
-    /// notification may arrive after this event.
+    /// notification may arrive after this event. Older libmpv versions start the
+    /// first entry when leaving idle; then the wanted track is selected again.
     fn apply_pending_seek(&mut self) {
         let loaded = self.mpv.get_property::<i64>("playlist-pos").ok();
-        let offset = {
+        let (index, offset, here) = {
             let mut state = lock(&self.state);
             if let Some(index) = loaded.and_then(|p| usize::try_from(p).ok()) {
                 state.current = Some(index);
             }
-            match state.pending_seek {
-                Some((index, offset)) if state.current == Some(index) => {
-                    state.pending_seek = None;
-                    offset
-                }
-                _ => return,
+            let Some((index, offset)) = state.pending_seek else {
+                return;
+            };
+            let here = state.current == Some(index);
+            if here {
+                state.pending_seek = None;
             }
+            (index, offset, here)
         };
-        if let Err(e) = self.mpv.command("seek", &[&offset.to_string(), "absolute"]) {
+        let result = if here {
+            self.mpv.command("seek", &[&offset.to_string(), "absolute"])
+        } else {
+            self.mpv.set_property("playlist-pos", index as i64)
+        };
+        if let Err(e) = result {
             (self.emit)(PlayerEvent::Error(e.to_string()));
         }
     }
