@@ -194,3 +194,25 @@ async fn check_track_range(client: &AbsClient, content_url: &str) {
     assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
     assert_eq!(response.bytes().await.unwrap().len(), 1024);
 }
+
+#[tokio::test]
+async fn download_file_resumes_with_range() {
+    for server in common::servers() {
+        let (client, _) = common::listener(&server).await;
+        let library = audiobooks_id(&client).await;
+        let item_id = item_titled(&client, &library, "The Happy Prince and").await;
+        let item = client.item(&item_id).await.unwrap();
+        let track = &item.media.tracks[0];
+        let size = track.metadata.as_ref().unwrap().size;
+        assert!(!track.ino.is_empty(), "{server}");
+        let whole = client.download_file(&item_id, &track.ino, 0).await.unwrap();
+        assert_eq!(whole.status(), StatusCode::OK, "{server}");
+        assert_eq!(whole.content_length(), Some(size), "{server}");
+        let tail = client
+            .download_file(&item_id, &track.ino, size - 100)
+            .await
+            .unwrap();
+        assert_eq!(tail.status(), StatusCode::PARTIAL_CONTENT, "{server}");
+        assert_eq!(tail.bytes().await.unwrap().len(), 100, "{server}");
+    }
+}

@@ -1,4 +1,5 @@
-use reqwest::StatusCode;
+use reqwest::header::RANGE;
+use reqwest::{Response, StatusCode};
 
 use crate::Raw;
 use crate::client::AbsClient;
@@ -22,6 +23,17 @@ impl AbsClient {
             Err(e) if e.status() == Some(StatusCode::NOT_FOUND) => Ok(None),
             Err(e) => Err(e),
         }
+    }
+
+    /// `GET /api/items/:id/file/:ino/download`, from byte `offset` on. The answer is
+    /// `206 Partial Content` when the server honours the range, else the whole file.
+    pub async fn download_file(&self, item_id: &str, ino: &str, offset: u64) -> Result<Response> {
+        let url = self.url(&format!("api/items/{item_id}/file/{ino}/download"))?;
+        let request = match offset {
+            0 => self.http().get(url),
+            _ => self.http().get(url).header(RANGE, format!("bytes={offset}-")),
+        };
+        self.send(request).await
     }
 
     /// `POST /api/items/:id/play`: starts a playback session.
