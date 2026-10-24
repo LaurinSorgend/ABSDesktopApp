@@ -55,4 +55,11 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - `abs_core::credentials::Credentials` keeps refresh tokens in the OS keyring (`keyring-core` with the Windows store, or the zbus Secret Service store on Linux), keyed by account UUID. `Credentials::system()` returns `Unavailable` when the keyring does not answer; the UI then offers `files(dir)` (0600) or `memory()`. `sink(account)` plugs into `AbsClient::with_token_sink`. The real-keyring test is `#[ignore]` (`cargo test -p abs-core -- --ignored`); it passed on Windows. The Linux store has not been compiled yet.
 - `abs_core::cover_cache::CoverCache` stores `<root>/<account>/covers/<item>_<width>_<etag>.webp`. The etag (the item's `cover_etag`) is in the file name, unlike the plan's path, so a changed cover is a cache miss. Byte-capped LRU, default 500 MB, order kept across restarts through file mtimes.
 
-Next: 1.5 accounts and sync.
+1.5 is done:
+- `abs_core::account`: `add_account` (status probe, login, server/URL/account rows, token saved) and `restore_account` (first reachable URL, stored refresh token).
+- `abs_core::sync`: `sync_catalog` pages each library (500 per page) and removes items that are gone; `sync_progress` uses `/api/me/progress` or the `/api/me` payload and replaces bookmarks.
+- `abs_core::engine::Engine`: a current-thread tokio runtime on the `abs-engine` thread. `Command`s in, `Event`s out through a callback (the app forwards them with `slint::invoke_from_event_loop`). Every minute it refreshes due tokens, retries offline accounts and re-syncs when `sync_interval_minutes` (default 30) has passed. Accounts that need a login wait for the user.
+- The database is one connection behind a `Mutex`; writes run inline on the engine thread. Fine for now, revisit if a large library sync stalls the engine.
+- Contract tests: `cargo test -p abs-core --features integration`.
+
+Next: 1.6 realtime (Socket.IO).

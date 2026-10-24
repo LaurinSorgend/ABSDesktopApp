@@ -158,12 +158,12 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Cover cache: `<cache>/<account_id>/covers/<item_id>_<w>.webp`, size-capped LRU (setting, default 500 MB).
 
 ### 1.5 `core`: accounts and sync
-- [ ] Add-account flow: URL -> `/status` probe -> login -> store server, URL, account.
-- [ ] Generate a stable `device_id` per account.
-- [ ] Initial catalog sync: page through each library, upsert items, delete items no longer present.
-- [ ] Periodic re-sync (setting, default 30 min) because there is no "changed since" endpoint.
-- [ ] Progress sync from `/api/me/progress` on start and after reconnect.
-- [ ] `Command` / `Event` channels; tokio runtime on its own thread; Slint thread only receives events.
+- [x] Add-account flow: URL -> `/status` probe -> login -> store server, URL, account.
+- [x] Generate a stable `device_id` per account.
+- [x] Initial catalog sync: page through each library, upsert items, delete items no longer present.
+- [x] Periodic re-sync (setting, default 30 min) because there is no "changed since" endpoint.
+- [x] Progress sync from `/api/me/progress` on start and after reconnect.
+- [x] `Command` / `Event` channels; tokio runtime on its own thread; Slint thread only receives events.
 
 ### 1.6 `abs-api`/`core`: realtime
 - [ ] `rust_socketio` client: connect to server root, emit `auth`, wait for `init` / `auth_failed`.
