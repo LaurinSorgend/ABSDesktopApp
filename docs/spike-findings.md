@@ -52,6 +52,12 @@ Private working set (`mpv_idle` example, one URL, `ao=null`):
 
 Options for the M4B index cost, to decide in 0.8: accept it in the playing budget; ask ABS to transcode to HLS for long single-file books (more server CPU); or measure the symphonia fallback on the same file.
 
+symphonia 0.5.5 on the same 40 h M4B (`cargo run -p abs-player --example symphonia_probe --release -- <file>`, local file, no network):
+
+- Open 10-18 ms, seek to 72 000 s in microseconds, peak private working set 13.3 MB. Its MP4 demuxer keeps the sample index far more compactly than FFmpeg's.
+- Its AAC decoder fails on this file: 9 packets in 2 s of decoding returned `unsupported feature: aac: predictor data`, although the stream is AAC LC from FFmpeg's encoder. Not usable as is. symphonia 0.6 has not been tried.
+- So the fallback would save about 120 MB for long single-file books, but needs a working AAC decoder (symphonia 0.6, or `fdk-aac`/`faad2` bindings) and its own HTTP range reader. Keep libmpv for 1.7 and revisit if the playing budget is exceeded in dogfooding.
+
 ## Media controls (0.6)
 
 `cargo run -p abs-desktop --example media_controls --release` plays the first LibriVox track through libmpv (with mpv's own `media-controls=no`) and registers with souvlaki 0.8.3.
