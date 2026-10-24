@@ -119,7 +119,7 @@ pub enum Command {
 }
 
 /// Ways to group a library.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GroupKind {
     Series,
     Authors,
