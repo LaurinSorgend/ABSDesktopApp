@@ -105,6 +105,27 @@ fn personalized_shelves() {
     });
 }
 
+/// "Continue series" books carry `series` as one object; an entity of the wrong
+/// shape is skipped instead of failing the shelf.
+#[test]
+fn shelf_with_series_object_and_odd_entity() {
+    let json = r#"[{"id":"continue-series","label":"Continue Series","type":"book","total":2,
+        "entities":[
+            {"id":"li1","media":{"metadata":{"title":"Two","series":{"id":"s1","name":"Saga","sequence":"2"}}}},
+            {"id":"li2","media":{"metadata":{"title":"Odd","authors":{"broken":true}}}}
+        ]}]"#;
+    let shelves: Vec<Shelf> = serde_json::from_str(json).unwrap();
+    let ShelfContent::Books(books) = &shelves[0].content else {
+        panic!("book shelf expected");
+    };
+    assert_eq!(books.len(), 1);
+    let series = &books[0].media.metadata.series;
+    assert_eq!(
+        (series[0].name.as_str(), series[0].sequence.as_deref()),
+        ("Saga", Some("2"))
+    );
+}
+
 #[test]
 fn playback_and_progress() {
     each_version(|v| {
