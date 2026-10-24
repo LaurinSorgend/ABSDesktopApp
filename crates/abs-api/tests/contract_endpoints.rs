@@ -131,6 +131,21 @@ async fn bookmarks_create_update_delete() {
 }
 
 #[tokio::test]
+async fn mark_finished_and_unfinished() {
+    for server in common::servers() {
+        let client = common::admin(&server).await;
+        let library = audiobooks_id(&client).await;
+        let id = item_titled(&client, &library, "The Happy Prince Marathon").await;
+        client.set_finished(&id, true).await.unwrap();
+        let progress = client.item_progress(&id).await.unwrap().unwrap();
+        assert!(progress.is_finished, "{server}");
+        client.set_finished(&id, false).await.unwrap();
+        let progress = client.item_progress(&id).await.unwrap().unwrap();
+        assert!(!progress.is_finished, "{server}");
+    }
+}
+
+#[tokio::test]
 async fn all_progress_is_version_gated() {
     for server in common::servers() {
         let (client, _) = common::listener(&server).await;
