@@ -4,7 +4,10 @@ use reqwest::{Response, StatusCode};
 use crate::Raw;
 use crate::client::AbsClient;
 use crate::error::Result;
-use crate::models::{LibraryItem, PlayRequest, PlaybackSession, SessionSync};
+use crate::models::{
+    LibraryItem, LocalSessions, LocalSyncResult, LocalSyncResults, PlayRequest, PlaybackSession,
+    SessionSync,
+};
 
 impl AbsClient {
     /// `GET /api/items/:id?expanded=1`.
@@ -49,6 +52,17 @@ impl AbsClient {
     pub async fn sync_session(&self, session_id: &str, sync: &SessionSync) -> Result<()> {
         let url = self.url(&format!("api/session/{session_id}/sync"))?;
         self.send(self.http().post(url).json(sync)).await.map(drop)
+    }
+
+    /// `POST /api/session/local-all`: sessions listened to offline. The results come
+    /// in the order of `request.sessions`.
+    pub async fn sync_local_sessions(
+        &self,
+        request: &LocalSessions,
+    ) -> Result<Vec<LocalSyncResult>> {
+        let url = self.url("api/session/local-all")?;
+        let results: LocalSyncResults = self.send_json(self.http().post(url).json(request)).await?;
+        Ok(results.results)
     }
 
     /// `POST /api/session/:id/close`, with a last sync if given.
