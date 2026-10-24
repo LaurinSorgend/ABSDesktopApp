@@ -199,7 +199,7 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Keyboard shortcuts (space, arrows, chapter jumps).
 - [x] Optional tray icon (`tray-icon`) with play/pause; close-to-tray while playing. Windows only for now.
 - [x] Error and offline banners; never a blank screen.
-- [ ] Hands-on pass of every screen against both test servers and a real library.
+- [x] Hands-on pass of every screen against both test servers and a real library.
 
 ### 1.10 CI and builds
 - [ ] CI job with the Docker ABS services running the integration tests on Linux.
