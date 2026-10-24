@@ -35,7 +35,9 @@ const SEEK_POINTS: &[f64] = &[0.10, 0.50, 0.95];
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
-    let base = args.next().unwrap_or_else(|| "http://localhost:13379".into());
+    let base = args
+        .next()
+        .unwrap_or_else(|| "http://localhost:13379".into());
     let username = args.next().unwrap_or_else(|| "admin".into());
     let password = args.next().unwrap_or_else(|| "admin-pass".into());
     let server = Server::login(&base, &username, &password)?;
@@ -103,7 +105,8 @@ fn seek_global(mpv: &Mpv, session: &Session, global: f64) -> Result<()> {
     let (index, offset) = locate(&session.tracks, global);
     let current: i64 = mpv.get_property("playlist-pos").map_err(mpv_err)?;
     if current != index as i64 {
-        mpv.set_property("playlist-pos", index as i64).map_err(mpv_err)?;
+        mpv.set_property("playlist-pos", index as i64)
+            .map_err(mpv_err)?;
         wait_for(mpv, |e| matches!(e, Event::PlaybackRestart))?;
     }
     mpv_cmd(mpv, "seek", &[&offset.to_string(), "absolute"])?;
@@ -123,7 +126,11 @@ fn probe_seek_latency(mpv: &Mpv, session: &Session) -> Result<()> {
         mpv_cmd(mpv, "seek", &[&target.to_string(), "absolute"])?;
         wait_for(mpv, |e| matches!(e, Event::PlaybackRestart))?;
         let time: f64 = mpv.get_property("time-pos").map_err(mpv_err)?;
-        println!("seek {:>3.0}% -> {time:9.1}s in {:?}", fraction * 100.0, start.elapsed());
+        println!(
+            "seek {:>3.0}% -> {time:9.1}s in {:?}",
+            fraction * 100.0,
+            start.elapsed()
+        );
     }
     Ok(())
 }
@@ -135,13 +142,19 @@ fn probe_speeds(mpv: &Mpv) -> Result<()> {
         let before: f64 = mpv.get_property("time-pos").map_err(mpv_err)?;
         pump_events(mpv, Duration::from_secs(2));
         let after: f64 = mpv.get_property("time-pos").map_err(mpv_err)?;
-        println!("speed {speed:4.2}: {:.2}s of audio in 2 s wall time", after - before);
+        println!(
+            "speed {speed:4.2}: {:.2}s of audio in 2 s wall time",
+            after - before
+        );
     }
     mpv.set_property("speed", 1.0).map_err(mpv_err)
 }
 
 fn hold_for_sampling(mpv: &Mpv) -> Result<()> {
-    let secs: u64 = std::env::var("SPIKE_HOLD_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let secs: u64 = std::env::var("SPIKE_HOLD_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
     if secs == 0 {
         return Ok(());
     }
@@ -150,14 +163,23 @@ fn hold_for_sampling(mpv: &Mpv) -> Result<()> {
     while Instant::now() < deadline {
         pump_events(mpv, Duration::from_secs(5));
         let cache: i64 = mpv.get_property("cache-buffering-state").unwrap_or(-1);
-        println!("time-pos {:.0}s, cache-buffering-state {cache}, demuxer-cache-duration {:.0}s", mpv.get_property::<f64>("time-pos").unwrap_or_default(), mpv.get_property::<f64>("demuxer-cache-duration").unwrap_or_default());
+        println!(
+            "time-pos {:.0}s, cache-buffering-state {cache}, demuxer-cache-duration {:.0}s",
+            mpv.get_property::<f64>("time-pos").unwrap_or_default(),
+            mpv.get_property::<f64>("demuxer-cache-duration")
+                .unwrap_or_default()
+        );
     }
     Ok(())
 }
 
 fn report_pitch_filter(log_file: &std::path::Path) -> Result<()> {
     let log = std::fs::read_to_string(log_file)?;
-    let lines: Vec<&str> = log.lines().filter(|l| l.contains("scaletempo")).take(3).collect();
+    let lines: Vec<&str> = log
+        .lines()
+        .filter(|l| l.contains("scaletempo"))
+        .take(3)
+        .collect();
     println!("\n== pitch correction filter lines in mpv log:");
     for line in lines {
         println!("  {line}");
@@ -169,7 +191,9 @@ fn wait_for(mpv: &Mpv, wanted: impl Fn(&Event) -> bool) -> Result<()> {
     let deadline = Instant::now() + EVENT_TIMEOUT;
     while Instant::now() < deadline {
         match mpv.wait_event(0.1) {
-            Some(Ok(Event::EndFile(MPV_END_FILE_REASON_ERROR))) => anyhow::bail!("playback ended with an error"),
+            Some(Ok(Event::EndFile(MPV_END_FILE_REASON_ERROR))) => {
+                anyhow::bail!("playback ended with an error")
+            }
             Some(Ok(event)) if wanted(&event) => return Ok(()),
             Some(Err(err)) => anyhow::bail!("mpv event error: {err}"),
             _ => {}

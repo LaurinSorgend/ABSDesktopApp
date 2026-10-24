@@ -50,3 +50,10 @@ Private working set (`mpv_idle` example, one URL, `ao=null`):
 - Disabling libmpv's built-in Lua scripts (`load-scripts=no` and friends) made no measurable difference.
 
 Options for the M4B index cost, to decide in 0.8: accept it in the playing budget; ask ABS to transcode to HLS for long single-file books (more server CPU); or measure the symphonia fallback on the same file.
+
+## Media controls (0.6)
+
+`cargo run -p abs-desktop --example media_controls --release` plays the first LibriVox track through libmpv (with mpv's own `media-controls=no`) and registers with souvlaki 0.8.3.
+
+- Windows: the HWND comes from Slint through `raw-window-handle` 0.6 (`slint` feature `raw-window-handle-06`), read 200 ms after the event loop starts. `MediaControls::new`, `attach` and `set_metadata` with a `file://` cover succeed.
+- Open: SMTC overlay content, media keys and position display need a manual check on Windows 11. MPRIS on GNOME and KDE (Wayland) is untested; it needs a Linux machine.
