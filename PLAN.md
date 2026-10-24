@@ -70,6 +70,7 @@ Goal: prove the risky parts and measure memory before writing real code. Spike c
 - [x] Decode covers on a worker thread, push `slint::Image` back via `invoke_from_event_loop`.
 - [x] Byte-capped LRU for decoded images (start at 64 MB).
 - [ ] Check scrolling smoothness, HiDPI on Windows, fractional scaling on Wayland.
+  - Windows checked and fine; Wayland open.
 
 ### 0.5 libmpv playback
 - [ ] Windows: get an LGPL libmpv build (`-Dgpl=false`, FFmpeg without `--enable-gpl`), check the DLL set and its size.
