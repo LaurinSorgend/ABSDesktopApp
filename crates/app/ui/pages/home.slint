@@ -1,0 +1,30 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Ui } from "../state.slint";
+import { Shelf } from "../tiles.slint";
+import { Heading, Label } from "../widgets.slint";
+
+export component HomePage inherits Rectangle {
+    ScrollView {
+        content-height: max(self.height, content.preferred-height);
+        content := VerticalLayout {
+            padding: Theme.pad;
+            spacing: 2 * Theme.pad;
+            alignment: start;
+            Heading {
+                text: @tr("Home");
+            }
+            if Ui.home-note != "": Label {
+                text: Ui.home-note;
+                font-size: Theme.text-base;
+                wrap: word-wrap;
+            }
+            for shelf in Ui.shelves: Shelf {
+                shelf: shelf;
+                open(id) => {
+                    Ui.open-item(id);
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,182 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Ui } from "../state.slint";
+import { ChapterData } from "../data.slint";
+import { Cover } from "../tiles.slint";
+import { Button, Heading, Label } from "../widgets.slint";
+
+/// A row of the chapter list; clicking it seeks there.
+export component ChapterRow inherits Rectangle {
+    in property <ChapterData> chapter;
+    callback activate(float);
+
+    min-height: 36px;
+    background: chapter.current ? Theme.surface0 : touch.has-hover ? Theme.mantle : transparent;
+    accessible-role: button;
+    accessible-label: chapter.title;
+    accessible-action-default => {
+        root.activate(root.chapter.start);
+    }
+    HorizontalLayout {
+        padding-left: Theme.gap;
+        padding-right: Theme.gap;
+        spacing: Theme.pad;
+        Text {
+            text: root.chapter.start-text;
+            color: Theme.subtext;
+            font-family: Theme.mono;
+            font-size: Theme.text-sm;
+            vertical-alignment: center;
+            min-width: 72px;
+        }
+        Text {
+            text: root.chapter.title;
+            color: Theme.text;
+            font-size: Theme.text-base;
+            font-weight: root.chapter.current ? 700 : 400;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        Text {
+            text: root.chapter.length-text;
+            color: Theme.subtext;
+            font-family: Theme.mono;
+            font-size: Theme.text-sm;
+            vertical-alignment: center;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.activate(root.chapter.start);
+        }
+    }
+}
+
+component Fact inherits HorizontalLayout {
+    in property <string> name;
+    in property <string> value;
+    spacing: Theme.pad;
+    visible: value != "";
+    Label {
+        text: root.name;
+        min-width: 96px;
+    }
+    Text {
+        text: root.value;
+        color: Theme.text;
+        font-size: Theme.text-base;
+        wrap: word-wrap;
+        horizontal-stretch: 1;
+    }
+}
+
+component DetailHeader inherits HorizontalLayout {
+    spacing: 2 * Theme.pad;
+    alignment: start;
+    Cover {
+        width: 240px;
+        height: 240px;
+        source: Ui.detail.cover;
+        has-image: Ui.detail.has-cover;
+        title: Ui.detail.title;
+    }
+    VerticalLayout {
+        spacing: Theme.gap;
+        alignment: start;
+        horizontal-stretch: 1;
+        Heading {
+            text: Ui.detail.title;
+            wrap: word-wrap;
+            overflow: clip;
+        }
+        if Ui.detail.subtitle != "": Text {
+            text: Ui.detail.subtitle;
+            color: Theme.subtext;
+            font-size: Theme.text-lg;
+            wrap: word-wrap;
+        }
+        Fact {
+            name: @tr("Author");
+            value: Ui.detail.author;
+        }
+        Fact {
+            name: @tr("Narrator");
+            value: Ui.detail.narrator;
+        }
+        Fact {
+            name: @tr("Series");
+            value: Ui.detail.series;
+        }
+        Fact {
+            name: @tr("Published");
+            value: Ui.detail.year;
+        }
+        Fact {
+            name: @tr("Genres");
+            value: Ui.detail.genres;
+        }
+        Fact {
+            name: @tr("Length");
+            value: Ui.detail.duration-text;
+        }
+        Fact {
+            name: @tr("Progress");
+            value: Ui.detail.progress-text;
+        }
+        HorizontalLayout {
+            spacing: Theme.gap;
+            alignment: start;
+            padding-top: Theme.gap;
+            Button {
+                text: Ui.now-id == Ui.detail.id && Ui.playing ? @tr("Playing") : Ui.detail.progress > 0 ? @tr("Continue") : @tr("Play");
+                primary: true;
+                enabled: Ui.detail.has-audio && !(Ui.now-id == Ui.detail.id && Ui.playing);
+                clicked => {
+                    Ui.play-item(Ui.detail.id);
+                }
+            }
+            Button {
+                text: Ui.detail.finished ? @tr("Mark as not finished") : @tr("Mark as finished");
+                clicked => {
+                    Ui.set-finished(Ui.detail.id, !Ui.detail.finished);
+                }
+            }
+        }
+    }
+}
+
+export component DetailPage inherits Rectangle {
+    ScrollView {
+        content-height: max(self.height, content.preferred-height);
+        content := VerticalLayout {
+            padding: Theme.pad;
+            spacing: 2 * Theme.pad;
+            alignment: start;
+            DetailHeader { }
+            if Ui.detail.description != "": Text {
+                text: Ui.detail.description;
+                color: Theme.text;
+                font-size: Theme.text-base;
+                wrap: word-wrap;
+                max-width: 66 * 0.5rem;
+            }
+            Heading {
+                text: @tr("Chapters");
+                font-size: Theme.text-lg;
+            }
+            if Ui.detail.chapters-note != "": Label {
+                text: Ui.detail.chapters-note;
+            }
+            VerticalLayout {
+                for chapter in Ui.detail-chapters: ChapterRow {
+                    chapter: chapter;
+                    activate(start) => {
+                        Ui.play-from(Ui.detail.id, start);
+                    }
+                }
+            }
+        }
+    }
+}

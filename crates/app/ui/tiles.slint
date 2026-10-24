@@ -1,0 +1,170 @@
+// Covers, item tiles, the virtualised grid and home shelves.
+
+import { ListView, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { TileData, TileRow, ShelfData } from "data.slint";
+import { Heading } from "widgets.slint";
+
+/// A cover image, or the title on a plain square while there is none.
+export component Cover inherits Rectangle {
+    in property <image> source;
+    in property <bool> has-image;
+    in property <string> title;
+
+    background: Theme.surface0;
+    clip: true;
+
+    if has-image: Image {
+        source: root.source;
+        width: parent.width;
+        height: parent.height;
+        image-fit: cover;
+        accessible-role: image;
+        accessible-label: root.title;
+    }
+    if !has-image: Text {
+        x: 10px;
+        width: parent.width - 20px;
+        height: parent.height;
+        text: root.title;
+        color: Theme.subtext;
+        font-size: Theme.text-sm;
+        wrap: word-wrap;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+}
+
+export component Tile inherits Rectangle {
+    in property <TileData> data;
+    callback open(string);
+
+    width: Theme.tile-width;
+    height: Theme.tile-height;
+    accessible-role: button;
+    accessible-label: data.title + ", " + data.author;
+    accessible-action-default => {
+        root.open(root.data.id);
+    }
+
+    VerticalLayout {
+        spacing: 4px;
+        Rectangle {
+            height: root.width;
+            border-width: touch.has-hover || focus.has-focus ? 2px : 0;
+            border-color: Theme.accent;
+            Cover {
+                source: root.data.cover;
+                has-image: root.data.has-cover;
+                title: root.data.title;
+            }
+            if root.data.progress > 0 || root.data.finished: Rectangle {
+                y: parent.height - 4px;
+                x: 0;
+                height: 4px;
+                width: parent.width * (root.data.finished ? 1 : root.data.progress);
+                background: root.data.finished ? Theme.green : Theme.accent;
+            }
+        }
+        Text {
+            text: root.data.title;
+            color: Theme.text;
+            font-size: Theme.text-sm;
+            font-weight: 500;
+            overflow: elide;
+        }
+        Text {
+            text: root.data.finished ? @tr("Finished") : root.data.author;
+            color: Theme.subtext;
+            font-size: Theme.text-sm;
+            overflow: elide;
+        }
+    }
+
+    focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == " " || event.text == Key.Return {
+                root.open(root.data.id);
+                return accept;
+            }
+            reject
+        }
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.open(root.data.id);
+            }
+        }
+    }
+}
+
+/// Rows of tiles in a virtualised list. Rust re-flows the rows when `columns` changes
+/// and loads covers for the rows reported by `visible-rows`.
+export component TileGrid inherits Rectangle {
+    in property <[TileRow]> rows;
+    out property <int> columns: max(1, floor((self.width - 2 * Theme.pad + Theme.pad) / (Theme.tile-width + Theme.pad)));
+    callback columns-changed(int);
+    callback visible-rows(int, int);
+    callback open(string);
+
+    changed columns => {
+        root.columns-changed(self.columns);
+    }
+
+    function report() {
+        root.visible-rows(
+            floor(-list.content-y / Theme.row-height),
+            ceil((-list.content-y + list.visible-height) / Theme.row-height));
+    }
+
+    init => {
+        root.columns-changed(self.columns);
+    }
+
+    list := ListView {
+        changed content-y => {
+            root.report();
+        }
+        changed visible-height => {
+            root.report();
+        }
+        for row in root.rows: HorizontalLayout {
+            height: Theme.row-height;
+            padding-left: Theme.pad;
+            spacing: Theme.pad;
+            alignment: start;
+            for tile in row.tiles: Tile {
+                data: tile;
+                open(id) => {
+                    root.open(id);
+                }
+            }
+        }
+    }
+}
+
+/// A titled horizontal row of tiles.
+export component Shelf inherits VerticalLayout {
+    in property <ShelfData> shelf;
+    callback open(string);
+
+    spacing: Theme.gap;
+    Heading {
+        text: root.shelf.title;
+        font-size: Theme.text-lg;
+    }
+    ScrollView {
+        height: Theme.tile-height + 16px;
+        content-width: max(self.width, inner.preferred-width);
+        inner := HorizontalLayout {
+            spacing: Theme.pad;
+            alignment: start;
+            for tile in root.shelf.tiles: Tile {
+                data: tile;
+                open(id) => {
+                    root.open(id);
+                }
+            }
+        }
+    }
+}

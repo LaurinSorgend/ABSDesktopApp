@@ -1,0 +1,247 @@
+import "fonts/ronzino-regular.ttf";
+import "fonts/ronzino-medium.ttf";
+import "fonts/ronzino-bold.ttf";
+import "fonts/fira-code-variable.ttf";
+
+import { ListView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Ui } from "state.slint";
+import { Page } from "data.slint";
+import { Banner, IconButton, Label } from "widgets.slint";
+import { BackIcon } from "icons.slint";
+import { HomePage } from "pages/home.slint";
+import { LibraryPage, GroupPage, SearchPage } from "pages/library.slint";
+import { DetailPage } from "pages/detail.slint";
+import { PlayerBar, PlayerPage } from "pages/player.slint";
+import { SettingsPage, AddAccountPage } from "pages/settings.slint";
+
+export { Ui, Theme }
+export * from "data.slint";
+
+component NavItem inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected;
+    callback clicked;
+
+    min-height: 36px;
+    background: selected ? Theme.surface0 : touch.has-hover ? Theme.crust : transparent;
+    accessible-role: button;
+    accessible-label: text;
+    accessible-item-selected: selected;
+    accessible-action-default => {
+        root.clicked();
+    }
+    Rectangle {
+        x: 0;
+        width: 3px;
+        background: root.selected ? Theme.accent : transparent;
+    }
+    Text {
+        x: Theme.pad;
+        width: parent.width - 2 * Theme.pad;
+        height: parent.height;
+        text: root.text;
+        color: Theme.text;
+        font-size: Theme.text-base;
+        font-weight: root.selected ? 700 : 400;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component Sidebar inherits Rectangle {
+    width: 220px;
+    background: Theme.mantle;
+    VerticalLayout {
+        padding-top: Theme.pad;
+        padding-bottom: Theme.pad;
+        spacing: 2px;
+        Text {
+            x: Theme.pad;
+            text: @tr("Audiobookshelf");
+            color: Theme.text;
+            font-size: Theme.text-lg;
+            font-weight: 700;
+        }
+        Label {
+            x: Theme.pad;
+            text: Ui.syncing ? @tr("{} · syncing", Ui.account-label) : Ui.account-label;
+        }
+        Rectangle {
+            height: Theme.pad;
+        }
+        NavItem {
+            text: @tr("Home");
+            selected: Ui.page == Page.home;
+            clicked => {
+                Ui.navigate(Page.home);
+            }
+        }
+        NavItem {
+            text: @tr("Search");
+            selected: Ui.page == Page.search;
+            clicked => {
+                Ui.navigate(Page.search);
+            }
+        }
+        NavItem {
+            text: @tr("Player");
+            selected: Ui.page == Page.player;
+            clicked => {
+                Ui.navigate(Page.player);
+            }
+        }
+        Rectangle {
+            height: Theme.pad;
+        }
+        Label {
+            x: Theme.pad;
+            text: @tr("Libraries");
+        }
+        for library[index] in Ui.libraries: NavItem {
+            text: library.name;
+            selected: (Ui.page == Page.library || Ui.page == Page.group) && Ui.library-index == index;
+            clicked => {
+                Ui.select-library(index);
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+        NavItem {
+            text: @tr("Settings");
+            selected: Ui.page == Page.settings;
+            clicked => {
+                Ui.navigate(Page.settings);
+            }
+        }
+    }
+}
+
+component Pages inherits Rectangle {
+    property <Page> current: Ui.page;
+    changed current => {
+        if current == Page.search {
+            search.focus-input();
+        } else if current == Page.add-account {
+            add.focus-input();
+        }
+    }
+
+    HomePage {
+        visible: Ui.page == Page.home;
+    }
+    LibraryPage {
+        visible: Ui.page == Page.library;
+    }
+    GroupPage {
+        visible: Ui.page == Page.group;
+    }
+    search := SearchPage {
+        visible: Ui.page == Page.search;
+    }
+    DetailPage {
+        visible: Ui.page == Page.detail;
+    }
+    PlayerPage {
+        visible: Ui.page == Page.player;
+    }
+    SettingsPage {
+        visible: Ui.page == Page.settings;
+    }
+    add := AddAccountPage {
+        visible: Ui.page == Page.add-account;
+    }
+
+    if Ui.can-go-back && Ui.page != Page.add-account: IconButton {
+        x: parent.width - self.width - Theme.gap;
+        y: Theme.gap;
+        label: @tr("Back");
+        clicked => {
+            Ui.back();
+        }
+        BackIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: Ui.has-media ? @tr("{} · Audiobookshelf", Ui.now-title) : @tr("Audiobookshelf");
+    preferred-width: 1200px;
+    preferred-height: 800px;
+    min-width: 720px;
+    min-height: 480px;
+    background: Theme.base;
+    default-font-family: Theme.font;
+    default-font-size: 16px;
+
+    keys := FocusScope {
+        init => {
+            self.focus();
+        }
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                Ui.back();
+                return accept;
+            }
+            if event.modifiers.control && (event.text == "f" || event.text == "F") {
+                Ui.navigate(Page.search);
+                return accept;
+            }
+            if !Ui.has-media || Ui.page == Page.add-account {
+                return reject;
+            }
+            if event.text == " " {
+                Ui.toggle-play();
+                return accept;
+            }
+            if event.text == Key.LeftArrow {
+                if event.modifiers.shift {
+                    Ui.previous-chapter();
+                } else {
+                    Ui.skip-back();
+                }
+                return accept;
+            }
+            if event.text == Key.RightArrow {
+                if event.modifiers.shift {
+                    Ui.next-chapter();
+                } else {
+                    Ui.skip-forward();
+                }
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            if Ui.banner-text != "": Banner {
+                text: Ui.banner-text;
+                kind: Ui.banner-kind;
+                action: Ui.banner-action;
+                act => {
+                    Ui.banner-act();
+                }
+                dismiss => {
+                    Ui.banner-dismiss();
+                }
+            }
+            HorizontalLayout {
+                vertical-stretch: 1;
+                if Ui.page != Page.add-account || Ui.add-can-cancel: Sidebar { }
+                Pages {
+                    horizontal-stretch: 1;
+                }
+            }
+            if Ui.has-media || Ui.loading-media: PlayerBar { }
+        }
+    }
+}

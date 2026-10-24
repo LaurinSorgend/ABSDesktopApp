@@ -1,0 +1,93 @@
+// Data passed between Rust and the UI.
+
+export struct TileData {
+    id: string,
+    title: string,
+    author: string,
+    cover: image,
+    has-cover: bool,
+    progress: float,
+    finished: bool,
+}
+
+export struct TileRow {
+    tiles: [TileData],
+}
+
+export struct ShelfData {
+    id: string,
+    title: string,
+    tiles: [TileData],
+}
+
+export struct NamedId {
+    id: string,
+    name: string,
+}
+
+export struct GroupData {
+    id: string,
+    name: string,
+    count: string,
+}
+
+export struct ChapterData {
+    title: string,
+    start: float,
+    start-text: string,
+    length-text: string,
+    current: bool,
+}
+
+export struct BookmarkData {
+    title: string,
+    time: float,
+    time-text: string,
+}
+
+export struct AccountData {
+    id: string,
+    username: string,
+    server: string,
+    status: string,
+    active: bool,
+    needs-login: bool,
+}
+
+export struct DetailData {
+    id: string,
+    title: string,
+    subtitle: string,
+    author: string,
+    narrator: string,
+    series: string,
+    year: string,
+    genres: string,
+    duration-text: string,
+    progress-text: string,
+    progress: float,
+    finished: bool,
+    description: string,
+    cover: image,
+    has-cover: bool,
+    has-audio: bool,
+    chapters-note: string,
+}
+
+export enum Page {
+    home,
+    library,
+    group,
+    search,
+    detail,
+    player,
+    settings,
+    add-account,
+}
+
+export enum LibraryView {
+    items,
+    series,
+    authors,
+    collections,
+}
