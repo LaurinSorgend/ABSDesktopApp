@@ -2,9 +2,12 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use abs_api::Realtime;
 use abs_api::reqwest::Client;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
+use super::live::{Followup, LiveState};
 use super::{Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, SYNC_INTERVAL_SETTING};
 use crate::account::{AccountError, Session, add_account, lock, restore_account};
 use crate::credentials::Credentials;
@@ -32,6 +35,7 @@ struct Shared {
     conns: Mutex<HashMap<String, Conn>>,
     syncing: Mutex<HashSet<String>>,
     last_sync: Mutex<HashMap<String, Instant>>,
+    live: Mutex<HashMap<String, JoinHandle<()>>>,
 }
 
 /// Runs until the command channel closes.
@@ -54,6 +58,7 @@ pub(super) fn run(
         conns: Mutex::default(),
         syncing: Mutex::default(),
         last_sync: Mutex::default(),
+        live: Mutex::default(),
     });
     runtime.block_on(main_loop(shared, commands));
 }
@@ -164,11 +169,66 @@ async fn connected(shared: &Arc<Shared>, session: Session) {
     let session = Arc::new(session);
     let account_id = session.account.id.clone();
     set_conn(shared, &account_id, Conn::Connected(session.clone()));
-    (shared.emit)(Event::AccountConnected { account_id });
+    (shared.emit)(Event::AccountConnected {
+        account_id: account_id.clone(),
+    });
+    let task = tokio::spawn(live(shared.clone(), session.clone()));
+    if let Some(old) = lock_map(&shared.live).insert(account_id, task) {
+        old.abort();
+    }
     sync(shared.clone(), session).await;
 }
 
+/// Applies realtime events of one account until its socket gives up.
+async fn live(shared: Arc<Shared>, session: Arc<Session>) {
+    let account_id = session.account.id.clone();
+    let mut realtime = Realtime::spawn(session.client.clone());
+    let mut state = LiveState::default();
+    while let Some(event) = realtime.next().await {
+        let (event, followup) = match state.apply(&shared.db, &account_id, event) {
+            Ok(result) => result,
+            Err(_) => (None, Followup::SyncCatalog),
+        };
+        if let Some(event) = event {
+            (shared.emit)(event);
+        }
+        match followup {
+            Followup::Nothing => {}
+            Followup::SyncCatalog => {
+                tokio::spawn(sync(shared.clone(), session.clone()));
+            }
+            Followup::SyncProgress => {
+                tokio::spawn(pull_progress(shared.clone(), session.clone()));
+            }
+            Followup::LoginRequired => {
+                set_conn(&shared, &account_id, Conn::NeedsLogin);
+                (shared.emit)(Event::LoginRequired { account_id });
+                return;
+            }
+        }
+    }
+}
+
+/// Progress only, as after a socket reconnect.
+async fn pull_progress(shared: Arc<Shared>, session: Arc<Session>) {
+    let account_id = session.account.id.clone();
+    match sync_progress(&session, &shared.db).await {
+        Ok(item_ids) if !item_ids.is_empty() => (shared.emit)(Event::ProgressChanged {
+            account_id,
+            item_ids,
+        }),
+        Ok(_) => {}
+        Err(e) => (shared.emit)(Event::SyncFailed {
+            account_id,
+            message: e.to_string(),
+        }),
+    }
+}
+
 async fn remove(shared: Arc<Shared>, account_id: String) {
+    if let Some(task) = lock_map(&shared.live).remove(&account_id) {
+        task.abort();
+    }
     let conn = lock_map(&shared.conns).remove(&account_id);
     if let Some(Conn::Connected(session)) = conn {
         let _ = session.client.logout().await;

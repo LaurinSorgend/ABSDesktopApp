@@ -1,8 +1,10 @@
 //! The background engine: a tokio runtime on its own thread that owns accounts and sync.
 //!
 //! The UI sends [`Command`]s and receives [`Event`]s through a callback; it never
-//! blocks on network or database work.
+//! blocks on network or database work. Each connected account also has a realtime
+//! socket whose events update the database.
 
+mod live;
 mod worker;
 
 use std::path::PathBuf;
@@ -71,6 +73,10 @@ pub enum Event {
     ProgressChanged {
         account_id: String,
         item_ids: Vec<String>,
+    },
+    /// Items were added, changed or removed by a realtime event.
+    CatalogChanged {
+        account_id: String,
     },
     SyncFailed {
         account_id: String,
