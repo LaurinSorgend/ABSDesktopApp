@@ -4,6 +4,7 @@ use std::time::SystemTime;
 
 use reqwest::StatusCode;
 use serde_json::{Value, json};
+use tokio::sync::watch;
 
 use crate::client::{AbsClient, check, decode};
 use crate::error::{Error, Result, SinkError};
@@ -55,10 +56,20 @@ impl Credential {
 }
 
 /// Current credential plus a counter that changes with every new credential.
-#[derive(Default)]
 pub(crate) struct AuthState {
     credential: Option<Credential>,
     generation: u64,
+    changes: watch::Sender<u64>,
+}
+
+impl Default for AuthState {
+    fn default() -> Self {
+        Self {
+            credential: None,
+            generation: 0,
+            changes: watch::channel(0).0,
+        }
+    }
 }
 
 impl AuthState {
@@ -70,6 +81,7 @@ impl AuthState {
     fn set(&mut self, credential: Option<Credential>) {
         self.credential = credential;
         self.generation += 1;
+        self.changes.send_replace(self.generation);
     }
 
     fn lifetime(&self) -> Option<Lifetime> {
@@ -156,6 +168,11 @@ impl AbsClient {
             Some(Credential::Session { refresh, .. }) => Some(refresh.clone()),
             _ => None,
         }
+    }
+
+    /// Changes whenever the client gets a new token or logs out.
+    pub fn token_changes(&self) -> watch::Receiver<u64> {
+        self.auth_state().changes.subscribe()
     }
 
     /// True while the client holds a credential.
