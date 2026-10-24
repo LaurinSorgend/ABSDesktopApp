@@ -41,44 +41,44 @@ Dependency direction: `app -> core -> abs-api`, `app -> player`, `core` never de
 Goal: prove the risky parts and measure memory before writing real code. Spike code may be thrown away.
 
 ### 0.1 Repository and tooling
-- [ ] Create the Cargo workspace with the five crates as empty skeletons.
-- [ ] Add `.gitignore` (target/, local DBs, `.claude/`, `CLAUDE.md`).
-- [ ] GitHub Actions workflow with a matrix of `windows-latest` and `ubuntu-latest`: build, clippy, test.
-- [ ] Choose the license (GPL-3.0 recommended: fits Slint's free license and libmpv). Record as ADR 0001.
+- [x] Create the Cargo workspace with the five crates as empty skeletons.
+- [x] Add `.gitignore` (target/, local DBs, `.claude/`, `CLAUDE.md`).
+- [x] GitHub Actions workflow with a matrix of `windows-latest` and `ubuntu-latest`: build, clippy, test.
+- [x] Choose the license (GPL-3.0 recommended: fits Slint's free license and libmpv). Record as ADR 0001.
 
 ### 0.2 Test server and fixtures
-- [ ] `docker/docker-compose.yml` with two Audiobookshelf services: one pinned to 2.26.x, one to the latest release. Verify the official image name and the first-run `/init` request before scripting it.
-- [ ] Script that initialises the server, creates an admin plus a second user, and creates a library.
-- [ ] Collect fixtures:
+- [x] `docker/docker-compose.yml` with two Audiobookshelf services: one pinned to 2.26.x, one to the latest release. Verify the official image name and the first-run `/init` request before scripting it.
+- [x] Script that initialises the server, creates an admin plus a second user, and creates a library.
+- [x] Collect fixtures:
   - a multi-file MP3 book (LibriVox),
   - a 30-40 h M4B with chapters (concatenate public domain audio with ffmpeg),
   - an EPUB (Project Gutenberg), a PDF, a CBZ.
-- [ ] Note which files have ASIN/ISBN metadata; you'll need some with and some without for Phase 4.
+- [x] Note which files have ASIN/ISBN metadata; you'll need some with and some without for Phase 4.
 
 ### 0.3 API smoke test
-- [ ] Small binary in `abs-api/examples/` that:
+- [x] Small binary in `abs-api/examples/` that:
   - calls `GET /status` and prints `serverVersion`,
   - logs in with `POST /login` and `x-return-tokens: true`,
   - refreshes with `POST /auth/refresh` and `x-refresh-token`,
   - lists libraries and the first page of items with `minified=1`,
   - downloads a cover with width and `format=webp`.
-- [ ] Test whether `GET /api/items/:id/file/:ino/download` honours a `Range` header (answers an open question from the report).
+- [x] Test whether `GET /api/items/:id/file/:ino/download` honours a `Range` header (answers an open question from the report).
 
 ### 0.4 Slint cover grid
-- [ ] Slint window with a `ListView` of rows, column count derived from window width.
-- [ ] Load 500 items from the test server (duplicate the library if needed).
-- [ ] Decode covers on a worker thread, push `slint::Image` back via `invoke_from_event_loop`.
-- [ ] Byte-capped LRU for decoded images (start at 64 MB).
+- [x] Slint window with a `ListView` of rows, column count derived from window width.
+- [x] Load 500 items from the test server (duplicate the library if needed).
+- [x] Decode covers on a worker thread, push `slint::Image` back via `invoke_from_event_loop`.
+- [x] Byte-capped LRU for decoded images (start at 64 MB).
 - [ ] Check scrolling smoothness, HiDPI on Windows, fractional scaling on Wayland.
 
 ### 0.5 libmpv playback
 - [ ] Windows: get an LGPL libmpv build (`-Dgpl=false`, FFmpeg without `--enable-gpl`), check the DLL set and its size.
 - [ ] Linux: link against the system libmpv.
-- [ ] Use `libmpv2` to play a direct-play `contentUrl` with the `Authorization` header set via `http-header-fields`.
-- [ ] Multi-file book: load tracks as a playlist; map global time to `(track, offset)` using `startOffset`.
-- [ ] 40 h M4B: measure seek latency at 10 %, 50 %, 95 % over HTTP.
-- [ ] Speed 0.75x-3.0x: confirm pitch is preserved (scaletempo2).
-- [ ] Set `demuxer-max-bytes` and observe memory while streaming.
+- [x] Use `libmpv2` to play a direct-play `contentUrl` with the `Authorization` header set via `http-header-fields`.
+- [x] Multi-file book: load tracks as a playlist; map global time to `(track, offset)` using `startOffset`.
+- [x] 40 h M4B: measure seek latency at 10 %, 50 %, 95 % over HTTP.
+- [x] Speed 0.75x-3.0x: confirm pitch is preserved (scaletempo2).
+- [x] Set `demuxer-max-bytes` and observe memory while streaming.
 
 ### 0.6 Media controls
 - [ ] souvlaki with the HWND from Slint's winit backend on Windows 11 (SMTC overlay, media keys).
@@ -86,10 +86,10 @@ Goal: prove the risky parts and measure memory before writing real code. Spike c
 - [ ] Show title, author, cover, position.
 
 ### 0.7 Reader helper
-- [ ] Add foliate-js as a git submodule, pinned to a commit.
-- [ ] `abs-reader`: tao window + wry webview, serving foliate-js and the book through a custom protocol (no localhost server, no token in JS).
+- [x] Add foliate-js as a git submodule, pinned to a commit.
+- [x] `abs-reader`: tao window + wry webview, serving foliate-js and the book through a custom protocol (no localhost server, no token in JS).
 - [ ] Open the EPUB fixture on Windows 11, GNOME Wayland, KDE Wayland.
-- [ ] Print `relocate` events (CFI, fraction) to stdout.
+- [x] Print `relocate` events (CFI, fraction) to stdout.
 
 ### 0.8 Measurements and decision
 - [ ] Measure on Windows (Private Working Set) and Linux (PSS from `/proc/<pid>/smaps_rollup`):
@@ -99,6 +99,7 @@ Goal: prove the risky parts and measure memory before writing real code. Spike c
   - reader process with one EPUB open.
 - [ ] Record numbers in `docs/decisions/0002-stack.md` with a go/no-go for Slint (fallback: Qt) and libmpv (fallback: symphonia).
 - [ ] Set provisional memory budgets from the measurements (for example: idle, browsing, playing) and add them to this plan.
+  - Windows (private WS), from `docs/decisions/0002-stack.md`: idle 90 MB, browsing 150 MB, playing +40 MB (+140 MB for a long single-file M4B), reader tree 110 MB. Linux pending.
 
 **Exit criteria:** memory measured on both OSes; long-M4B seeking acceptable; media controls work on both OSes; reader opens on Wayland; stack decision written down.
 
