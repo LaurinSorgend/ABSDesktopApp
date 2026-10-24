@@ -1,0 +1,140 @@
+// UI state and actions shared by all pages; Rust fills the properties and handles the callbacks.
+
+import {
+    TileData, TileRow, ShelfData, NamedId, GroupData, ChapterData, BookmarkData, AccountData,
+    DetailData, Page, LibraryView,
+} from "data.slint";
+
+export global Ui {
+    // Navigation
+    in-out property <Page> page: Page.home;
+    in property <bool> can-go-back;
+    callback navigate(Page);
+    callback back();
+
+    // Account and libraries
+    in property <[AccountData]> accounts;
+    in property <string> account-label;
+    in property <[NamedId]> libraries;
+    in property <int> library-index: -1;
+    in property <bool> syncing;
+    callback select-library(int);
+    callback sync-now();
+
+    // Banner
+    in property <string> banner-text;
+    in property <int> banner-kind;
+    in property <string> banner-action;
+    callback banner-act();
+    callback banner-dismiss();
+
+    // Grids: "library", "group" and "search"
+    callback grid-columns(string, int);
+    callback grid-visible(string, int, int);
+    callback open-item(string);
+
+    // Home
+    in property <[ShelfData]> shelves;
+    in property <string> home-note;
+
+    // Library
+    in property <LibraryView> library-view: LibraryView.items;
+    in property <int> library-sort;
+    in property <bool> library-desc;
+    in property <int> library-filter;
+    in property <[TileRow]> library-rows;
+    in property <string> library-note;
+    in property <[GroupData]> groups;
+    in property <string> groups-note;
+    callback set-library-view(LibraryView);
+    callback set-sort(int);
+    callback toggle-desc();
+    callback set-filter(int);
+    callback open-group(string);
+
+    // Group (series, author, collection)
+    in property <string> group-title;
+    in property <[TileRow]> group-rows;
+    in property <string> group-note;
+
+    // Search
+    in-out property <string> search-text;
+    in property <[TileRow]> search-rows;
+    in property <string> search-note;
+    in property <bool> search-server-offered;
+    callback search(string);
+    callback search-server();
+
+    // Item detail
+    in property <DetailData> detail;
+    in property <[ChapterData]> detail-chapters;
+    callback play-item(string);
+    callback play-from(string, float);
+    callback set-finished(string, bool);
+
+    // Player
+    in property <bool> has-media;
+    in property <bool> loading-media;
+    in property <bool> playing;
+    in property <string> now-id;
+    in property <string> now-title;
+    in property <string> now-author;
+    in property <image> now-cover;
+    in property <bool> now-has-cover;
+    in property <float> position-fraction;
+    in property <float> chapter-fraction;
+    in property <string> position-text;
+    in property <string> remaining-text;
+    in property <string> chapter-title;
+    in property <string> chapter-position-text;
+    in property <[ChapterData]> chapters;
+    in property <[BookmarkData]> bookmarks;
+    in property <int> speed-index;
+    in property <int> sleep-index;
+    in property <string> sleep-text;
+    in property <string> skip-back-text;
+    in property <string> skip-forward-text;
+    callback toggle-play();
+    callback skip-back();
+    callback skip-forward();
+    callback previous-chapter();
+    callback next-chapter();
+    callback seek-fraction(float);
+    callback seek-chapter-fraction(float);
+    callback seek-to(float);
+    callback set-speed(int);
+    callback set-sleep(int);
+    callback add-bookmark();
+    callback remove-bookmark(float);
+
+    // Choices, filled once from Rust
+    in property <[string]> speed-options;
+    in property <[string]> sleep-options;
+    in property <[string]> skip-back-options;
+    in property <[string]> skip-forward-options;
+    in property <[string]> cache-options;
+
+    // Add account / log in again
+    in-out property <string> add-url;
+    in-out property <string> add-username;
+    in-out property <string> add-password;
+    in property <bool> add-busy;
+    in property <string> add-error;
+    in property <bool> add-can-cancel;
+    in property <string> add-title;
+    callback add-account(string, string, string);
+
+    // Settings
+    in property <int> skip-back-index;
+    in property <int> skip-forward-index;
+    in property <int> default-speed-index;
+    in property <int> cache-index;
+    in property <string> cache-used-text;
+    in property <bool> close-to-tray;
+    in property <string> credentials-note;
+    callback set-setting(string, int);
+    callback use-account(string);
+    callback remove-account(string);
+    callback relogin(string);
+    callback add-another-account();
+}

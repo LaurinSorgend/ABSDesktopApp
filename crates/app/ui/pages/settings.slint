@@ -1,0 +1,233 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Ui } from "../state.slint";
+import { AccountData } from "../data.slint";
+import { Button, Heading, Label, Segmented, TextField } from "../widgets.slint";
+
+component AccountRow inherits Rectangle {
+    in property <AccountData> account;
+    min-height: 56px;
+    border-width: 1px;
+    border-color: account.active ? Theme.accent : Theme.surface1;
+    HorizontalLayout {
+        padding: Theme.gap;
+        padding-left: Theme.pad;
+        spacing: Theme.gap;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.account.active ? @tr("{} (active)", root.account.username) : root.account.username;
+                color: Theme.text;
+                font-weight: 500;
+                overflow: elide;
+            }
+            Label {
+                text: root.account.server + " · " + root.account.status;
+            }
+        }
+        if root.account.needs-login: Button {
+            text: @tr("Log in");
+            primary: true;
+            clicked => {
+                Ui.relogin(root.account.id);
+            }
+        }
+        if !root.account.active: Button {
+            text: @tr("Use");
+            clicked => {
+                Ui.use-account(root.account.id);
+            }
+        }
+        Button {
+            text: @tr("Remove");
+            clicked => {
+                Ui.remove-account(root.account.id);
+            }
+        }
+    }
+}
+
+component Setting inherits VerticalLayout {
+    in property <string> title;
+    in property <[string]> options;
+    in property <int> selected;
+    in property <string> key;
+    spacing: 4px;
+    alignment: start;
+    Label {
+        text: root.title;
+    }
+    HorizontalLayout {
+        alignment: start;
+        Segmented {
+            label: root.title;
+            options: root.options;
+            selected: root.selected;
+            select(index) => {
+                Ui.set-setting(root.key, index);
+            }
+        }
+    }
+}
+
+export component SettingsPage inherits Rectangle {
+    ScrollView {
+        content-height: max(self.height, content.preferred-height);
+        content := VerticalLayout {
+            padding: Theme.pad;
+            spacing: Theme.pad;
+            alignment: start;
+            Heading {
+                text: @tr("Settings");
+            }
+            Heading {
+                text: @tr("Accounts");
+                font-size: Theme.text-lg;
+            }
+            for account in Ui.accounts: AccountRow {
+                account: account;
+            }
+            if Ui.credentials-note != "": Label {
+                text: Ui.credentials-note;
+                wrap: word-wrap;
+            }
+            HorizontalLayout {
+                alignment: start;
+                spacing: Theme.gap;
+                Button {
+                    text: @tr("Add account");
+                    clicked => {
+                        Ui.add-another-account();
+                    }
+                }
+                Button {
+                    text: Ui.syncing ? @tr("Syncing…") : @tr("Sync now");
+                    enabled: !Ui.syncing;
+                    clicked => {
+                        Ui.sync-now();
+                    }
+                }
+            }
+            Heading {
+                text: @tr("Playback");
+                font-size: Theme.text-lg;
+            }
+            Setting {
+                title: @tr("Skip back");
+                options: Ui.skip-back-options;
+                selected: Ui.skip-back-index;
+                key: "skip_back";
+            }
+            Setting {
+                title: @tr("Skip forward");
+                options: Ui.skip-forward-options;
+                selected: Ui.skip-forward-index;
+                key: "skip_forward";
+            }
+            Setting {
+                title: @tr("Default speed");
+                options: Ui.speed-options;
+                selected: Ui.default-speed-index;
+                key: "default_speed";
+            }
+            Setting {
+                title: @tr("When closing the window while playing");
+                options: [@tr("Quit"), @tr("Keep playing in the tray")];
+                selected: Ui.close-to-tray ? 1 : 0;
+                key: "close_to_tray";
+            }
+            Heading {
+                text: @tr("Storage");
+                font-size: Theme.text-lg;
+            }
+            Setting {
+                title: @tr("Cover cache size ({} used)", Ui.cache-used-text);
+                options: Ui.cache-options;
+                selected: Ui.cache-index;
+                key: "cover_cache";
+            }
+        }
+    }
+}
+
+export component AddAccountPage inherits Rectangle {
+    public function focus-input() {
+        url.focus-input();
+    }
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            padding: Theme.pad;
+            VerticalLayout {
+                max-width: 420px;
+                horizontal-stretch: 1;
+                spacing: Theme.pad;
+                Heading {
+                    text: Ui.add-title;
+                }
+                Label {
+                    text: @tr("Enter the address of your Audiobookshelf server and your login.");
+                    font-size: Theme.text-base;
+                    wrap: word-wrap;
+                }
+                Label {
+                    text: @tr("Server address");
+                }
+                url := TextField {
+                    label: @tr("Server address");
+                    placeholder: "https://abs.example.com";
+                    text <=> Ui.add-url;
+                    accepted => {
+                        user.focus-input();
+                    }
+                }
+                Label {
+                    text: @tr("Username");
+                }
+                user := TextField {
+                    label: @tr("Username");
+                    text <=> Ui.add-username;
+                    accepted => {
+                        pass.focus-input();
+                    }
+                }
+                Label {
+                    text: @tr("Password");
+                }
+                pass := TextField {
+                    label: @tr("Password");
+                    password: true;
+                    text <=> Ui.add-password;
+                    accepted => {
+                        Ui.add-account(Ui.add-url, Ui.add-username, Ui.add-password);
+                    }
+                }
+                if Ui.add-error != "": Text {
+                    text: Ui.add-error;
+                    color: Theme.red;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    spacing: Theme.gap;
+                    alignment: end;
+                    if Ui.add-can-cancel: Button {
+                        text: @tr("Cancel");
+                        clicked => {
+                            Ui.back();
+                        }
+                    }
+                    Button {
+                        text: Ui.add-busy ? @tr("Connecting…") : @tr("Log in");
+                        primary: true;
+                        enabled: !Ui.add-busy && Ui.add-url != "" && Ui.add-username != "";
+                        clicked => {
+                            Ui.add-account(Ui.add-url, Ui.add-username, Ui.add-password);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

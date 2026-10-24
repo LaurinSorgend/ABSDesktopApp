@@ -1,0 +1,204 @@
+import { ListView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Ui } from "../state.slint";
+import { LibraryView } from "../data.slint";
+import { TileGrid } from "../tiles.slint";
+import { Button, Heading, Label, Segmented, TextField } from "../widgets.slint";
+
+component ItemToolbar inherits HorizontalLayout {
+    spacing: Theme.pad;
+    alignment: start;
+    Segmented {
+        label: @tr("Sort");
+        options: [@tr("Title"), @tr("Author"), @tr("Added"), @tr("Length")];
+        selected: Ui.library-sort;
+        select(index) => {
+            Ui.set-sort(index);
+        }
+    }
+    Button {
+        text: Ui.library-desc ? @tr("Descending") : @tr("Ascending");
+        clicked => {
+            Ui.toggle-desc();
+        }
+    }
+    Segmented {
+        label: @tr("Filter");
+        options: [@tr("All"), @tr("Not started"), @tr("In progress"), @tr("Finished")];
+        selected: Ui.library-filter;
+        select(index) => {
+            Ui.set-filter(index);
+        }
+    }
+}
+
+component GroupList inherits ListView {
+    for group in Ui.groups: Rectangle {
+        height: 44px;
+        background: touch.has-hover ? Theme.surface0 : transparent;
+        accessible-role: button;
+        accessible-label: group.name;
+        accessible-action-default => {
+            Ui.open-group(group.id);
+        }
+        HorizontalLayout {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad;
+            spacing: Theme.pad;
+            Text {
+                text: group.name;
+                color: Theme.text;
+                font-size: Theme.text-base;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: group.count;
+                color: Theme.subtext;
+                font-family: Theme.mono;
+                font-size: Theme.text-sm;
+                vertical-alignment: center;
+            }
+        }
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.surface0;
+        }
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                Ui.open-group(group.id);
+            }
+        }
+    }
+}
+
+export component LibraryPage inherits Rectangle {
+    VerticalLayout {
+        padding-top: Theme.pad;
+        spacing: Theme.pad;
+        VerticalLayout {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad;
+            spacing: Theme.pad;
+            HorizontalLayout {
+                spacing: Theme.pad;
+                Heading {
+                    text: Ui.library-index >= 0 ? Ui.libraries[Ui.library-index].name : @tr("Library");
+                    horizontal-stretch: 1;
+                }
+                Segmented {
+                    label: @tr("View");
+                    options: [@tr("Books"), @tr("Series"), @tr("Authors"), @tr("Collections")];
+                    selected: Ui.library-view == LibraryView.items ? 0 : Ui.library-view == LibraryView.series ? 1 : Ui.library-view == LibraryView.authors ? 2 : 3;
+                    select(index) => {
+                        Ui.set-library-view(index == 0 ? LibraryView.items : index == 1 ? LibraryView.series : index == 2 ? LibraryView.authors : LibraryView.collections);
+                    }
+                }
+            }
+            if Ui.library-view == LibraryView.items: ItemToolbar { }
+            if Ui.library-note != "" && Ui.library-view == LibraryView.items: Label {
+                text: Ui.library-note;
+            }
+            if Ui.groups-note != "" && Ui.library-view != LibraryView.items: Label {
+                text: Ui.groups-note;
+            }
+        }
+        if Ui.library-view == LibraryView.items: TileGrid {
+            rows: Ui.library-rows;
+            columns-changed(columns) => {
+                Ui.grid-columns("library", columns);
+            }
+            visible-rows(first, last) => {
+                Ui.grid-visible("library", first, last);
+            }
+            open(id) => {
+                Ui.open-item(id);
+            }
+        }
+        if Ui.library-view != LibraryView.items: GroupList { }
+    }
+}
+
+export component GroupPage inherits Rectangle {
+    VerticalLayout {
+        padding-top: Theme.pad;
+        spacing: Theme.pad;
+        VerticalLayout {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad;
+            spacing: Theme.gap;
+            Heading {
+                text: Ui.group-title;
+            }
+            if Ui.group-note != "": Label {
+                text: Ui.group-note;
+            }
+        }
+        TileGrid {
+            rows: Ui.group-rows;
+            columns-changed(columns) => {
+                Ui.grid-columns("group", columns);
+            }
+            visible-rows(first, last) => {
+                Ui.grid-visible("group", first, last);
+            }
+            open(id) => {
+                Ui.open-item(id);
+            }
+        }
+    }
+}
+
+export component SearchPage inherits Rectangle {
+    public function focus-input() {
+        field.focus-input();
+    }
+    VerticalLayout {
+        padding-top: Theme.pad;
+        spacing: Theme.pad;
+        VerticalLayout {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad;
+            spacing: Theme.gap;
+            Heading {
+                text: @tr("Search");
+            }
+            HorizontalLayout {
+                spacing: Theme.pad;
+                field := TextField {
+                    label: @tr("Search");
+                    placeholder: @tr("Title, author, narrator or series");
+                    text <=> Ui.search-text;
+                    edited(text) => {
+                        Ui.search(text);
+                    }
+                    horizontal-stretch: 1;
+                }
+                if Ui.search-server-offered: Button {
+                    text: @tr("Search on server");
+                    clicked => {
+                        Ui.search-server();
+                    }
+                }
+            }
+            if Ui.search-note != "": Label {
+                text: Ui.search-note;
+            }
+        }
+        TileGrid {
+            rows: Ui.search-rows;
+            columns-changed(columns) => {
+                Ui.grid-columns("search", columns);
+            }
+            visible-rows(first, last) => {
+                Ui.grid-visible("search", first, last);
+            }
+            open(id) => {
+                Ui.open-item(id);
+            }
+        }
+    }
+}
