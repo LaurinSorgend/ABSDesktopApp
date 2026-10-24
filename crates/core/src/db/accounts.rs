@@ -53,6 +53,16 @@ impl<'a> Accounts<'a> {
         Ok(())
     }
 
+    /// Replaces the URLs of a server; the first one is tried first.
+    pub fn set_server_urls(&self, server_id: &str, urls: &[&str]) -> DbResult<()> {
+        self.conn
+            .execute("DELETE FROM server_url WHERE server_id = ?1", [server_id])?;
+        for (priority, url) in urls.iter().enumerate() {
+            self.add_server_url(server_id, url, priority as i64)?;
+        }
+        Ok(())
+    }
+
     /// URLs of a server, lowest priority value first.
     pub fn server_urls(&self, server_id: &str) -> DbResult<Vec<String>> {
         let mut stmt = self
@@ -167,6 +177,11 @@ mod tests {
             .unwrap();
         let urls = accounts.server_urls(&server).unwrap();
         assert_eq!(urls, ["http://10.0.0.2:13378", "https://abs.example"]);
+        accounts
+            .set_server_urls(&server, &["https://vpn.example", "https://abs.example"])
+            .unwrap();
+        let urls = accounts.server_urls(&server).unwrap();
+        assert_eq!(urls, ["https://vpn.example", "https://abs.example"]);
 
         let new = NewAccount {
             server_id: &server,

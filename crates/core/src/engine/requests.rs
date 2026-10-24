@@ -52,6 +52,9 @@ async fn run_online(shared: Arc<Shared>, command: Command) {
         return;
     };
     if let Err(e) = run(&shared, &session, command).await {
+        if e.is_network() {
+            super::worker::went_offline(&shared, &account_id, &e);
+        }
         (shared.emit)(Event::RequestFailed {
             account_id,
             message: e.to_string(),

@@ -2,7 +2,7 @@
 
 use abs_core::db::Account;
 use abs_core::engine::Command;
-use slint::{ModelRc, VecModel};
+use slint::{ModelRc, SharedString, VecModel};
 
 use super::{App, Conn};
 use crate::settings::ACTIVE_ACCOUNT;
@@ -209,7 +209,80 @@ impl App {
 
     pub(super) fn refresh_accounts(&self) {
         let rows: Vec<AccountData> = self.accounts.iter().map(|a| self.account_row(a)).collect();
-        self.ui(|ui, _| ui.set_accounts(ModelRc::new(VecModel::from(rows))));
+        let urls: Vec<SharedString> = self
+            .active_server_urls()
+            .iter()
+            .map(|u| u.as_str().into())
+            .collect();
+        self.ui(|ui, _| {
+            ui.set_accounts(ModelRc::new(VecModel::from(rows)));
+            ui.set_server_urls(ModelRc::new(VecModel::from(urls)));
+        });
+    }
+
+    fn active_server_urls(&self) -> Vec<String> {
+        let Some(account) = self.active_account() else {
+            return Vec::new();
+        };
+        self.db
+            .store()
+            .accounts()
+            .server_urls(&account.server_id)
+            .unwrap_or_default()
+    }
+
+    pub fn add_server_url(&mut self, url: &str) {
+        let url = url.trim();
+        if !(url.starts_with("http://") || url.starts_with("https://")) {
+            let message = self
+                .ui(|_, s| s.invoke_address_needs_scheme())
+                .unwrap_or_default();
+            self.show_error(message.into());
+            return;
+        }
+        let mut urls = self.active_server_urls();
+        if !urls
+            .iter()
+            .any(|u| u.trim_end_matches('/') == url.trim_end_matches('/'))
+        {
+            urls.push(url.to_owned());
+        }
+        self.ui(|ui, _| ui.set_new_server_url("".into()));
+        self.save_server_urls(urls);
+    }
+
+    pub fn remove_server_url(&mut self, index: usize) {
+        let mut urls = self.active_server_urls();
+        if index < urls.len() && urls.len() > 1 {
+            urls.remove(index);
+            self.save_server_urls(urls);
+        }
+    }
+
+    pub fn raise_server_url(&mut self, index: usize) {
+        let mut urls = self.active_server_urls();
+        if index > 0 && index < urls.len() {
+            urls.swap(index - 1, index);
+            self.save_server_urls(urls);
+        }
+    }
+
+    /// Stores the list right away for the page; the engine stores it too and reconnects if needed.
+    fn save_server_urls(&mut self, urls: Vec<String>) {
+        let Some(account) = self.active_account().cloned() else {
+            return;
+        };
+        let refs: Vec<&str> = urls.iter().map(String::as_str).collect();
+        let _ = self
+            .db
+            .store()
+            .accounts()
+            .set_server_urls(&account.server_id, &refs);
+        self.engine.send(Command::SetServerUrls {
+            account_id: account.id,
+            urls,
+        });
+        self.refresh_accounts();
     }
 
     fn account_row(&self, account: &Account) -> AccountData {

@@ -172,4 +172,11 @@ export global Ui {
     callback remove-account(string);
     callback relogin(string);
     callback add-another-account();
+
+    // Server addresses of the active account, tried from the top
+    in property <[string]> server-urls;
+    in-out property <string> new-server-url;
+    callback add-server-url(string);
+    callback remove-server-url(int);
+    callback raise-server-url(int);
 }

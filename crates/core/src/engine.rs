@@ -117,6 +117,12 @@ pub enum Command {
     SetCoverCacheSize {
         megabytes: u64,
     },
+    /// Replaces the server addresses of an account's server, tried in this order.
+    /// Reconnects when the account is offline or uses an address no longer listed.
+    SetServerUrls {
+        account_id: String,
+        urls: Vec<String>,
+    },
     /// Queue an item for download; replaces an earlier download of it.
     Download {
         account_id: String,

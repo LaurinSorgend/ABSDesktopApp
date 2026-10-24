@@ -165,6 +165,66 @@ component Downloads inherits VerticalLayout {
     }
 }
 
+/// The addresses of the active account's server, with add, remove and move up.
+component ServerAddresses inherits VerticalLayout {
+    spacing: 4px;
+    Label {
+        text: @tr("Server addresses");
+    }
+    Label {
+        text: @tr("The app tries them from the top and uses the first that answers, so put the address for your home network first.");
+        wrap: word-wrap;
+    }
+    for url[index] in Ui.server-urls: Rectangle {
+        min-height: 44px;
+        border-width: 1px;
+        border-color: Theme.surface1;
+        HorizontalLayout {
+            padding-left: Theme.pad;
+            padding-right: Theme.gap;
+            spacing: Theme.gap;
+            Text {
+                text: url;
+                color: Theme.text;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+            if index > 0: Button {
+                text: @tr("Move up");
+                clicked => {
+                    Ui.raise-server-url(index);
+                }
+            }
+            if Ui.server-urls.length > 1: Button {
+                text: @tr("Remove");
+                clicked => {
+                    Ui.remove-server-url(index);
+                }
+            }
+        }
+    }
+    HorizontalLayout {
+        spacing: Theme.gap;
+        TextField {
+            label: @tr("New server address");
+            placeholder: "http://192.168.1.10:13378";
+            text <=> Ui.new-server-url;
+            horizontal-stretch: 1;
+            accepted => {
+                Ui.add-server-url(Ui.new-server-url);
+            }
+        }
+        Button {
+            text: @tr("Add address");
+            enabled: Ui.new-server-url != "";
+            clicked => {
+                Ui.add-server-url(Ui.new-server-url);
+            }
+        }
+    }
+}
+
 component Setting inherits VerticalLayout {
     in property <string> title;
     in property <[string]> options;
@@ -269,6 +329,7 @@ export component SettingsPage inherits Rectangle {
             for account in Ui.accounts: AccountRow {
                 account: account;
             }
+            if Ui.server-urls.length > 0: ServerAddresses { }
             if Ui.credentials-note != "": Label {
                 text: Ui.credentials-note;
                 wrap: word-wrap;
