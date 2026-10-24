@@ -20,4 +20,4 @@ Logins: `admin` / `admin-pass` (root) and `listener` / `listener-pass` (user).
 
 No fixture has an ISBN yet. Phase 4 adds `metadata.json` overrides with ISBNs and a second, overlapping library.
 
-ABS 2.26.3 truncates the multi-file book's title to "The Happy Prince and Other Tal" (from the ID3 album tag); 2.37.2 reads it in full.
+ABS 2.26.3 truncates the multi-file book's title to "The Happy Prince and Other Tal"; 2.37.2 shows it in full.
