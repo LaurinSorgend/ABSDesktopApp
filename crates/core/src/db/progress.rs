@@ -58,7 +58,7 @@ impl<'a> Progress<'a> {
         Self { conn }
     }
 
-    /// Stores progress unless the stored row is newer. Returns true when it was written.
+    /// Stores progress if it is newer than the stored row. Returns true when it was written.
     pub fn upsert(&self, account_id: &str, row: &ProgressRow) -> DbResult<bool> {
         let changed = self.conn.execute(
             "INSERT INTO progress(account_id, item_id, position, progress, is_finished,
@@ -68,7 +68,7 @@ impl<'a> Progress<'a> {
                  progress = excluded.progress, is_finished = excluded.is_finished,
                  ebook_location = excluded.ebook_location,
                  ebook_progress = excluded.ebook_progress, updated_at = excluded.updated_at
-             WHERE excluded.updated_at >= progress.updated_at",
+             WHERE excluded.updated_at > progress.updated_at",
             params![
                 account_id,
                 row.item_id,

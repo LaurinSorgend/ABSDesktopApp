@@ -11,6 +11,7 @@ mod raw;
 mod version;
 
 pub use auth::TokenSink;
+pub use reqwest;
 pub use client::{AbsClient, http_client};
 pub use endpoints::{ItemFilter, ItemsQuery};
 pub use error::{Error, Result, SinkError};
