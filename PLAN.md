@@ -375,6 +375,15 @@ Goal: a good single-view player on a data model that already supports many accou
 
 ## Cross-cutting work
 
+### Theming options
+
+Beyond what 1.9 has (mode, flavor, accent, `theme.json` colors). Not scheduled yet; do after dogfooding.
+- [ ] UI font and the font for numbers selectable (bundled faces plus installed system fonts), with a font size scale.
+- [ ] Corner radius as a theme value (0 by default), applied to buttons, fields, tiles, covers and popups.
+- [ ] Density: spacing and tile size (compact, normal, large).
+- [ ] Border width and focus ring style.
+- [ ] All of these in `theme.json` too, and shareable theme files (import/export).
+
 ### Testing
 - Unit tests in `core` and `abs-api` for anything with logic (token scheduling, time mapping, matcher, conflict rules).
 - Integration tests against the oldest supported and the latest ABS in CI.
