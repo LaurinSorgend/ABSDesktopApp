@@ -56,7 +56,8 @@ Options for the M4B index cost, to decide in 0.8: accept it in the playing budge
 `cargo run -p abs-desktop --example media_controls --release` plays the first LibriVox track through libmpv (with mpv's own `media-controls=no`) and registers with souvlaki 0.8.3.
 
 - Windows: the HWND comes from Slint through `raw-window-handle` 0.6 (`slint` feature `raw-window-handle-06`), read 200 ms after the event loop starts. `MediaControls::new`, `attach` and `set_metadata` with a `file://` cover succeed.
-- Open: SMTC overlay content, media keys and position display need a manual check on Windows 11. MPRIS on GNOME and KDE (Wayland) is untested; it needs a Linux machine.
+- Checked by hand on Windows 11: the SMTC overlay and media keys work. The app received Play, Pause, Next and Previous from the OS. Next and Previous do nothing in the spike yet; in the app they map to chapter jumps.
+- Open: MPRIS on GNOME and KDE (Wayland) is untested; it needs a Linux machine.
 
 ## Reader helper (0.7)
 
@@ -73,4 +74,5 @@ Options for the M4B index cost, to decide in 0.8: accept it in the playing budge
 | PDF (12 MB scan, foliate's bundled PDF.js) | 100.6 MB |
 
 - Passing a saved CFI (`epubcfi(/6/14!/4/2)`) opens at Chapter V, fraction 0.307.
+- Checked by hand on Windows 11: keyboard page turns work and each one emits a `relocate` (fraction 0.014 to 0.156 over 30 events).
 - Open: GNOME and KDE on Wayland (`build_gtk` path is written but not run yet), `set_memory_usage_level` when hidden.

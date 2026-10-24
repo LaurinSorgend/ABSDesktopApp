@@ -81,9 +81,9 @@ Goal: prove the risky parts and measure memory before writing real code. Spike c
 - [x] Set `demuxer-max-bytes` and observe memory while streaming.
 
 ### 0.6 Media controls
-- [ ] souvlaki with the HWND from Slint's winit backend on Windows 11 (SMTC overlay, media keys).
+- [x] souvlaki with the HWND from Slint's winit backend on Windows 11 (SMTC overlay, media keys).
 - [ ] MPRIS on GNOME and KDE (Wayland), using the zbus backend.
-- [ ] Show title, author, cover, position.
+- [x] Show title, author, cover, position.
 
 ### 0.7 Reader helper
 - [x] Add foliate-js as a git submodule, pinned to a commit.
