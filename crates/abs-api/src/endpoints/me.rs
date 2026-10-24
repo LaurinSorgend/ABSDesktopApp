@@ -35,6 +35,15 @@ impl AbsClient {
         }
     }
 
+    /// `PATCH /api/me/progress/:id`: marks the item finished or not finished.
+    pub async fn set_finished(&self, item_id: &str, finished: bool) -> Result<()> {
+        let request = self
+            .http()
+            .patch(self.url(&format!("api/me/progress/{item_id}"))?)
+            .json(&json!({ "isFinished": finished }));
+        self.send(request).await.map(drop)
+    }
+
     /// `POST /api/me/item/:id/bookmark`.
     pub async fn create_bookmark(&self, item_id: &str, time: f64, title: &str) -> Result<Bookmark> {
         let request = self
