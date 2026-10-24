@@ -109,4 +109,10 @@ Phase 2, 2.1 to 2.3 are implemented:
 - UI: download, pause, resume, cancel and remove on the item page; a download badge on tiles and a "Downloaded" library filter; a Downloads section in Settings with the folder (native folder dialog via `rfd`), space used and the list.
 - Tests: `download_file_resumes_with_range` (abs-api) and `download_pause_resume_restart_and_delete` (engine, also checks local playback) pass on both servers. The UI has not been tried by hand yet.
 
-Next: 2.4 server URL list and per-account online state, 2.5 offline session sync, 2.6 the offline round-trip test.
+2.4 is implemented:
+- Connecting tries the server's addresses in order; the session keeps the one that answered.
+- Every minute the engine pings connected servers (`GET /ping`, 10 s timeout). A failed ping, or a network error during sync or a request, marks the account offline and stops its socket; the next tick reconnects through the address list. When an address earlier in the list answers again (back on the home network), the engine reconnects through it.
+- `Command::SetServerUrls` replaces the list and reconnects when the account is offline or its current address is gone. Settings shows the active account's addresses with add, remove and move up.
+- Test: `server_addresses_fall_back_and_reconnect` (dead address only goes offline, dead then real reconnects, a restart skips the dead one).
+
+Next: 2.5 offline session sync, 2.6 the offline round-trip test.
