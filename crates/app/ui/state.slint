@@ -9,6 +9,8 @@ export global Ui {
     // Navigation
     in-out property <Page> page: Page.home;
     in property <bool> can-go-back;
+    /// Bumped by Rust to focus the text field of the current page.
+    in property <int> focus-request;
     callback navigate(Page);
     callback back();
 

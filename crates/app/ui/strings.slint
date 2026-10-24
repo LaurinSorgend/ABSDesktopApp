@@ -1,0 +1,112 @@
+// Texts that Rust fills in, kept here so that every string goes through @tr.
+
+export global Strings {
+    public pure function offline(server: string) -> string {
+        @tr("Can't reach {}. Showing what is stored on this computer; retrying every minute.", server)
+    }
+    public pure function login-required(user: string) -> string {
+        @tr("The login for {} has expired. Log in again to sync.", user)
+    }
+    public pure function sync-failed(message: string) -> string {
+        @tr("Sync failed: {}", message)
+    }
+    public pure function request-failed(message: string) -> string {
+        @tr("The server request failed: {}", message)
+    }
+    public pure function playback-failed(message: string) -> string {
+        @tr("Playback could not start: {}", message)
+    }
+    public pure function player-error(message: string) -> string {
+        @tr("Playback error: {}", message)
+    }
+    public pure function log-in() -> string {
+        @tr("Log in")
+    }
+    public pure function hours-minutes(hours: int, minutes: int) -> string {
+        @tr("{} h {} min", hours, minutes)
+    }
+    public pure function minutes(minutes: int) -> string {
+        @tr("{} min", minutes)
+    }
+    public pure function progress(percent: int, left: string) -> string {
+        @tr("{} % · {} left", percent, left)
+    }
+    public pure function finished() -> string {
+        @tr("Finished")
+    }
+    public pure function not-started() -> string {
+        @tr("Not started")
+    }
+    public pure function books(count: int) -> string {
+        @tr("{n} book" | "{n} books" % count)
+    }
+    public pure function continue-listening() -> string {
+        @tr("Continue listening")
+    }
+    public pure function recently-added() -> string {
+        @tr("Recently added")
+    }
+    public pure function home-empty() -> string {
+        @tr("Nothing here yet. Open a library to pick a book.")
+    }
+    public pure function loading() -> string {
+        @tr("Loading…")
+    }
+    public pure function needs-connection() -> string {
+        @tr("This needs a connection to the server.")
+    }
+    public pure function no-matches() -> string {
+        @tr("No books match.")
+    }
+    public pure function local-results(count: int) -> string {
+        @tr("{n} result on this computer." | "{n} results on this computer." % count)
+    }
+    public pure function server-results(count: int) -> string {
+        @tr("{n} result including the server." | "{n} results including the server." % count)
+    }
+    public pure function chapters-from-server() -> string {
+        @tr("Chapters are loaded from the server.")
+    }
+    public pure function no-chapters() -> string {
+        @tr("This book has no chapters.")
+    }
+    public pure function status-connecting() -> string {
+        @tr("connecting")
+    }
+    public pure function status-connected() -> string {
+        @tr("connected")
+    }
+    public pure function status-offline() -> string {
+        @tr("offline")
+    }
+    public pure function status-needs-login() -> string {
+        @tr("login needed")
+    }
+    public pure function add-account-title() -> string {
+        @tr("Add an account")
+    }
+    public pure function log-in-again-title() -> string {
+        @tr("Log in again")
+    }
+    public pure function file-credentials() -> string {
+        @tr("The system keyring is not available, so logins are kept in a private file in the app's data folder.")
+    }
+    public pure function bookmark-at(time: string) -> string {
+        @tr("Bookmark at {}", time)
+    }
+    public pure function end-of-chapter() -> string {
+        @tr("end of chapter")
+    }
+    public pure function seconds(count: int) -> string {
+        @tr("{} s", count)
+    }
+    public pure function megabytes(count: int) -> string {
+        @tr("{} MB", count)
+    }
+    public pure function sleep-off() -> string {
+        @tr("Off")
+    }
+    public pure function sleep-chapter() -> string {
+        @tr("Chapter end")
+    }
+}

@@ -6,6 +6,7 @@ import "fonts/fira-code-variable.ttf";
 import { ListView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Ui } from "state.slint";
+import { Strings } from "strings.slint";
 import { Page } from "data.slint";
 import { Banner, IconButton, Label } from "widgets.slint";
 import { BackIcon } from "icons.slint";
@@ -15,7 +16,7 @@ import { DetailPage } from "pages/detail.slint";
 import { PlayerBar, PlayerPage } from "pages/player.slint";
 import { SettingsPage, AddAccountPage } from "pages/settings.slint";
 
-export { Ui, Theme }
+export { Ui, Theme, Strings }
 export * from "data.slint";
 
 component NavItem inherits Rectangle {
@@ -125,11 +126,11 @@ component Sidebar inherits Rectangle {
 }
 
 component Pages inherits Rectangle {
-    property <Page> current: Ui.page;
-    changed current => {
-        if current == Page.search {
+    property <int> focus-request: Ui.focus-request;
+    changed focus-request => {
+        if Ui.page == Page.search {
             search.focus-input();
-        } else if current == Page.add-account {
+        } else if Ui.page == Page.add-account {
             add.focus-input();
         }
     }
