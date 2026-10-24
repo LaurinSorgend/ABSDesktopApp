@@ -235,8 +235,8 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Downloaded filter and badge in the library.
 
 ### 2.4 Connectivity and server URLs
-- [ ] Per-server URL list (LAN, VPN, public); probe `/status` in priority order, cache the working one.
-- [ ] Online/offline state per account, shown in the UI.
+- [x] Per-server URL list (LAN, VPN, public); probe `/status` in priority order, cache the working one.
+- [x] Online/offline state per account, shown in the UI.
 
 ### 2.5 Offline session sync
 - [ ] Record local sessions with id `play_local_<uuid>` in SQLite while offline (start, current time, time listened, `updatedAt`).
