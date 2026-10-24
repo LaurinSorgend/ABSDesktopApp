@@ -1,0 +1,12 @@
+[package]
+name = "abs-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+abs-api.workspace = true
+
+[lints]
+workspace = true

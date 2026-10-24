@@ -1,0 +1,11 @@
+/target/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+.env
+.claude/
+CLAUDE.md
+/docker/data/
+/fixtures/media/
+/vendor/libmpv/
