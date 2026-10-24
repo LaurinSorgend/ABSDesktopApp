@@ -152,10 +152,10 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Repository layer with one module per table group; no SQL outside `core::db`.
 
 ### 1.4 `core`: credentials and cover cache
-- [ ] `keyring-core` with the Windows store and the zbus Secret Service store; entries keyed by account UUID.
-- [ ] Only the refresh token goes to the keyring; access tokens stay in memory.
-- [ ] No Secret Service on Linux: ask the user ("don't remember me" or a 0600 file), never silently store plaintext.
-- [ ] Cover cache: `<cache>/<account_id>/covers/<item_id>_<w>.webp`, size-capped LRU (setting, default 500 MB).
+- [x] `keyring-core` with the Windows store and the zbus Secret Service store; entries keyed by account UUID.
+- [x] Only the refresh token goes to the keyring; access tokens stay in memory.
+- [x] No Secret Service on Linux: ask the user ("don't remember me" or a 0600 file), never silently store plaintext.
+- [x] Cover cache: `<cache>/<account_id>/covers/<item_id>_<w>.webp`, size-capped LRU (setting, default 500 MB).
 
 ### 1.5 `core`: accounts and sync
 - [ ] Add-account flow: URL -> `/status` probe -> login -> store server, URL, account.
