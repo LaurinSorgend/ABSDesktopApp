@@ -49,4 +49,4 @@ Private working set (`mpv_idle` example, one URL, `ao=null`):
 - The 40 h M4B costs about 110 MB more than an MP3 track no matter the cache settings. That is FFmpeg's MP4 demuxer keeping its sample tables and index for all ~3.1 million AAC frames in memory. A 20 h M4B at 44.1 kHz has the same frame count, so this hits common single-file books, not only the fixture.
 - Disabling libmpv's built-in Lua scripts (`load-scripts=no` and friends) made no measurable difference.
 
-Options for the M4B index cost, to decide in 0.8: accept it in the playing budget; ask ABS to transcode to HLS for long single-file books (more server CPU); or compare with the symphonia fallback, which reads MP4 sample tables lazily.
+Options for the M4B index cost, to decide in 0.8: accept it in the playing budget; ask ABS to transcode to HLS for long single-file books (more server CPU); or measure the symphonia fallback on the same file.
