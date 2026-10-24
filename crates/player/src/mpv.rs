@@ -11,6 +11,7 @@ use crate::player::{Media, Player, PlayerError, PlayerEvent};
 use crate::timeline::{Track, global_time, locate};
 
 /// Options that turn off what an audio-only embedded player does not need.
+/// Older libmpv versions lack some of them; those are skipped.
 const LEAN_OPTIONS: &[&str] = &[
     "load-scripts",
     "ytdl",
@@ -205,7 +206,7 @@ fn create(config: &MpvConfig) -> libmpv2::Result<Mpv> {
             init.set_option("ao", ao.as_str())?;
         }
         for option in LEAN_OPTIONS {
-            init.set_option(option, "no")?;
+            let _ = init.set_option(option, "no");
         }
         Ok(())
     })
