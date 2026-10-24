@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Third-party licenses</title>
+<style>
+body { font-family: sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; color: #4c4f69; background: #eff1f5; }
+pre { white-space: pre-wrap; background: #e6e9ef; border: 1px solid #bcc0cc; padding: 1rem; }
+</style>
+</head>
+<body>
+<h1>Third-party licenses</h1>
+<p>ABS Desktop includes the Rust crates below. libmpv, FFmpeg and the fonts have their own license files in the <code>licenses</code> folder.</p>
+<h2>Overview</h2>
+<ul>
+{{#each overview}}
+<li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
+{{/each}}
+</ul>
+<h2>License texts</h2>
+{{#each licenses}}
+<h3 id="{{id}}">{{name}}</h3>
+<p>Used by:</p>
+<ul>
+{{#each used_by}}
+<li><a href="{{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}}">{{crate.name}} {{crate.version}}</a></li>
+{{/each}}
+</ul>
+<pre>{{text}}</pre>
+{{/each}}
+</body>
+</html>

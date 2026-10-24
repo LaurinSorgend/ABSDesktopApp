@@ -1,4 +1,5 @@
 //! ABS Desktop: an Audiobookshelf client.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
 mod callbacks;
