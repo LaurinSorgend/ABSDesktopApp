@@ -4,7 +4,7 @@ import "fonts/ronzino-bold.ttf";
 import "fonts/fira-code-variable.ttf";
 
 import { ListView } from "std-widgets.slint";
-import { Theme } from "theme.slint";
+import { Theme, Colors } from "theme.slint";
 import { Ui } from "state.slint";
 import { Strings } from "strings.slint";
 import { Page } from "data.slint";
@@ -16,7 +16,7 @@ import { DetailPage } from "pages/detail.slint";
 import { PlayerBar, PlayerPage } from "pages/player.slint";
 import { SettingsPage, AddAccountPage } from "pages/settings.slint";
 
-export { Ui, Theme, Strings }
+export { Ui, Theme, Strings, Colors }
 export * from "data.slint";
 
 component NavItem inherits Rectangle {
