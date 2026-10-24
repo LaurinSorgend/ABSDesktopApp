@@ -13,9 +13,11 @@ from pathlib import Path
 MEDIA = Path(__file__).parent / "media"
 AUDIO = MEDIA / "audiobooks"
 EBOOKS = MEDIA / "ebooks"
+GRID = MEDIA / "grid"
 
 LIBRIVOX_ID = "thehappyprinceandothertales_1411_librivox"
 LIBRIVOX_FILES = [f"thehappyprinceandothertales_{n:02}_wilde_64kb.mp3" for n in range(1, 6)]
+LIBRIVOX_COVER = "happy_prince_and_other_tales_1411.jpg"
 EPUB_URL = "https://www.gutenberg.org/ebooks/11.epub3.images"
 PDF_URL = "https://archive.org/download/alicesadventur00carr/alicesadventur00carr_bw.pdf"
 
@@ -23,6 +25,7 @@ LONG_BOOK_HOURS = 40
 LONG_BOOK_CHAPTER_MINUTES = 30
 LONG_BOOK_ASIN = "B0FIXTURE1"
 COMIC_PAGES = 24
+GRID_ITEMS = 500
 
 
 def download(url, target):
@@ -46,6 +49,7 @@ def fetch_multi_file_book():
     folder = AUDIO / "Oscar Wilde" / "The Happy Prince and Other Tales"
     for name in LIBRIVOX_FILES:
         download(f"https://archive.org/download/{LIBRIVOX_ID}/{name}", folder / name)
+    download(f"https://archive.org/download/{LIBRIVOX_ID}/{LIBRIVOX_COVER}", folder / "cover.jpg")
     return folder
 
 
@@ -89,6 +93,7 @@ def build_long_m4b(source_folder):
         "-c", "copy", "-movflags", "+faststart+use_metadata_tags", "-f", "mp4", str(part),
     )
     part.rename(target)
+    shutil.copy(source_folder / "cover.jpg", target.parent / "cover.jpg")
     shutil.rmtree(work)
 
 
@@ -110,12 +115,35 @@ def build_comic():
     shutil.rmtree(pages)
 
 
+def build_grid_library():
+    """Many tiny items with distinct covers, for cover grid and memory tests."""
+    marker = GRID / ".complete"
+    if marker.exists():
+        return
+    work = MEDIA / ".grid"
+    work.mkdir(parents=True, exist_ok=True)
+    print(f"generating {GRID_ITEMS} grid items")
+    ffmpeg("-f", "lavfi", "-i", "anullsrc=r=22050:cl=mono", "-t", "2", "-c:a", "libmp3lame", "-b:a", "32k", str(work / "track.mp3"))
+    ffmpeg(
+        "-f", "lavfi", "-i", f"testsrc2=size=600x600:rate=1:duration={GRID_ITEMS}",
+        "-vf", "hue=h=t*37", "-q:v", "5", str(work / "cover_%04d.jpg"),
+    )
+    for n in range(1, GRID_ITEMS + 1):
+        folder = GRID / f"Grid Author {n % 40:02}" / f"Grid Book {n:04}"
+        folder.mkdir(parents=True, exist_ok=True)
+        shutil.copy(work / "track.mp3", folder / f"Grid Book {n:04}.mp3")
+        shutil.copy(work / f"cover_{n:04}.jpg", folder / "cover.jpg")
+    shutil.rmtree(work)
+    marker.touch()
+
+
 def main():
     source = fetch_multi_file_book()
     build_long_m4b(source)
     download(EPUB_URL, EBOOKS / "Lewis Carroll" / "Alice EPUB" / "Alice's Adventures in Wonderland.epub")
     download(PDF_URL, EBOOKS / "Lewis Carroll" / "Alice PDF" / "Alice's Adventures in Wonderland.pdf")
     build_comic()
+    build_grid_library()
     print("fixtures ready in", MEDIA)
 
 
