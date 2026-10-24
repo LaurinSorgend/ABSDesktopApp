@@ -70,6 +70,11 @@ impl App {
                 ..Choices::load(&store)
             };
         }
+        if key == DEFAULT_SPEED
+            && let Some(playback) = &mut self.playback
+        {
+            playback.set_speed(self.choices.default_speed);
+        }
         self.apply_choices();
         self.apply_theme();
     }
