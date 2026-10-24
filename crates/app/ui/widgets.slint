@@ -237,10 +237,11 @@ export component SeekBar inherits Rectangle {
     Rectangle {
         x: parent.width * root.shown - self.width / 2;
         y: (parent.height - self.height) / 2;
-        width: 12px;
-        height: 12px;
+        width: touch.has-hover || touch.pressed ? 14px : 12px;
+        height: self.width;
         background: Theme.accent;
-        visible: touch.has-hover || touch.pressed;
+        border-width: 2px;
+        border-color: Theme.text;
     }
 
     touch := TouchArea {
@@ -256,6 +257,127 @@ export component SeekBar inherits Rectangle {
         moved => {
             root.drag = clamp(self.mouse-x / self.width, 0, 1);
             root.scrub(root.drag);
+        }
+    }
+}
+
+/// A button showing the current choice; clicking it opens the list of choices.
+export component Dropdown inherits Rectangle {
+    in property <[string]> options;
+    in property <int> selected;
+    in property <string> label;
+    /// Opens the list above the button, as in the player bar.
+    in property <bool> above;
+    callback select(int);
+    property <length> row-height: 32px;
+
+    min-width: max(72px, current.preferred-width + 36px);
+    min-height: 36px;
+    background: touch.has-hover ? Theme.surface0 : Theme.base;
+    border-width: 1px;
+    border-color: Theme.overlay0;
+    accessible-role: combobox;
+    accessible-label: label;
+    accessible-value: selected >= 0 && selected < options.length ? options[selected] : "";
+    accessible-action-default => {
+        popup.show();
+    }
+
+    focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == " " || event.text == Key.Return {
+                popup.show();
+                return accept;
+            }
+            if event.text == Key.UpArrow && root.selected > 0 {
+                root.select(root.selected - 1);
+                return accept;
+            }
+            if event.text == Key.DownArrow && root.selected < root.options.length - 1 {
+                root.select(root.selected + 1);
+                return accept;
+            }
+            reject
+        }
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                popup.show();
+            }
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 8px;
+        spacing: 6px;
+        current := Text {
+            text: root.selected >= 0 && root.selected < root.options.length ? root.options[root.selected] : "";
+            color: Theme.text;
+            font-size: Theme.text-sm;
+            font-weight: 500;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+        VerticalLayout {
+            alignment: center;
+            if root.above: Path {
+                width: 10px;
+                height: 10px;
+                viewbox-width: 10;
+                viewbox-height: 10;
+                commands: "M 1 7 L 5 3 L 9 7";
+                stroke: Theme.text;
+                stroke-width: 1.5px;
+            }
+            if !root.above: Path {
+                width: 10px;
+                height: 10px;
+                viewbox-width: 10;
+                viewbox-height: 10;
+                commands: "M 1 3 L 5 7 L 9 3";
+                stroke: Theme.text;
+                stroke-width: 1.5px;
+            }
+        }
+    }
+
+    if focus.has-focus: FocusRing {
+        target-width: root.width;
+        target-height: root.height;
+    }
+
+    popup := PopupWindow {
+        x: 0;
+        y: root.above ? -self.height - 4px : root.height + 4px;
+        width: max(root.width, 120px);
+        height: root.options.length * root.row-height + 2px;
+        Rectangle {
+            background: Theme.mantle;
+            border-width: 1px;
+            border-color: Theme.overlay0;
+        }
+        VerticalLayout {
+            padding: 1px;
+            for option[index] in root.options: Rectangle {
+                height: root.row-height;
+                background: index == root.selected ? Theme.accent : item-touch.has-hover ? Theme.surface0 : transparent;
+                Text {
+                    x: 10px;
+                    height: parent.height;
+                    text: option;
+                    color: index == root.selected ? Theme.on-accent : Theme.text;
+                    font-size: Theme.text-sm;
+                    vertical-alignment: center;
+                }
+                item-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select(index);
+                        popup.close();
+                    }
+                }
+            }
         }
     }
 }
