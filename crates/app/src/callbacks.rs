@@ -74,6 +74,8 @@ fn connect_player(ui: &Ui<'_>) {
     ui.on_set_sleep(on(|app, i: i32| {
         app.player_action(Action::Sleep(i.max(0) as usize))
     }));
+    ui.on_set_volume(on(|app, percent: f32| app.set_volume(percent as f64)));
+    ui.on_toggle_mute(|| with_app(|app| app.toggle_mute()));
     ui.on_add_bookmark(|| with_app(|app| app.add_bookmark()));
     ui.on_remove_bookmark(on(|app, time: f32| app.remove_bookmark(time as f64)));
 }

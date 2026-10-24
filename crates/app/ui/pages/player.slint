@@ -6,7 +6,8 @@ import { Cover } from "../tiles.slint";
 import { ChapterRow } from "detail.slint";
 import { Button, Heading, IconButton, Label, Segmented, SeekBar } from "../widgets.slint";
 import {
-    PlayIcon, PauseIcon, PreviousIcon, NextIcon, RewindIcon, ForwardIcon, BookmarkIcon, CloseIcon,
+    PlayIcon, PauseIcon, PreviousIcon, NextIcon, RewindIcon, ForwardIcon, CloseIcon, VolumeIcon,
+    MutedIcon,
 } from "../icons.slint";
 
 /// Previous chapter, skip back, play/pause, skip forward, next chapter.
@@ -103,6 +104,81 @@ component TimeText inherits Text {
     vertical-alignment: center;
 }
 
+/// Book progress with chapter markers.
+component BookProgress inherits HorizontalLayout {
+    spacing: Theme.gap;
+    TimeText {
+        text: Ui.position-text;
+        min-width: 64px;
+        horizontal-alignment: right;
+    }
+    SeekBar {
+        label: @tr("Position in book");
+        value: Ui.position-fraction;
+        markers: Ui.chapter-markers;
+        horizontal-stretch: 1;
+        seek(fraction) => {
+            Ui.seek-fraction(fraction);
+        }
+    }
+    TimeText {
+        text: Ui.remaining-text;
+        min-width: 64px;
+    }
+}
+
+component ChapterProgress inherits HorizontalLayout {
+    spacing: Theme.gap;
+    TimeText {
+        text: Ui.chapter-elapsed-text;
+        min-width: 64px;
+        horizontal-alignment: right;
+    }
+    SeekBar {
+        label: @tr("Position in chapter");
+        value: Ui.chapter-fraction;
+        horizontal-stretch: 1;
+        seek(fraction) => {
+            Ui.seek-chapter-fraction(fraction);
+        }
+    }
+    TimeText {
+        text: Ui.chapter-remaining-text;
+        min-width: 64px;
+    }
+}
+
+/// Mute button and volume slider.
+export component Volume inherits HorizontalLayout {
+    spacing: 4px;
+    alignment: start;
+    IconButton {
+        label: Ui.muted ? @tr("Unmute") : @tr("Mute");
+        clicked => {
+            Ui.toggle-mute();
+        }
+        if !Ui.muted: VolumeIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+        if Ui.muted: MutedIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+    SeekBar {
+        label: @tr("Volume");
+        width: 96px;
+        value: Ui.muted ? 0 : Ui.volume / 100;
+        scrub(fraction) => {
+            Ui.set-volume(fraction * 100);
+        }
+        seek(fraction) => {
+            Ui.set-volume(fraction * 100);
+        }
+    }
+}
+
 /// The bar at the bottom while an item is loaded.
 export component PlayerBar inherits Rectangle {
     height: 72px;
@@ -158,24 +234,13 @@ export component PlayerBar inherits Rectangle {
             }
         }
         Transport { }
-        HorizontalLayout {
-            spacing: Theme.gap;
+        VerticalLayout {
+            alignment: center;
             horizontal-stretch: 1;
-            TimeText {
-                text: Ui.position-text;
-            }
-            SeekBar {
-                label: @tr("Position");
-                value: Ui.position-fraction;
-                horizontal-stretch: 1;
-                seek(fraction) => {
-                    Ui.seek-fraction(fraction);
-                }
-            }
-            TimeText {
-                text: Ui.remaining-text;
-            }
+            if Ui.progress-mode != 1: BookProgress { }
+            if Ui.progress-mode != 0: ChapterProgress { }
         }
+        Volume { }
         Button {
             text: Ui.speed-index >= 0 ? Ui.speed-options[Ui.speed-index] : "1×";
             min-width: 56px;
@@ -273,24 +338,14 @@ component NowPlaying inherits VerticalLayout {
             font-size: Theme.text-base;
             overflow: elide;
         }
-        SeekBar {
-            label: @tr("Position in chapter");
-            value: Ui.chapter-fraction;
-            seek(fraction) => {
-                Ui.seek-chapter-fraction(fraction);
-            }
+        ChapterProgress { }
+        Label {
+            text: @tr("Book");
         }
-        HorizontalLayout {
-            TimeText {
-                text: Ui.chapter-position-text;
-                horizontal-stretch: 1;
-            }
-            TimeText {
-                text: Ui.remaining-text;
-            }
-        }
+        BookProgress { }
     }
     Transport { }
+    Volume { }
     Label {
         text: @tr("Speed");
     }

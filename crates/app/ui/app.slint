@@ -204,6 +204,14 @@ export component AppWindow inherits Window {
                 Ui.toggle-play();
                 return accept;
             }
+            if event.text == Key.UpArrow {
+                Ui.set-volume(min(100, Ui.volume + 5));
+                return accept;
+            }
+            if event.text == Key.DownArrow {
+                Ui.set-volume(max(0, Ui.volume - 5));
+                return accept;
+            }
             if event.text == Key.LeftArrow {
                 if event.modifiers.shift {
                     Ui.previous-chapter();

@@ -40,6 +40,8 @@ pub struct Playback {
     chapter: Option<usize>,
     speed_index: usize,
     sleep_index: usize,
+    volume: f64,
+    muted: bool,
 }
 
 impl Playback {
@@ -61,6 +63,8 @@ impl Playback {
             chapter: None,
             speed_index: 1,
             sleep_index: 0,
+            volume: 100.0,
+            muted: false,
         })
     }
 
@@ -93,6 +97,11 @@ impl Playback {
         if self.now.is_none() {
             self.speed_index = choices.default_speed;
         }
+        self.set_volume(choices.volume);
+    }
+
+    pub fn volume(&self) -> f64 {
+        self.volume
     }
 
     /// Plays an item, from `start` or where the server says it was left.
@@ -134,6 +143,7 @@ impl Playback {
         let player = self.controller.player().clone();
         player.load(media, at, true)?;
         player.set_speed(SPEEDS[self.speed_index])?;
+        self.apply_volume();
         self.controller.set_item(chapters.clone(), start.duration);
         self.position = at;
         self.chapter = timeline::chapter_at(&chapters, at);
@@ -303,6 +313,23 @@ impl Playback {
         let _ = self
             .controller
             .set_sleep(sleep_choice(index), Instant::now());
+    }
+
+    /// Volume in percent; unmutes.
+    pub fn set_volume(&mut self, percent: f64) {
+        self.volume = percent.clamp(0.0, 100.0);
+        self.muted = false;
+        self.apply_volume();
+    }
+
+    pub fn toggle_mute(&mut self) {
+        self.muted = !self.muted;
+        self.apply_volume();
+    }
+
+    fn apply_volume(&mut self) {
+        let volume = if self.muted { 0.0 } else { self.volume };
+        let _ = self.controller.set_volume(volume);
     }
 
     pub fn media_key(&mut self, key: MediaKey) {

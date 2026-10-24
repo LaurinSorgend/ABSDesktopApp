@@ -89,6 +89,15 @@ export global Ui {
     in property <string> remaining-text;
     in property <string> chapter-title;
     in property <string> chapter-position-text;
+    in property <string> chapter-elapsed-text;
+    in property <string> chapter-remaining-text;
+    /// Chapter starts as fractions of the book, for the book progress bar.
+    in property <[float]> chapter-markers;
+    /// Player bar progress: 0 book, 1 chapter, 2 both.
+    in property <int> progress-mode;
+    /// Volume in percent.
+    in property <float> volume: 100;
+    in property <bool> muted;
     in property <[ChapterData]> chapters;
     in property <[BookmarkData]> bookmarks;
     in property <int> speed-index;
@@ -106,6 +115,8 @@ export global Ui {
     callback seek-to(float);
     callback set-speed(int);
     callback set-sleep(int);
+    callback set-volume(float);
+    callback toggle-mute();
     callback add-bookmark();
     callback remove-bookmark(float);
 

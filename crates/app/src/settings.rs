@@ -12,6 +12,8 @@ pub const DEFAULT_SPEED: &str = "default_speed";
 pub const CLOSE_TO_TRAY: &str = "close_to_tray";
 pub const COVER_CACHE: &str = "cover_cache";
 pub const ACTIVE_ACCOUNT: &str = "active_account";
+pub const PROGRESS_BAR: &str = "progress_bar";
+pub const VOLUME: &str = "volume";
 
 pub const SKIP_BACK_SECONDS: [u64; 4] = [5, 10, 15, 30];
 pub const SKIP_FORWARD_SECONDS: [u64; 4] = [10, 15, 30, 60];
@@ -28,6 +30,10 @@ pub struct Choices {
     pub default_speed: usize,
     pub close_to_tray: bool,
     pub cover_cache: usize,
+    /// 0 book, 1 chapter, 2 both.
+    pub progress_bar: usize,
+    /// Percent.
+    pub volume: f64,
 }
 
 impl Choices {
@@ -47,6 +53,11 @@ impl Choices {
             skip_forward: get(SKIP_FORWARD, 2, SKIP_FORWARD_SECONDS.len()),
             default_speed: get(DEFAULT_SPEED, 1, SPEEDS.len()),
             close_to_tray: settings.get_or(CLOSE_TO_TRAY, 0u8).unwrap_or(0) == 1,
+            progress_bar: get(PROGRESS_BAR, 0, 3),
+            volume: settings
+                .get_or(VOLUME, 100.0_f64)
+                .unwrap_or(100.0)
+                .clamp(0.0, 100.0),
             cover_cache: CACHE_MEGABYTES
                 .iter()
                 .position(|mb| *mb >= cache_mb)
