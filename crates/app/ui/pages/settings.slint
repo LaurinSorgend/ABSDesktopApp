@@ -132,6 +132,12 @@ export component SettingsPage inherits Rectangle {
                 key: "default_speed";
             }
             Setting {
+                title: @tr("Progress bar in the player bar");
+                options: [@tr("Book"), @tr("Chapter"), @tr("Both")];
+                selected: Ui.progress-mode;
+                key: "progress_bar";
+            }
+            Setting {
                 title: @tr("When closing the window while playing");
                 options: [@tr("Quit"), @tr("Keep playing in the tray")];
                 selected: Ui.close-to-tray ? 1 : 0;

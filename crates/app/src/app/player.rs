@@ -9,6 +9,7 @@ use slint::{ComponentHandle, Image, ModelRc, VecModel};
 use super::App;
 use crate::covers::LARGE_WIDTH;
 use crate::format;
+use crate::settings::VOLUME;
 use crate::{BookmarkData, Strings, Ui};
 
 /// Something the user did to the player.
@@ -110,6 +111,23 @@ impl App {
             Action::SeekTo(at) => playback.seek_to(at),
             Action::Speed(index) => playback.set_speed(index),
             Action::Sleep(index) => playback.set_sleep(index),
+        }
+        self.update_player_view();
+    }
+
+    pub fn set_volume(&mut self, percent: f64) {
+        let Some(playback) = &mut self.playback else {
+            return;
+        };
+        playback.set_volume(percent);
+        self.choices.volume = playback.volume();
+        let _ = self.db.store().settings().set(VOLUME, self.choices.volume);
+        self.update_player_view();
+    }
+
+    pub fn toggle_mute(&mut self) {
+        if let Some(playback) = &mut self.playback {
+            playback.toggle_mute();
         }
         self.update_player_view();
     }

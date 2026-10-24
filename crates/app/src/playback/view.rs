@@ -48,6 +48,8 @@ impl PlayerView {
         ui.set_position_text(format::clock(position).into());
         ui.set_remaining_text(format::remaining(duration - position).into());
         ui.set_speed_index(playback.speed_index as i32);
+        ui.set_volume(playback.volume as f32);
+        ui.set_muted(playback.muted);
         ui.set_sleep_index(playback.sleep_index as i32);
         ui.set_sleep_text(sleep_text(playback, strings).into());
         self.update_chapter(playback, ui);
@@ -66,6 +68,7 @@ impl PlayerView {
                 .map(|c| chapter_row(&c.title, c.start, c.end, false))
                 .collect();
             self.chapters.set_vec(rows);
+            ui.set_chapter_markers(markers(&now.chapters, now.duration));
         }
         if self.current != playback.chapter {
             self.set_current(self.current, false);
@@ -79,11 +82,17 @@ impl PlayerView {
                 let into = format::clock(playback.position - c.start);
                 let length = format::clock(c.end - c.start);
                 ui.set_chapter_position_text(format!("{into} / {length}").into());
+                ui.set_chapter_elapsed_text(into.into());
+                ui.set_chapter_remaining_text(format::remaining(c.end - playback.position).into());
             }
             None => {
                 ui.set_chapter_title("".into());
                 ui.set_chapter_fraction(fraction(playback.position, 0.0, now.duration));
                 ui.set_chapter_position_text(format::clock(playback.position).into());
+                ui.set_chapter_elapsed_text(format::clock(playback.position).into());
+                ui.set_chapter_remaining_text(
+                    format::remaining(now.duration - playback.position).into(),
+                );
             }
         }
     }
@@ -152,6 +161,16 @@ fn sleep_text(playback: &Playback, strings: &Strings<'_>) -> String {
             .map(|left| format::clock(left.as_secs_f64()))
             .unwrap_or_default(),
     }
+}
+
+/// Chapter starts after the first, as fractions of the book.
+fn markers(chapters: &[abs_player::timeline::Chapter], duration: f64) -> ModelRc<f32> {
+    let starts: Vec<f32> = chapters
+        .iter()
+        .skip(1)
+        .map(|c| fraction(c.start, 0.0, duration))
+        .collect();
+    ModelRc::new(VecModel::from(starts))
 }
 
 fn fraction(position: f64, start: f64, end: f64) -> f32 {

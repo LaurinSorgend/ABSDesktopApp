@@ -199,7 +199,11 @@ export component Segmented inherits HorizontalLayout {
 export component SeekBar inherits Rectangle {
     in property <float> value;
     in property <string> label;
+    /// Positions from 0 to 1 drawn as gaps, such as chapter starts.
+    in property <[float]> markers;
     callback seek(float);
+    /// While dragging, for controls that apply at once such as volume.
+    callback scrub(float);
     property <float> drag;
     property <float> shown: touch.pressed ? drag : clamp(value, 0, 1);
 
@@ -222,6 +226,14 @@ export component SeekBar inherits Rectangle {
         background: Theme.accent;
     }
 
+    for marker in root.markers: Rectangle {
+        x: parent.width * marker - 1px;
+        y: (parent.height - 4px) / 2;
+        width: 2px;
+        height: 4px;
+        background: Theme.base;
+    }
+
     Rectangle {
         x: parent.width * root.shown - self.width / 2;
         y: (parent.height - self.height) / 2;
@@ -236,12 +248,14 @@ export component SeekBar inherits Rectangle {
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.drag = clamp(self.mouse-x / self.width, 0, 1);
+                root.scrub(root.drag);
             } else if event.kind == PointerEventKind.up {
                 root.seek(clamp(self.mouse-x / self.width, 0, 1));
             }
         }
         moved => {
             root.drag = clamp(self.mouse-x / self.width, 0, 1);
+            root.scrub(root.drag);
         }
     }
 }

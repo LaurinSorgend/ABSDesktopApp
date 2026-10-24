@@ -5,7 +5,7 @@ use abs_core::engine::Command;
 use super::App;
 use crate::paths::dir_size;
 use crate::settings::{
-    CACHE_MEGABYTES, CLOSE_TO_TRAY, COVER_CACHE, Choices, DEFAULT_SPEED, SKIP_BACK,
+    CACHE_MEGABYTES, CLOSE_TO_TRAY, COVER_CACHE, Choices, DEFAULT_SPEED, PROGRESS_BAR, SKIP_BACK,
     SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS,
 };
 
@@ -26,6 +26,7 @@ impl App {
             ui.set_default_speed_index(choices.default_speed as i32);
             ui.set_close_to_tray(choices.close_to_tray);
             ui.set_cache_index(choices.cover_cache as i32);
+            ui.set_progress_mode(choices.progress_bar as i32);
         });
     }
 
@@ -47,7 +48,9 @@ impl App {
         let store = self.db.store();
         let settings = store.settings();
         let _ = match key {
-            SKIP_BACK | SKIP_FORWARD | DEFAULT_SPEED | CLOSE_TO_TRAY => settings.set(key, index),
+            SKIP_BACK | SKIP_FORWARD | DEFAULT_SPEED | CLOSE_TO_TRAY | PROGRESS_BAR => {
+                settings.set(key, index)
+            }
             COVER_CACHE => {
                 let megabytes = CACHE_MEGABYTES[index.min(CACHE_MEGABYTES.len() - 1)];
                 self.engine.send(Command::SetCoverCacheSize { megabytes });
