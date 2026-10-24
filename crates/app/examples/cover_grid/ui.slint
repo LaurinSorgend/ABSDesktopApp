@@ -1,0 +1,91 @@
+import { ListView } from "std-widgets.slint";
+
+export struct Tile {
+    index: int,
+    title: string,
+    cover: image,
+}
+
+export struct Row {
+    tiles: [Tile],
+}
+
+component CoverTile inherits Rectangle {
+    in property <Tile> tile;
+    width: 160px;
+    height: 210px;
+
+    VerticalLayout {
+        spacing: 6px;
+        Rectangle {
+            height: 160px;
+            border-radius: 6px;
+            clip: true;
+            background: #2a2d33;
+            Image {
+                source: tile.cover;
+                width: parent.width;
+                height: parent.height;
+                image-fit: cover;
+            }
+        }
+        Text {
+            text: tile.title;
+            color: #d8dbe0;
+            font-size: 12px;
+            overflow: elide;
+        }
+    }
+}
+
+export component GridWindow inherits Window {
+    title: @tr("Cover grid spike");
+    preferred-width: 1100px;
+    preferred-height: 760px;
+    background: #17191d;
+
+    in property <[Row]> rows;
+    in property <string> status;
+    out property <int> columns: max(1, floor((self.width - 32px) / 176px));
+    out property <length> row-height: 226px;
+    in-out property <length> scroll-y <=> list.content-y;
+    out property <length> scroll-limit: list.visible-height - root.rows.length * root.row-height;
+
+    callback columns-changed(int);
+    callback visible-range-changed(int, int);
+
+    changed columns => {
+        root.columns-changed(self.columns);
+    }
+
+    function report-visible() {
+        root.visible-range-changed(
+            floor(-list.content-y / root.row-height),
+            ceil((-list.content-y + list.visible-height) / root.row-height));
+    }
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 8px;
+        Text {
+            text: root.status;
+            color: #8b9099;
+        }
+        list := ListView {
+            changed content-y => {
+                root.report-visible();
+            }
+            changed visible-height => {
+                root.report-visible();
+            }
+            for row in root.rows: HorizontalLayout {
+                height: root.row-height;
+                spacing: 16px;
+                alignment: start;
+                for tile in row.tiles: CoverTile {
+                    tile: tile;
+                }
+            }
+        }
+    }
+}
