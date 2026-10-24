@@ -9,7 +9,7 @@ use slint::{ComponentHandle, Image, ModelRc, VecModel};
 use super::App;
 use crate::covers::LARGE_WIDTH;
 use crate::format;
-use crate::settings::VOLUME;
+use crate::settings::{DEFAULT_SPEED, SPEEDS, VOLUME};
 use crate::{BookmarkData, Strings, Ui};
 
 /// Something the user did to the player.
@@ -112,7 +112,18 @@ impl App {
             Action::Speed(index) => playback.set_speed(index),
             Action::Sleep(index) => playback.set_sleep(index),
         }
+        if let Action::Speed(index) = action {
+            self.remember_speed(index);
+        }
         self.update_player_view();
+    }
+
+    /// The last speed becomes the default for the next start and the next item.
+    fn remember_speed(&mut self, index: usize) {
+        let index = index.min(SPEEDS.len() - 1);
+        let _ = self.db.store().settings().set(DEFAULT_SPEED, index);
+        self.choices.default_speed = index;
+        self.ui(|ui, _| ui.set_default_speed_index(index as i32));
     }
 
     pub fn set_volume(&mut self, percent: f64) {
