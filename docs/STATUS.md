@@ -62,4 +62,9 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - The database is one connection behind a `Mutex`; writes run inline on the engine thread. Fine for now, revisit if a large library sync stalls the engine.
 - Contract tests: `cargo test -p abs-core --features integration`.
 
-Next: 1.6 realtime (Socket.IO).
+1.6 is done:
+- `abs_api::Realtime` is an own Engine.IO v4 client over `tokio-tungstenite` (ADR 0003). It authenticates with the access token (or API key), re-sends `auth` whenever `AbsClient::token_changes` fires, answers pings, and reconnects with backoff from 1 s to 60 s. It stops after logout or an `auth_failed` that a refresh cannot fix.
+- Events used: `init`, `auth_failed`, `user_item_progress_updated`, `item_added`/`item_updated`/`items_added`/`items_updated`, `item_removed`, `library_*`, `user_session_closed` (names checked in `SocketAuthority.js` of 2.26.3 and 2.37.2).
+- The engine runs one realtime task per connected account. Progress events update the `progress` table, item events update the catalog (unknown library triggers a catalog sync), and a reconnect pulls progress.
+
+Next: 1.7 player.
