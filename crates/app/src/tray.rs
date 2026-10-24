@@ -4,6 +4,7 @@
 use crate::app::{Action, with_app};
 
 /// Labels for the tray menu.
+#[cfg_attr(not(windows), allow(dead_code, reason = "read by the Windows tray"))]
 pub struct Labels {
     pub show: String,
     pub toggle: String,
