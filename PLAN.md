@@ -172,12 +172,12 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Keep the socket behind one small type (`abs_api::Realtime`) so its implementation can be replaced.
 
 ### 1.7 `player`
-- [ ] `Player` trait: `load(tracks, start)`, `play`, `pause`, `seek(global_secs)`, `set_speed`, `set_volume`, event stream (position, state, ended, error).
-- [ ] `MpvPlayer`: playlist of tracks, global time <-> `(track, offset)`, demuxer cache cap.
-- [ ] Chapters from the server JSON (not from file parsing); next/previous chapter.
-- [ ] Skip back/forward with configurable intervals.
-- [ ] Sleep timer: fixed duration or end of chapter, with fade-out.
-- [ ] Media controls via souvlaki, behind its own trait (fallbacks: `windows` crate SMTC, `mpris-server`).
+- [x] `Player` trait: `load(tracks, start)`, `play`, `pause`, `seek(global_secs)`, `set_speed`, `set_volume`, event stream (position, state, ended, error).
+- [x] `MpvPlayer`: playlist of tracks, global time <-> `(track, offset)`, demuxer cache cap.
+- [x] Chapters from the server JSON (not from file parsing); next/previous chapter.
+- [x] Skip back/forward with configurable intervals.
+- [x] Sleep timer: fixed duration or end of chapter, with fade-out.
+- [x] Media controls via souvlaki, behind its own trait (fallbacks: `windows` crate SMTC, `mpris-server`).
 
 ### 1.8 `core`: playback sessions
 - [ ] Start: `POST /api/items/:id/play` with `deviceInfo` (per-account `device_id`), `mediaPlayer`, and a full `supportedMimeTypes` list (mpeg, mp4, m4b, aac, flac, ogg, opus, webm, wav, ...).
