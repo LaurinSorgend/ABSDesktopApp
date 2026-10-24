@@ -1,0 +1,30 @@
+name: abs-test
+
+x-abs: &abs
+  restart: unless-stopped
+  environment:
+    TZ: UTC
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost/healthcheck"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+
+services:
+  abs-oldest:
+    <<: *abs
+    image: ghcr.io/advplyr/audiobookshelf:2.26.3
+    ports: ["13378:80"]
+    volumes:
+      - ./data/oldest/config:/config
+      - ./data/oldest/metadata:/metadata
+      - ../fixtures/media:/media:ro
+
+  abs-latest:
+    <<: *abs
+    image: ghcr.io/advplyr/audiobookshelf:2.37.2
+    ports: ["13379:80"]
+    volumes:
+      - ./data/latest/config:/config
+      - ./data/latest/metadata:/metadata
+      - ../fixtures/media:/media:ro
