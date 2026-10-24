@@ -7,6 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 abs-api.workspace = true
+keyring-core = "1.0.1"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 rusqlite_migration = "2.6.0"
 serde_json = "1.0.154"
@@ -18,3 +19,9 @@ workspace = true
 
 [dev-dependencies]
 tempfile = "3.27.0"
+
+[target."cfg(windows)".dependencies]
+windows-native-keyring-store = "1.1.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus-secret-service-keyring-store = { version = "1.0.1", features = ["rt-tokio-crypto-rust"] }
