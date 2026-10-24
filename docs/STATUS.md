@@ -115,4 +115,15 @@ Phase 2, 2.1 to 2.3 are implemented:
 - `Command::SetServerUrls` replaces the list and reconnects when the account is offline or its current address is gone. Settings shows the active account's addresses with add, remove and move up.
 - Test: `server_addresses_fall_back_and_reconnect` (dead address only goes offline, dead then real reconnects, a restart skips the dead one).
 
-Next: 2.5 offline session sync, 2.6 the offline round-trip test.
+2.5 and 2.6 are implemented:
+- Table `local_session` (position columns, since `current_time` is an SQLite keyword). Playing without a server session records one with id `play_local_<uuid>`; so does a server session whose server stops answering mid-play (the tracker's unsent time moves over, the account goes offline).
+- `AbsClient` reads the server's clock from each `Date` header (`clock_offset_ms`); `startedAt`/`updatedAt` are moved to the server clock before sending.
+- `abs_core::offline::flush` sends an account's sessions with `POST /api/session/local-all`, leaves out the one still recording, and removes those the server took. Results come back in order but with the server's own ids (it swaps `play_local_` ids for UUIDs and keeps the mapping only in memory), so they are matched by position, and each session is sent once.
+- Conflict rule: when the server's progress changed after the local session started and is more than the threshold away (setting `conflict_minutes`, default 5), the item's sessions wait and the UI asks. "Keep" sends `updatedAt` after the server's last update, "use the other" sends it before, so the server keeps that position; listening time counts either way. The prompt sits above the banner.
+- Flushes run after each sync, every minute and when a local playback closes.
+- Tests: unit tests for the clock offset, the conflict rule and the decision timestamps; `contract_offline` (download, go offline, play, reconnect, check server progress; then a phone moves the position, the conflict is asked and "keep" wins), on both servers. The test takes the server away by switching the account to a dead address instead of stopping the container, so the other contract tests keep running. New test user `traveller`, created by `docker/init_server.py`.
+- Found on the way: older libmpv (Debian 12, Ubuntu 24.04) starts the first playlist entry when leaving idle, ignoring `playlist-pos`; the player now selects the wanted track again on `FileLoaded`. Reproduced and checked in a `rust:1.92-bookworm` container.
+
+Phase 2 is implemented; its exit criterion (download, play offline, sync without lost or regressed progress) is what `contract_offline` checks. Not tried by hand in the UI yet.
+
+Next: Phase 3 (ebook reader), after the dogfooding week.

@@ -239,14 +239,14 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Online/offline state per account, shown in the UI.
 
 ### 2.5 Offline session sync
-- [ ] Record local sessions with id `play_local_<uuid>` in SQLite while offline (start, current time, time listened, `updatedAt`).
-- [ ] Track the server clock offset from the HTTP `Date` header; correct `updatedAt` before sending.
-- [ ] On reconnect: flush with `POST /api/session/local-all`; handle each `{id, success, progressSynced}`; keep failed ones in the queue.
-- [ ] Conflict prompt when local and server positions differ by more than a threshold (setting, default 5 min): keep local, take server.
+- [x] Record local sessions with id `play_local_<uuid>` in SQLite while offline (start, current time, time listened, `updatedAt`).
+- [x] Track the server clock offset from the HTTP `Date` header; correct `updatedAt` before sending.
+- [x] On reconnect: flush with `POST /api/session/local-all`; handle each `{id, success, progressSynced}`; keep failed ones in the queue.
+- [x] Conflict prompt when local and server positions differ by more than a threshold (setting, default 5 min): keep local, take server.
 
 ### 2.6 Tests
-- [ ] Integration test: download, stop the container, play offline, start the container, flush, check server progress.
-- [ ] Unit tests for clock offset correction and the conflict rule.
+- [x] Integration test: download, stop the container, play offline, start the container, flush, check server progress.
+- [x] Unit tests for clock offset correction and the conflict rule.
 
 **Exit criteria:** a book downloaded, played offline and synced after reconnect without lost or regressed progress.
 
