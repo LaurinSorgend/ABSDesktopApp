@@ -179,6 +179,24 @@ impl<'a> Catalog<'a> {
         Ok(deleted)
     }
 
+    /// Deletes one item. Returns true when it existed.
+    pub fn remove_item(&self, account_id: &str, item_id: &str) -> DbResult<bool> {
+        let deleted = self.conn.execute(
+            "DELETE FROM item WHERE account_id = ?1 AND remote_id = ?2",
+            [account_id, item_id],
+        )?;
+        Ok(deleted > 0)
+    }
+
+    /// True when the account has this library.
+    pub fn has_library(&self, account_id: &str, library_id: &str) -> DbResult<bool> {
+        Ok(self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM library WHERE account_id = ?1 AND remote_id = ?2)",
+            [account_id, library_id],
+            |r| r.get(0),
+        )?)
+    }
+
     pub fn item_count(&self, account_id: &str, library_id: &str) -> DbResult<i64> {
         Ok(self.conn.query_row(
             "SELECT count(*) FROM item WHERE account_id = ?1 AND library_id = ?2",

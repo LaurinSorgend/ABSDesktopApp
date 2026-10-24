@@ -65,6 +65,13 @@ fn add_restart_and_remove_account() {
         _ => None,
     });
     assert!(report.items >= 502, "{report:?}");
+    let item_id = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(listen_on_phone(&server));
+    wait_for(&events, |e| match e {
+        Event::ProgressChanged { item_ids, .. } => item_ids.contains(&item_id).then_some(()),
+        _ => None,
+    });
     engine.shutdown();
 
     let (engine, events) = start(&db_path, &credentials);
@@ -86,4 +93,42 @@ fn add_restart_and_remove_account() {
         matches!(e, Event::AccountRemoved { .. }).then_some(())
     });
     assert_eq!(credentials.load(&account_id).unwrap(), None);
+}
+
+/// Plays and syncs an item from a second client, as a phone would. Returns the item id.
+async fn listen_on_phone(server: &str) -> String {
+    use abs_api::models::{DeviceInfo, PlayRequest, SessionSync};
+    let phone = abs_api::AbsClient::connect(abs_api::http_client().unwrap(), server)
+        .await
+        .unwrap();
+    phone.login("listener", "listener-pass").await.unwrap();
+    let libraries = phone.libraries().await.unwrap();
+    let library = libraries.iter().find(|l| l.name == "Audiobooks").unwrap();
+    let items = phone
+        .library_items(&library.id, &abs_api::ItemsQuery::default())
+        .await
+        .unwrap();
+    let item_id = items.results[0].id.clone();
+    let request = PlayRequest {
+        device_info: DeviceInfo {
+            device_id: "engine-test-phone".into(),
+            client_name: "contract-tests".into(),
+            client_version: "0".into(),
+            manufacturer: None,
+            model: None,
+        },
+        media_player: "test".into(),
+        supported_mime_types: vec!["audio/mpeg".into(), "audio/mp4".into()],
+        force_direct_play: true,
+        force_transcode: false,
+    };
+    let session = phone.play(&item_id, &request).await.unwrap();
+    let sync = SessionSync {
+        current_time: 99.0,
+        time_listened: 2.0,
+        duration: session.duration,
+    };
+    phone.sync_session(&session.id, &sync).await.unwrap();
+    phone.close_session(&session.id, None).await.unwrap();
+    item_id
 }
