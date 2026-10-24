@@ -479,3 +479,43 @@ fn wait_download(
         });
     }
 }
+
+#[test]
+fn server_addresses_fall_back_and_reconnect() {
+    let server =
+        std::env::var("ABS_TEST_SERVER").unwrap_or_else(|_| "http://localhost:13379".into());
+    let dead = "http://127.0.0.1:9/".to_owned();
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("app.db");
+    let credentials = Credentials::memory();
+    let (engine, events) = start(&db_path, &credentials);
+    engine.send(Command::AddAccount {
+        url: server.clone(),
+        username: "listener".into(),
+        password: "listener-pass".into(),
+    });
+    let account_id = wait_for(&events, |e| match e {
+        Event::AccountAdded(account) => Some(account.id.clone()),
+        _ => None,
+    });
+    engine.send(Command::SetServerUrls {
+        account_id: account_id.clone(),
+        urls: vec![dead.clone()],
+    });
+    wait_for(&events, |e| {
+        matches!(e, Event::Offline { .. }).then_some(())
+    });
+    engine.send(Command::SetServerUrls {
+        account_id: account_id.clone(),
+        urls: vec![dead, server],
+    });
+    wait_for(&events, |e| {
+        matches!(e, Event::AccountConnected { .. }).then_some(())
+    });
+    engine.shutdown();
+
+    let (_engine, events) = start(&db_path, &credentials);
+    wait_for(&events, |e| {
+        matches!(e, Event::AccountConnected { .. }).then_some(())
+    });
+}

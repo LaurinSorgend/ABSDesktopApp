@@ -26,6 +26,11 @@ pub enum AccountError {
 }
 
 impl AccountError {
+    /// True when the server could not be reached or the connection broke.
+    pub fn is_network(&self) -> bool {
+        matches!(self, Self::Api(ApiError::Network(_)))
+    }
+
     /// True when the UI should show the login form.
     pub fn needs_login(&self) -> bool {
         match self {
@@ -104,6 +109,20 @@ pub async fn restore_account(
         client: Arc::new(client),
         login,
     })
+}
+
+/// True when a URL listed before `current` answers, as when the home network is back.
+pub async fn earlier_url_answers(http: &Client, urls: &[String], current: &str) -> bool {
+    let same = |url: &str| url.trim_end_matches('/') == current.trim_end_matches('/');
+    let Some(position) = urls.iter().position(|u| same(u)) else {
+        return false;
+    };
+    for url in &urls[..position] {
+        if AbsClient::connect(http.clone(), url).await.is_ok() {
+            return true;
+        }
+    }
+    false
 }
 
 /// Tries the URLs in order and returns the first server that answers.

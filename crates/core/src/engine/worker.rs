@@ -12,7 +12,9 @@ use super::live::{Followup, LiveState};
 use super::playback::{self, PlaybackCommand};
 use super::requests;
 use super::{Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, SYNC_INTERVAL_SETTING};
-use crate::account::{AccountError, Session, add_account, lock, restore_account};
+use crate::account::{
+    AccountError, Session, add_account, earlier_url_answers, lock, restore_account,
+};
 use crate::cover_cache::CoverCache;
 use crate::credentials::Credentials;
 use crate::db::{Account, Db};
@@ -145,6 +147,7 @@ fn handle(
         Command::RemoveAccount { account_id } => {
             tokio::spawn(remove(shared.clone(), account_id));
         }
+        Command::SetServerUrls { account_id, urls } => set_server_urls(shared, &account_id, &urls),
         Command::SyncNow { account_id } => {
             for session in sessions(shared, account_id.as_deref()) {
                 tokio::spawn(sync(shared.clone(), session));
@@ -314,6 +317,7 @@ async fn sync(shared: Arc<Shared>, session: Arc<Session>) {
             set_conn(&shared, &account_id, Conn::NeedsLogin);
             (shared.emit)(Event::LoginRequired { account_id });
         }
+        Err(e) if e.is_network() => went_offline(&shared, &account_id, &e),
         Err(e) => (shared.emit)(Event::SyncFailed {
             account_id,
             message: e.to_string(),
@@ -350,6 +354,7 @@ async fn on_tick(shared: Arc<Shared>) {
             });
         }
     }
+    check_connections(&shared).await;
     reconnect_offline(&shared);
     downloads::schedule(&shared);
     let interval = sync_interval(&shared);
@@ -360,6 +365,76 @@ async fn on_tick(shared: Arc<Shared>) {
         if last.is_none_or(|t| t.elapsed() >= interval) {
             tokio::spawn(sync(shared.clone(), session));
         }
+    }
+}
+
+/// Notices servers that went away, and moves to an earlier address that answers again.
+async fn check_connections(shared: &Arc<Shared>) {
+    for session in sessions(shared, None) {
+        if let Err(e) = session.client.ping().await {
+            went_offline(shared, &session.account.id, &e.into());
+            continue;
+        }
+        let urls = lock(&shared.db)
+            .store()
+            .accounts()
+            .server_urls(&session.account.server_id)
+            .unwrap_or_default();
+        let current = session.client.base_url().as_str();
+        if earlier_url_answers(&shared.http, &urls, current).await {
+            start_connect(shared, session.account.clone());
+        }
+    }
+}
+
+/// The server stopped answering: stop its socket and let the tick reconnect.
+pub(super) fn went_offline(shared: &Shared, account_id: &str, error: &AccountError) {
+    if let Some(task) = lock_map(&shared.live).remove(account_id) {
+        task.abort();
+    }
+    set_conn(shared, account_id, Conn::Offline);
+    (shared.emit)(Event::Offline {
+        account_id: account_id.to_owned(),
+        message: error.to_string(),
+    });
+}
+
+fn set_server_urls(shared: &Arc<Shared>, account_id: &str, urls: &[String]) {
+    let Ok(Some(account)) = lock(&shared.db).store().accounts().account(account_id) else {
+        return;
+    };
+    let urls: Vec<&str> = urls
+        .iter()
+        .map(|u| u.trim())
+        .filter(|u| !u.is_empty())
+        .collect();
+    if urls.is_empty() {
+        return;
+    }
+    let stored = lock(&shared.db)
+        .store()
+        .accounts()
+        .set_server_urls(&account.server_id, &urls);
+    if let Err(e) = stored {
+        (shared.emit)(Event::RequestFailed {
+            account_id: account_id.to_owned(),
+            message: e.to_string(),
+        });
+        return;
+    }
+    let listed = |current: &str| {
+        urls.iter()
+            .any(|u| u.trim_end_matches('/') == current.trim_end_matches('/'))
+    };
+    let keep = sessions(shared, Some(account_id))
+        .first()
+        .is_some_and(|s| listed(s.client.base_url().as_str()));
+    let waits_for_login = matches!(
+        lock_map(&shared.conns).get(account_id),
+        Some(Conn::NeedsLogin)
+    );
+    if !keep && !waits_for_login {
+        start_connect(shared, account);
     }
 }
 

@@ -104,4 +104,11 @@ fn connect_accounts(ui: &Ui<'_>) {
     ui.on_remove_account(on(|app, id: slint::SharedString| app.remove_account(&id)));
     ui.on_relogin(on(|app, id: slint::SharedString| app.relogin(&id)));
     ui.on_add_another_account(|| with_app(|app| app.show_add_account(true)));
+    ui.on_add_server_url(on(|app, url: slint::SharedString| app.add_server_url(&url)));
+    ui.on_remove_server_url(on(|app, index: i32| {
+        app.remove_server_url(index.max(0) as usize)
+    }));
+    ui.on_raise_server_url(on(|app, index: i32| {
+        app.raise_server_url(index.max(0) as usize)
+    }));
 }

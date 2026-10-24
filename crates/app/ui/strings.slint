@@ -136,6 +136,9 @@ export global Strings {
     public pure function download-failed(message: string) -> string {
         @tr("Download failed: {}", message)
     }
+    public pure function address-needs-scheme() -> string {
+        @tr("A server address starts with http:// or https://.")
+    }
     public pure function sleep-off() -> string {
         @tr("Off")
     }
