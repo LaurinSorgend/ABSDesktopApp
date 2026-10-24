@@ -149,6 +149,11 @@ pub fn fill_options(ui: &Ui<'_>, strings: &Strings<'_>) {
         .map(|mb| strings.invoke_megabytes(*mb as i32))
         .collect();
     ui.set_cache_options(model(cache));
+    let conflict = crate::settings::CONFLICT_MINUTES
+        .iter()
+        .map(|m| strings.invoke_minutes(*m as i32))
+        .collect();
+    ui.set_conflict_options(model(conflict));
 }
 
 fn sleep_text(playback: &Playback, strings: &Strings<'_>) -> String {

@@ -385,6 +385,12 @@ export component SettingsPage inherits Rectangle {
                 selected: Ui.close-to-tray ? 1 : 0;
                 key: "close_to_tray";
             }
+            Setting {
+                title: @tr("Ask which position to keep when offline listening and another device differ by more than");
+                options: Ui.conflict-options;
+                selected: Ui.conflict-index;
+                key: "conflict_minutes";
+            }
             Appearance { }
             Heading {
                 text: @tr("Storage");

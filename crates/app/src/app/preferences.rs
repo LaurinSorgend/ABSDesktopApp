@@ -7,9 +7,9 @@ use slint::ComponentHandle;
 use super::App;
 use crate::paths::dir_size;
 use crate::settings::{
-    ACCENT, CACHE_MEGABYTES, CLOSE_TO_TRAY, COVER_CACHE, Choices, DARK_FLAVOR, DEFAULT_SPEED,
-    LIGHT_FLAVOR, PROGRESS_BAR, SKIP_BACK, SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS,
-    THEME_MODE,
+    ACCENT, CACHE_MEGABYTES, CLOSE_TO_TRAY, CONFLICT, CONFLICT_MINUTES, COVER_CACHE, Choices,
+    DARK_FLAVOR, DEFAULT_SPEED, LIGHT_FLAVOR, PROGRESS_BAR, SKIP_BACK, SKIP_BACK_SECONDS,
+    SKIP_FORWARD, SKIP_FORWARD_SECONDS, THEME_MODE,
 };
 use crate::tray::{Labels, Tray};
 
@@ -30,6 +30,7 @@ impl App {
             ui.set_default_speed_index(choices.default_speed as i32);
             ui.set_close_to_tray(choices.close_to_tray);
             ui.set_cache_index(choices.cover_cache as i32);
+            ui.set_conflict_index(choices.conflict as i32);
             ui.set_progress_mode(choices.progress_bar as i32);
         });
         self.update_tray();
@@ -60,6 +61,7 @@ impl App {
                 self.engine.send(Command::SetCoverCacheSize { megabytes });
                 Ok(())
             }
+            CONFLICT => settings.set(key, CONFLICT_MINUTES[index.min(CONFLICT_MINUTES.len() - 1)]),
             _ => Ok(()),
         };
         if key == COVER_CACHE {
