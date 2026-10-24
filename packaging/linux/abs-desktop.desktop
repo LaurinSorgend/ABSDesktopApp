@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ABS Desktop
+Comment=Audiobookshelf client
+Exec=abs-desktop
+Icon=abs-desktop
+Categories=AudioVideo;Audio;Player;
+Terminal=false

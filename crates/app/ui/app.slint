@@ -176,6 +176,7 @@ component Pages inherits Rectangle {
 
 export component AppWindow inherits Window {
     title: Ui.has-media ? @tr("{} · Audiobookshelf", Ui.now-title) : @tr("Audiobookshelf");
+    icon: @image-url("../../../packaging/icons/abs-desktop.png");
     preferred-width: 1200px;
     preferred-height: 800px;
     min-width: 720px;
