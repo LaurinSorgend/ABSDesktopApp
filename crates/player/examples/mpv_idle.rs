@@ -7,7 +7,9 @@ use libmpv2::Mpv;
 fn main() {
     let mut args = std::env::args().skip(1);
     let url = args.next();
-    let header = args.next().map(|token| format!("Authorization: Bearer {token}"));
+    let header = args
+        .next()
+        .map(|token| format!("Authorization: Bearer {token}"));
     let mpv = Mpv::with_initializer(|init| {
         init.set_option("video", "no")?;
         init.set_option("ao", "null")?;
@@ -21,7 +23,8 @@ fn main() {
     })
     .expect("mpv init");
     if let Some(url) = &url {
-        mpv.command("loadfile", &[url, "replace"]).expect("loadfile");
+        mpv.command("loadfile", &[url, "replace"])
+            .expect("loadfile");
     }
     println!("pid {}", std::process::id());
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(12);
@@ -32,5 +35,8 @@ fn main() {
 
 fn extra_options() -> Vec<(String, String)> {
     let opts = std::env::var("MPV_OPTS").unwrap_or_default();
-    opts.split(',').filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.to_owned(), v.to_owned())).collect()
+    opts.split(',')
+        .filter_map(|kv| kv.split_once('='))
+        .map(|(k, v)| (k.to_owned(), v.to_owned()))
+        .collect()
 }
