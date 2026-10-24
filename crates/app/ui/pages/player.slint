@@ -4,7 +4,7 @@ import { Ui } from "../state.slint";
 import { Page } from "../data.slint";
 import { Cover } from "../tiles.slint";
 import { ChapterRow } from "detail.slint";
-import { Button, Heading, IconButton, Label, Segmented, SeekBar } from "../widgets.slint";
+import { Button, Dropdown, Heading, IconButton, Label, SeekBar } from "../widgets.slint";
 import {
     PlayIcon, PauseIcon, PreviousIcon, NextIcon, RewindIcon, ForwardIcon, CloseIcon, VolumeIcon,
     MutedIcon,
@@ -150,6 +150,7 @@ component ChapterProgress inherits HorizontalLayout {
 
 /// Mute button and volume slider.
 export component Volume inherits HorizontalLayout {
+    height: 40px;
     spacing: 4px;
     alignment: start;
     IconButton {
@@ -169,6 +170,7 @@ export component Volume inherits HorizontalLayout {
     SeekBar {
         label: @tr("Volume");
         width: 96px;
+        height: 40px;
         value: Ui.muted ? 0 : Ui.volume / 100;
         scrub(fraction) => {
             Ui.set-volume(fraction * 100);
@@ -180,8 +182,52 @@ export component Volume inherits HorizontalLayout {
 }
 
 /// The bar at the bottom while an item is loaded.
+/// Cover, title and chapter of the loaded item; opens the full player.
+component NowPlayingSummary inherits Rectangle {
+    accessible-role: button;
+    accessible-label: @tr("Open player");
+    accessible-action-default => {
+        Ui.navigate(Page.player);
+    }
+    HorizontalLayout {
+        spacing: Theme.gap;
+        alignment: start;
+        Cover {
+            width: 56px;
+            height: 56px;
+            source: Ui.now-cover;
+            has-image: Ui.now-has-cover;
+            title: Ui.now-title;
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: Ui.now-title;
+                color: Theme.text;
+                font-weight: 500;
+                font-size: Theme.text-sm;
+                overflow: elide;
+            }
+            Label {
+                text: Ui.loading-media ? @tr("Loading…") : Ui.chapter-title != "" ? Ui.chapter-title : Ui.now-author;
+            }
+        }
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            Ui.navigate(Page.player);
+        }
+    }
+}
+
+/// The bar at the bottom while an item is loaded. The controls sit in the middle
+/// of the window; the item is on the left, volume and speed on the right.
 export component PlayerBar inherits Rectangle {
-    height: 72px;
+    property <length> center-width: clamp(self.width - 2 * 300px, 360px, 720px);
+    property <length> side-width: (self.width - self.center-width) / 2;
+    height: center.preferred-height + 2 * Theme.gap;
     background: Theme.mantle;
 
     Rectangle {
@@ -190,62 +236,38 @@ export component PlayerBar inherits Rectangle {
         background: Theme.surface1;
     }
 
-    HorizontalLayout {
-        padding-left: Theme.gap;
-        padding-right: Theme.pad;
-        padding-top: Theme.gap;
-        padding-bottom: Theme.gap;
-        spacing: Theme.pad;
-        Rectangle {
-            width: 280px;
-            accessible-role: button;
-            accessible-label: @tr("Open player");
-            accessible-action-default => {
-                Ui.navigate(Page.player);
-            }
-            HorizontalLayout {
-                spacing: Theme.gap;
-                Cover {
-                    width: 56px;
-                    height: 56px;
-                    source: Ui.now-cover;
-                    has-image: Ui.now-has-cover;
-                    title: Ui.now-title;
-                }
-                VerticalLayout {
-                    alignment: center;
-                    Text {
-                        text: Ui.now-title;
-                        color: Theme.text;
-                        font-weight: 500;
-                        font-size: Theme.text-sm;
-                        overflow: elide;
-                    }
-                    Label {
-                        text: Ui.loading-media ? @tr("Loading…") : Ui.chapter-title != "" ? Ui.chapter-title : Ui.now-author;
-                    }
-                }
-            }
-            TouchArea {
-                mouse-cursor: pointer;
-                clicked => {
-                    Ui.navigate(Page.player);
-                }
-            }
-        }
+    NowPlayingSummary {
+        x: Theme.gap;
+        y: (parent.height - 56px) / 2;
+        width: root.side-width - 2 * Theme.gap;
+        height: 56px;
+    }
+
+    center := VerticalLayout {
+        x: root.side-width;
+        y: Theme.gap;
+        width: root.center-width;
+        spacing: 2px;
         Transport { }
-        VerticalLayout {
-            alignment: center;
-            horizontal-stretch: 1;
-            if Ui.progress-mode != 1: BookProgress { }
-            if Ui.progress-mode != 0: ChapterProgress { }
-        }
+        if Ui.progress-mode != 1: BookProgress { }
+        if Ui.progress-mode != 0: ChapterProgress { }
+    }
+
+    HorizontalLayout {
+        x: root.side-width + root.center-width + Theme.gap;
+        y: (parent.height - 40px) / 2;
+        width: root.side-width - 2 * Theme.gap;
+        height: 40px;
+        spacing: Theme.gap;
+        alignment: end;
         Volume { }
-        Button {
-            text: Ui.speed-index >= 0 ? Ui.speed-options[Ui.speed-index] : "1×";
-            min-width: 56px;
-            clicked => {
-                Ui.set-speed(mod(Ui.speed-index + 1, Ui.speed-options.length));
+        Dropdown {
+            label: @tr("Speed");
+            options: Ui.speed-options;
+            selected: Ui.speed-index;
+            above: true;
+            select(index) => {
+                Ui.set-speed(index);
             }
         }
     }
@@ -346,26 +368,37 @@ component NowPlaying inherits VerticalLayout {
     }
     Transport { }
     Volume { }
-    Label {
-        text: @tr("Speed");
-    }
-    Segmented {
-        label: @tr("Speed");
-        options: Ui.speed-options;
-        selected: Ui.speed-index;
-        select(index) => {
-            Ui.set-speed(index);
+    HorizontalLayout {
+        spacing: Theme.pad;
+        alignment: start;
+        VerticalLayout {
+            spacing: 4px;
+            Label {
+                text: @tr("Speed");
+            }
+            Dropdown {
+                label: @tr("Speed");
+                options: Ui.speed-options;
+                selected: Ui.speed-index;
+                select(index) => {
+                    Ui.set-speed(index);
+                }
+            }
         }
-    }
-    Label {
-        text: Ui.sleep-text != "" ? @tr("Sleep timer: {}", Ui.sleep-text) : @tr("Sleep timer");
-    }
-    Segmented {
-        label: @tr("Sleep timer");
-        options: Ui.sleep-options;
-        selected: Ui.sleep-index;
-        select(index) => {
-            Ui.set-sleep(index);
+        VerticalLayout {
+            spacing: 4px;
+            Label {
+                text: Ui.sleep-text != "" ? @tr("Sleep timer: {}", Ui.sleep-text) : @tr("Sleep timer");
+            }
+            Dropdown {
+                label: @tr("Sleep timer");
+                options: Ui.sleep-options;
+                selected: Ui.sleep-index;
+                min-width: 140px;
+                select(index) => {
+                    Ui.set-sleep(index);
+                }
+            }
         }
     }
 }
