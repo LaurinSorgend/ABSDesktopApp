@@ -169,7 +169,7 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Own Engine.IO client (ADR 0003, replaces `rust_socketio`): connect to server root, emit `auth`, wait for `init` / `auth_failed`.
 - [x] Re-auth after every token refresh; reconnect with backoff.
 - [x] Handle `user_item_progress_updated` (update `progress`, emit event) and item add/update/remove events (verify exact names in `SocketAuthority.js`).
-- [x] Wrap behind a small trait so the Socket.IO crate can be replaced.
+- [x] Keep the socket behind one small type (`abs_api::Realtime`) so its implementation can be replaced.
 
 ### 1.7 `player`
 - [ ] `Player` trait: `load(tracks, start)`, `play`, `pause`, `seek(global_secs)`, `set_speed`, `set_volume`, event stream (position, state, ended, error).
@@ -390,7 +390,7 @@ Single-maintainer or unstable dependencies each sit behind a small internal trai
 |---|---|---|
 | souvlaki | `MediaControls` trait | `windows` crate SMTC + `mpris-server` |
 | libmpv2 | `Player` trait | symphonia + rodio |
-| rust_socketio | `Realtime` trait | own Engine.IO client over `tokio-tungstenite` |
+| tokio-tungstenite | `abs_api::Realtime` (own Engine.IO client, ADR 0003) | `tungstenite` directly or another WebSocket crate |
 | foliate-js | IPC protocol | epub.js in the same helper |
 
 ### Open questions and when to answer them
