@@ -73,4 +73,10 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - `media_controls`: `MediaControls` trait with a souvlaki implementation and `MediaKey` mapping.
 - Tests: unit tests, plus `cargo test -p abs-player --features integration` playing the fixtures through libmpv with `ao=null`.
 
-Next: 1.8 playback sessions in `core`.
+1.8 is done:
+- `abs_core::playback`: `start` (device id of the account, full MIME list, no forced direct play so HLS comes only when the server picks it), `ActivePlayback::sync` and `close`. A 404 on sync or close starts a new session and repeats the call. Local progress is written on every sync.
+- `ListenTracker` counts real listening time (at most 5 s per report, so a laptop sleep is not counted) and says when to sync: every 15 s while playing and at once on pause. The app forces a sync on seek and chapter change.
+- Engine: `StartPlayback`, `ReportPlayback`, `StopPlayback` run in order on their own task; events `PlaybackStarted`, `PlaybackFailed`, `PlaybackHeaders` (new `Authorization` after a refresh). The open session is closed when the engine shuts down.
+- Server restart (2.37.2, `docker restart`): sync answers 404, the new session takes the position. ABS also closes a user's open session when the same device id starts another one.
+
+Next: 1.9 UI.
