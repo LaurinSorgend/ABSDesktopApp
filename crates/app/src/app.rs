@@ -59,6 +59,7 @@ pub struct App {
     relogin: Option<String>,
     file_credentials: bool,
     theme_file: PathBuf,
+    tray: Option<crate::tray::Tray>,
 }
 
 /// What [`App::new`] needs besides the window.
@@ -97,6 +98,7 @@ impl App {
             relogin: None,
             file_credentials: parts.file_credentials,
             theme_file: parts.theme_file,
+            tray: None,
         };
         app.bind_models();
         app.apply_choices();

@@ -2,6 +2,8 @@
 
 use abs_core::engine::Command;
 
+use slint::ComponentHandle;
+
 use super::App;
 use crate::paths::dir_size;
 use crate::settings::{
@@ -9,6 +11,7 @@ use crate::settings::{
     LIGHT_FLAVOR, PROGRESS_BAR, SKIP_BACK, SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS,
     THEME_MODE,
 };
+use crate::tray::{Labels, Tray};
 
 impl App {
     /// Pushes the settings to the player and the settings page.
@@ -29,6 +32,7 @@ impl App {
             ui.set_cache_index(choices.cover_cache as i32);
             ui.set_progress_mode(choices.progress_bar as i32);
         });
+        self.update_tray();
     }
 
     pub(super) fn refresh_settings(&self) {
@@ -70,7 +74,42 @@ impl App {
         self.apply_theme();
     }
 
-    pub fn close_to_tray(&self) -> bool {
-        self.choices.close_to_tray
+    /// Closing the window keeps the app running while it plays and the tray is shown.
+    pub fn keeps_running_on_close(&self) -> bool {
+        self.is_playing() && self.tray.is_some()
+    }
+
+    /// Shows the tray icon while "keep playing in the tray" is on.
+    pub(super) fn update_tray(&mut self) {
+        if !self.choices.close_to_tray {
+            self.tray = None;
+            return;
+        }
+        if self.tray.is_some() {
+            return;
+        }
+        let labels = self.ui(|_, s| Labels {
+            show: s.invoke_tray_show().into(),
+            toggle: s.invoke_tray_toggle().into(),
+            quit: s.invoke_tray_quit().into(),
+        });
+        let accent = self
+            .window
+            .upgrade()
+            .map(|w| w.global::<crate::Theme>().get_accent())
+            .map_or([0x1e, 0x66, 0xf5], |c| [c.red(), c.green(), c.blue()]);
+        if let Some(labels) = labels {
+            match Tray::new(&labels, "Audiobookshelf", accent) {
+                Ok(tray) => self.tray = Some(tray),
+                Err(e) => eprintln!("tray: {e}"),
+            }
+        }
+    }
+
+    /// Brings the window back, as from the tray.
+    pub fn show_window(&self) {
+        if let Some(window) = self.window.upgrade() {
+            let _ = window.show();
+        }
     }
 }
