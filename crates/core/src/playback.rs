@@ -1,5 +1,6 @@
 //! Server playback sessions: start, periodic sync, restart after a server restart, close.
 
+mod local;
 mod tracker;
 
 use std::sync::{Arc, Mutex};
@@ -10,6 +11,7 @@ use abs_api::reqwest::StatusCode;
 
 use crate::account::{AccountError, Session, lock};
 use crate::db::{Db, ProgressRow, now_ms};
+pub use local::{LocalPlayback, local_start};
 pub use tracker::{ListenTracker, SYNC_INTERVAL};
 
 /// Audio types libmpv plays; sent so the server can choose direct play.
@@ -52,6 +54,8 @@ pub struct PlayStart {
     pub duration: f64,
     /// HTTP headers for the track URLs.
     pub http_headers: Vec<String>,
+    /// True when the tracks are downloaded files.
+    pub local: bool,
 }
 
 /// A running server session for the item in the player.
@@ -183,6 +187,7 @@ fn play_start(
         start_time: server.current_time,
         duration: server.duration,
         http_headers: vec![format!("Authorization: Bearer {token}")],
+        local: false,
     })
 }
 
