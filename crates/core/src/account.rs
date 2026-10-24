@@ -1,0 +1,131 @@
+//! Adding accounts and reconnecting them at start.
+
+use std::sync::{Arc, Mutex};
+
+use abs_api::models::LoginResponse;
+use abs_api::reqwest::Client;
+use abs_api::{AbsClient, Error as ApiError};
+
+use crate::credentials::{CredentialError, Credentials};
+use crate::db::{Account, Db, DbError, NewAccount};
+
+/// Errors of the account flows.
+#[derive(Debug, thiserror::Error)]
+pub enum AccountError {
+    #[error(transparent)]
+    Api(#[from] ApiError),
+    #[error(transparent)]
+    Db(#[from] DbError),
+    #[error(transparent)]
+    Credentials(#[from] CredentialError),
+    /// No refresh token is stored; the user has to log in again.
+    #[error("login required")]
+    LoginRequired,
+    #[error("no URL configured for the server")]
+    NoServerUrl,
+}
+
+impl AccountError {
+    /// True when the UI should show the login form.
+    pub fn needs_login(&self) -> bool {
+        match self {
+            Self::Api(e) => e.needs_login(),
+            Self::LoginRequired => true,
+            _ => false,
+        }
+    }
+}
+
+/// A connected account: its row, its client and the user payload from the last login.
+pub struct Session {
+    pub account: Account,
+    pub client: Arc<AbsClient>,
+    pub login: LoginResponse,
+}
+
+/// URL -> `/status` probe -> login -> server, URL and account rows -> refresh token saved.
+///
+/// Adding an account that exists already logs it in again.
+pub async fn add_account(
+    db: &Mutex<Db>,
+    credentials: &Credentials,
+    http: Client,
+    url: &str,
+    username: &str,
+    password: &str,
+) -> Result<Session, AccountError> {
+    let client = AbsClient::connect(http, url).await?;
+    let login = client.login(username, password).await?;
+    let base = client.base_url().as_str().to_owned();
+    let account = lock(db).write(|store| {
+        let accounts = store.accounts();
+        let server = match accounts.server_by_url(&base)? {
+            Some(id) => id,
+            None => accounts.add_server(&server_name(&client), &[&base])?,
+        };
+        match accounts.find(&server, &login.user.id)? {
+            Some(existing) => Ok(existing),
+            None => accounts.add_account(&NewAccount {
+                server_id: &server,
+                user_id: &login.user.id,
+                username: &login.user.username,
+            }),
+        }
+    })?;
+    let token = client.refresh_token().ok_or(AccountError::LoginRequired)?;
+    credentials.save(&account.id, &token)?;
+    let client = Arc::new(client.with_token_sink(credentials.sink(&account.id)));
+    Ok(Session {
+        account,
+        client,
+        login,
+    })
+}
+
+/// Reconnects a stored account: first reachable URL, then the stored refresh token.
+pub async fn restore_account(
+    db: &Mutex<Db>,
+    credentials: &Credentials,
+    http: Client,
+    account: Account,
+) -> Result<Session, AccountError> {
+    let urls = lock(db)
+        .store()
+        .accounts()
+        .server_urls(&account.server_id)?;
+    let client = connect_any(http, &urls).await?;
+    let token = credentials
+        .load(&account.id)?
+        .ok_or(AccountError::LoginRequired)?;
+    let client = client.with_token_sink(credentials.sink(&account.id));
+    let login = client.restore_session(&token).await?;
+    Ok(Session {
+        account,
+        client: Arc::new(client),
+        login,
+    })
+}
+
+/// Tries the URLs in order and returns the first server that answers.
+async fn connect_any(http: Client, urls: &[String]) -> Result<AbsClient, AccountError> {
+    let mut last = AccountError::NoServerUrl;
+    for url in urls {
+        match AbsClient::connect(http.clone(), url).await {
+            Ok(client) => return Ok(client),
+            Err(e) => last = e.into(),
+        }
+    }
+    Err(last)
+}
+
+fn server_name(client: &AbsClient) -> String {
+    client
+        .base_url()
+        .host_str()
+        .unwrap_or("Audiobookshelf")
+        .to_owned()
+}
+
+pub(crate) fn lock(db: &Mutex<Db>) -> std::sync::MutexGuard<'_, Db> {
+    db.lock().unwrap_or_else(|p| p.into_inner())
+}

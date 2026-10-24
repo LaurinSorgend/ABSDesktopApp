@@ -62,6 +62,27 @@ impl<'a> Accounts<'a> {
         Ok(urls.collect::<Result<_, _>>()?)
     }
 
+    /// The server that has `url` among its URLs.
+    pub fn server_by_url(&self, url: &str) -> DbResult<Option<String>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT server_id FROM server_url WHERE url = ?1 LIMIT 1",
+                [url],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// The account of a server user, if it was added before.
+    pub fn find(&self, server_id: &str, user_id: &str) -> DbResult<Option<Account>> {
+        let sql = format!("{SELECT_ACCOUNT} WHERE server_id = ?1 AND user_id = ?2");
+        Ok(self
+            .conn
+            .query_row(&sql, [server_id, user_id], account_row)
+            .optional()?)
+    }
+
     /// Adds an account with a new id and device id.
     pub fn add_account(&self, new: &NewAccount<'_>) -> DbResult<Account> {
         let account = Account {

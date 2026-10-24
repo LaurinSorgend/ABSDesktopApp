@@ -150,6 +150,14 @@ impl AbsClient {
         self.auth_state().bearer().map(|(token, _)| token)
     }
 
+    /// The current refresh token, to store it when no [`TokenSink`] was set yet at login.
+    pub fn refresh_token(&self) -> Option<String> {
+        match &self.auth_state().credential {
+            Some(Credential::Session { refresh, .. }) => Some(refresh.clone()),
+            _ => None,
+        }
+    }
+
     /// True while the client holds a credential.
     pub fn is_logged_in(&self) -> bool {
         self.auth_state().credential.is_some()
