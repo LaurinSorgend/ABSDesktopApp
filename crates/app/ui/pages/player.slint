@@ -247,7 +247,8 @@ export component PlayerBar inherits Rectangle {
         x: root.side-width;
         y: Theme.gap;
         width: root.center-width;
-        spacing: 2px;
+        spacing: Ui.progress-mode == 2 ? 6px : 2px;
+        padding-bottom: Ui.progress-mode == 2 ? Theme.gap : 0;
         Transport { }
         if Ui.progress-mode != 1: BookProgress { }
         if Ui.progress-mode != 0: ChapterProgress { }
