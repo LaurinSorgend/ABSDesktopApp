@@ -5,8 +5,8 @@ mod storage;
 mod transfer;
 
 pub use storage::{
-    COVER_FILE, MANIFEST_FILE, Manifest, ManifestChapter, ManifestTrack, check, delete_dir,
-    ensure_space, item_dir, plan, read_manifest, write_manifest,
+    COVER_FILE, MANIFEST_FILE, Manifest, ManifestChapter, ManifestTrack, check, commit_manifest,
+    delete_dir, ensure_space, item_dir, plan, read_manifest, write_manifest,
 };
 pub use transfer::fetch_file;
 
@@ -32,6 +32,8 @@ pub enum DownloadError {
     },
     #[error("not enough disk space: {needed} bytes needed, {available} free")]
     NoSpace { needed: u64, available: u64 },
+    #[error("the server is not connected")]
+    Offline,
     #[error("this account may not download")]
     NotAllowed,
     #[error("the item has no audio files")]

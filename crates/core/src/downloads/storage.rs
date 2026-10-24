@@ -11,6 +11,8 @@ use crate::db::DownloadFile;
 
 pub const MANIFEST_FILE: &str = "manifest.json";
 pub const COVER_FILE: &str = "cover.webp";
+/// The manifest while files are still missing.
+const PENDING_FILE: &str = "manifest.pending.json";
 const MANIFEST_VERSION: u32 = 1;
 /// Space kept free besides the download itself.
 const SPARE_BYTES: u64 = 200 * 1024 * 1024;
@@ -103,11 +105,16 @@ pub fn plan(
     Ok((files, manifest))
 }
 
+/// Writes the manifest under a pending name; [`commit_manifest`] makes it final.
 pub fn write_manifest(dir: &Path, manifest: &Manifest) -> io::Result<()> {
     let text = serde_json::to_string_pretty(manifest).map_err(io::Error::other)?;
-    let part = dir.join(format!("{MANIFEST_FILE}.part"));
-    std::fs::write(&part, text)?;
-    std::fs::rename(part, dir.join(MANIFEST_FILE))
+    std::fs::create_dir_all(dir)?;
+    std::fs::write(dir.join(PENDING_FILE), text)
+}
+
+/// Marks the download complete by giving the manifest its final name.
+pub fn commit_manifest(dir: &Path) -> io::Result<()> {
+    std::fs::rename(dir.join(PENDING_FILE), dir.join(MANIFEST_FILE))
 }
 
 pub fn read_manifest(dir: &Path) -> io::Result<Manifest> {
@@ -191,6 +198,8 @@ mod tests {
             std::fs::write(dir.path().join(&f.file_name), vec![0; f.size as usize]).unwrap();
         }
         write_manifest(dir.path(), &manifest).unwrap();
+        assert!(!check(dir.path(), &files));
+        commit_manifest(dir.path()).unwrap();
         assert!(check(dir.path(), &files));
         let again = read_manifest(dir.path()).unwrap();
         assert_eq!(again.item.get(), manifest.item.get());
