@@ -119,6 +119,8 @@ pub struct Chapter {
 #[serde(default, rename_all = "camelCase")]
 pub struct AudioTrack {
     pub index: i64,
+    /// File id on the server; empty in playback sessions of old servers.
+    pub ino: String,
     pub start_offset: f64,
     pub duration: f64,
     pub title: Option<String>,
