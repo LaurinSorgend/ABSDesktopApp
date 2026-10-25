@@ -4,7 +4,7 @@
 mod common;
 
 use abs_api::models::{
-    DeviceInfo, LocalSession, LocalSessions, PlayRequest, SessionSync, ShelfContent,
+    DeviceInfo, EbookLocation, LocalSession, LocalSessions, PlayRequest, SessionSync, ShelfContent,
 };
 use abs_api::{AbsClient, Error, Feature, ItemFilter, ItemsQuery};
 use reqwest::{StatusCode, header};
@@ -266,5 +266,61 @@ async fn local_sessions_update_progress_and_report_newer_server_progress() {
         );
         let progress = client.item_progress(&item_id).await.unwrap().unwrap();
         assert_eq!(progress.current_time, Some(1200.0), "{server}");
+    }
+}
+
+async fn ebook_with_format(client: &AbsClient, format: &str) -> (String, String) {
+    let libraries = client.libraries().await.unwrap();
+    let library = libraries.iter().find(|l| l.name == "Ebooks").unwrap();
+    let page = client
+        .library_items(&library.id, &ItemsQuery::default())
+        .await
+        .unwrap();
+    for listed in page.results.iter() {
+        let item = client.item(&listed.id).await.unwrap();
+        if let Some(file) = &item.media.ebook_file
+            && file.ebook_format.as_deref() == Some(format)
+        {
+            return (item.id.clone(), file.ino.clone());
+        }
+    }
+    panic!("no {format} item");
+}
+
+#[tokio::test]
+async fn ebook_file_and_reading_position() {
+    let cases = [
+        (
+            "epub",
+            b"PK".as_slice(),
+            EbookLocation::Cfi("epubcfi(/6/8!/4/2/1:0)".into()),
+            "epubcfi(/6/8!/4/2/1:0)",
+        ),
+        ("pdf", b"%PDF".as_slice(), EbookLocation::Page(5), "5"),
+    ];
+    for server in common::servers() {
+        let (client, _) = common::listener(&server).await;
+        for (format, magic, location, stored) in &cases {
+            let (item_id, ino) = ebook_with_format(&client, format).await;
+            let bytes = client
+                .ebook(&item_id, &ino)
+                .await
+                .unwrap()
+                .bytes()
+                .await
+                .unwrap();
+            assert!(bytes.starts_with(magic), "{server} {format}");
+            client
+                .set_ebook_progress(&item_id, location, 0.25)
+                .await
+                .unwrap();
+            let progress = client.item_progress(&item_id).await.unwrap().unwrap();
+            assert_eq!(
+                progress.ebook_location.as_deref(),
+                Some(*stored),
+                "{server} {format}"
+            );
+            assert_eq!(progress.ebook_progress, Some(0.25), "{server} {format}");
+        }
     }
 }
