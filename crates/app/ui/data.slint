@@ -72,6 +72,9 @@ export struct DetailData {
     cover: image,
     has-cover: bool,
     has-audio: bool,
+    has-ebook: bool,
+    /// Empty when the book was never opened here or in the web reader.
+    reading-text: string,
     chapters-note: string,
     account-id: string,
     can-download: bool,

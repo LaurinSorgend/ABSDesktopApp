@@ -126,7 +126,7 @@ impl App {
         self.ui(|ui, s| {
             let mut data = detail_data(item_id, &detail, progress.as_ref(), cover, connected, s);
             data.account_id = account_id.as_str().into();
-            data.can_download = connected && detail.has_audio;
+            data.can_download = connected && (detail.has_audio || detail.ebook_format.is_some());
             set_download(&mut data, download);
             ui.set_detail(data);
         });
@@ -218,13 +218,19 @@ fn detail_data(
         year: text(&detail.published_year),
         genres: detail.genres.join(", ").into(),
         duration_text: duration_text(duration, s).into(),
-        progress_text: progress_text(progress, duration, s).into(),
+        progress_text: if detail.has_audio {
+            progress_text(progress, duration, s).into()
+        } else {
+            "".into()
+        },
         progress: progress.map_or(0.0, |p| p.progress as f32),
         finished: progress.is_some_and(|p| p.is_finished),
         description: text(&detail.description),
         has_cover: cover.is_some(),
         cover: cover.unwrap_or_default(),
         has_audio: detail.has_audio,
+        has_ebook: detail.ebook_format.is_some(),
+        reading_text: reading_text(progress, s).into(),
         chapters_note,
         ..DetailData::default()
     }
@@ -237,6 +243,15 @@ pub fn duration_text(seconds: f64, s: &Strings<'_>) -> String {
     match format::hours_minutes(seconds) {
         (0, minutes) => s.invoke_minutes(minutes).into(),
         (hours, minutes) => s.invoke_hours_minutes(hours, minutes).into(),
+    }
+}
+
+fn reading_text(progress: Option<&ProgressRow>, s: &Strings<'_>) -> String {
+    match progress.and_then(|p| p.ebook_progress) {
+        Some(fraction) if fraction > 0.0 => s
+            .invoke_read_percent((fraction * 100.0).round() as i32)
+            .into(),
+        _ => String::new(),
     }
 }
 

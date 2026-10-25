@@ -9,6 +9,7 @@ mod grid;
 mod lru;
 mod paths;
 mod playback;
+mod reader;
 mod settings;
 mod system;
 mod theme;

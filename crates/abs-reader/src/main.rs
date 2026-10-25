@@ -3,6 +3,7 @@
 //! The main app starts it without arguments and talks to it in JSON lines over stdin
 //! and stdout (`abs-reader-ipc`). For testing, `abs-reader <book file> [location]`
 //! opens a book directly.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod assets;
 mod ipc;

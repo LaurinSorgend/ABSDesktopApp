@@ -8,6 +8,7 @@ rust-version.workspace = true
 [dependencies]
 abs-core.workspace = true
 abs-player.workspace = true
+abs-reader-ipc.workspace = true
 anyhow = "1.0.104"
 image = { version = "0.25.9", default-features = false, features = ["webp", "jpeg", "png"] }
 raw-window-handle = "0.6"
