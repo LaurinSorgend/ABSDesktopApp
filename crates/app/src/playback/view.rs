@@ -8,7 +8,9 @@ use slint::{Model, ModelRc, VecModel};
 
 use super::Playback;
 use crate::format;
-use crate::settings::{SKIP_BACK_SECONDS, SKIP_FORWARD_SECONDS, SLEEP_MINUTES, sleep_choice};
+use crate::settings::{
+    SKIP_BACK_SECONDS, SKIP_FORWARD_SECONDS, SLEEP_MINUTES, SPEEDS, sleep_choice,
+};
 use crate::{ChapterData, Strings, Ui};
 
 /// The chapter list model and what it currently shows.
@@ -44,9 +46,10 @@ impl PlayerView {
         ui.set_now_title(now.title.as_str().into());
         ui.set_now_author(now.author.as_str().into());
         let (position, duration) = (playback.position, now.duration);
+        let at_speed = |seconds: f64| seconds / speed(playback);
         ui.set_position_fraction(fraction(position, 0.0, duration));
-        ui.set_position_text(format::clock(position).into());
-        ui.set_remaining_text(format::remaining(duration - position).into());
+        ui.set_position_text(format::clock(at_speed(position)).into());
+        ui.set_remaining_text(format::remaining(at_speed(duration - position)).into());
         ui.set_speed_index(playback.speed_index as i32);
         ui.set_volume(playback.volume as f32);
         ui.set_muted(playback.muted);
@@ -75,23 +78,27 @@ impl PlayerView {
             self.set_current(playback.chapter, true);
             self.current = playback.chapter;
         }
+        let at_speed = |seconds: f64| seconds / speed(playback);
         match playback.chapter.and_then(|i| now.chapters.get(i)) {
             Some(c) => {
                 ui.set_chapter_title(c.title.as_str().into());
                 ui.set_chapter_fraction(fraction(playback.position, c.start, c.end));
-                let into = format::clock(playback.position - c.start);
-                let length = format::clock(c.end - c.start);
+                let into = format::clock(at_speed(playback.position - c.start));
+                let length = format::clock(at_speed(c.end - c.start));
                 ui.set_chapter_position_text(format!("{into} / {length}").into());
                 ui.set_chapter_elapsed_text(into.into());
-                ui.set_chapter_remaining_text(format::remaining(c.end - playback.position).into());
+                ui.set_chapter_remaining_text(
+                    format::remaining(at_speed(c.end - playback.position)).into(),
+                );
             }
             None => {
                 ui.set_chapter_title("".into());
                 ui.set_chapter_fraction(fraction(playback.position, 0.0, now.duration));
-                ui.set_chapter_position_text(format::clock(playback.position).into());
-                ui.set_chapter_elapsed_text(format::clock(playback.position).into());
+                let elapsed = format::clock(at_speed(playback.position));
+                ui.set_chapter_position_text(elapsed.as_str().into());
+                ui.set_chapter_elapsed_text(elapsed.into());
                 ui.set_chapter_remaining_text(
-                    format::remaining(now.duration - playback.position).into(),
+                    format::remaining(at_speed(now.duration - playback.position)).into(),
                 );
             }
         }
@@ -106,6 +113,11 @@ impl PlayerView {
             self.chapters.set_row_data(index, row);
         }
     }
+}
+
+/// The playback speed, so the times shown are listening time rather than book time.
+fn speed(playback: &Playback) -> f64 {
+    SPEEDS[playback.speed_index.min(SPEEDS.len() - 1)]
 }
 
 /// A chapter list row.

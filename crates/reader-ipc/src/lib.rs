@@ -12,7 +12,9 @@ use serde::{Deserialize, Serialize};
 pub enum ToReader {
     /// Shows a book; replaces the one that is open.
     Open(OpenBook),
-    Settings { settings: Settings },
+    Settings {
+        settings: Settings,
+    },
     /// Closes the window and ends the process.
     Close,
 }
@@ -37,10 +39,16 @@ pub enum FromReader {
     /// The book is open and shown at its start location.
     Ready,
     Relocate(Location),
-    Toc { items: Vec<TocItem> },
+    Toc {
+        items: Vec<TocItem>,
+    },
     /// The user changed the settings in the reader window.
-    Settings { settings: Settings },
-    Error { message: String },
+    Settings {
+        settings: Settings,
+    },
+    Error {
+        message: String,
+    },
     /// The window was closed; the process ends after this.
     Closed,
 }
@@ -104,7 +112,9 @@ impl Settings {
     /// The settings with every number inside its range.
     pub fn clamped(mut self) -> Self {
         self.font_size = self.font_size.clamp(Self::FONT_SIZE.0, Self::FONT_SIZE.1);
-        self.line_height = self.line_height.clamp(Self::LINE_HEIGHT.0, Self::LINE_HEIGHT.1);
+        self.line_height = self
+            .line_height
+            .clamp(Self::LINE_HEIGHT.0, Self::LINE_HEIGHT.1);
         self.margin = self.margin.clamp(Self::MARGIN.0, Self::MARGIN.1);
         self
     }
@@ -192,6 +202,9 @@ mod tests {
             ..Settings::default()
         }
         .clamped();
-        assert_eq!((wild.font_size, wild.line_height, wild.margin), (300, 100, 20));
+        assert_eq!(
+            (wild.font_size, wild.line_height, wild.margin),
+            (300, 100, 20)
+        );
     }
 }

@@ -38,6 +38,8 @@ pub struct Media {
     pub chapters: Vec<Chapter>,
     pub tracks: Vec<AudioTrack>,
     pub ebook_file: Option<EbookFile>,
+    /// The ebook's format in minified items, which have no `ebook_file`.
+    pub ebook_format: Option<String>,
 }
 
 /// Book metadata. Minified items carry the `*_name` strings; expanded items the lists.

@@ -34,7 +34,14 @@ pub(super) fn handle(shared: &Arc<Shared>, command: Command) {
                 location,
                 progress,
             };
-            tokio::spawn(save(shared.clone(), account_id, position));
+            let Some(id) = store(shared, &account_id, &position) else {
+                return;
+            };
+            (shared.emit)(Event::ProgressChanged {
+                account_id: account_id.clone(),
+                item_ids: vec![position.item_id.clone()],
+            });
+            tokio::spawn(send_queued(shared.clone(), account_id, position, id));
         }
         _ => {}
     }
@@ -97,35 +104,39 @@ fn stored_location(shared: &Shared, account_id: &str, item_id: &str) -> Option<S
     row.ok().flatten()?.ebook_location
 }
 
-/// Stores the position here, then sends it or queues it.
-async fn save(shared: Arc<Shared>, account_id: String, position: PendingPosition) {
+/// Stores the position and queues it at once, so it survives the app quitting
+/// mid-request.
+fn store(shared: &Shared, account_id: &str, position: &PendingPosition) -> Option<i64> {
     let stored = match &position.location {
         EbookLocation::Cfi(cfi) => cfi.clone(),
         EbookLocation::Page(page) => page.to_string(),
     };
-    let _ = lock(&shared.db).store().progress().set_ebook(
-        &account_id,
-        &position.item_id,
-        &stored,
-        position.progress,
-    );
-    (shared.emit)(Event::ProgressChanged {
-        account_id: account_id.clone(),
-        item_ids: vec![position.item_id.clone()],
-    });
+    let payload = serde_json::to_string(position).ok()?;
+    let db = lock(&shared.db);
+    let store = db.store();
+    let _ = store
+        .progress()
+        .set_ebook(account_id, &position.item_id, &stored, position.progress);
+    store.queue().push(account_id, QUEUE_KIND, &payload).ok()
+}
+
+/// Sends a queued position and removes it, unless the server could not be reached.
+async fn send_queued(shared: Arc<Shared>, account_id: String, position: PendingPosition, id: i64) {
     let Some(session) = sessions(&shared, Some(&account_id)).into_iter().next() else {
-        queue(&shared, &account_id, &position);
         return;
     };
-    if let Err(e) = send(&session, &position).await {
-        if e.is_network() {
-            queue(&shared, &account_id, &position);
-            went_offline(&shared, &account_id, &e);
-        } else {
+    let result = send(&session, &position).await;
+    match result {
+        Err(e) if e.is_network() => went_offline(&shared, &account_id, &e),
+        Err(e) => {
+            let _ = lock(&shared.db).store().queue().remove(id);
             (shared.emit)(Event::RequestFailed {
                 account_id,
                 message: e.to_string(),
             });
+        }
+        Ok(()) => {
+            let _ = lock(&shared.db).store().queue().remove(id);
         }
     }
 }
@@ -136,15 +147,6 @@ async fn send(session: &Session, position: &PendingPosition) -> Result<(), Accou
         .set_ebook_progress(&position.item_id, &position.location, position.progress)
         .await?;
     Ok(())
-}
-
-fn queue(shared: &Shared, account_id: &str, position: &PendingPosition) {
-    if let Ok(payload) = serde_json::to_string(position) {
-        let _ = lock(&shared.db)
-            .store()
-            .queue()
-            .push(account_id, QUEUE_KIND, &payload);
-    }
 }
 
 /// Sends the newest queued position of each item. Stops at a network error, so the
