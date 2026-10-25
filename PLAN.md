@@ -263,7 +263,7 @@ Goal: a good single-view player on a data model that already supports many accou
 ### 3.2 `abs-reader` binary
 - [x] tao + wry window; custom protocol serves foliate-js assets and the book bytes from a file path given by the main app.
 - [x] Strict CSP; no network access from the webview.
-- [ ] On Linux, use `build_gtk` for Wayland.
+- [x] On Linux, use `build_gtk` for Wayland. Works under WSLg; GNOME and KDE are in Linux fixes and VM test.
 - [x] On Windows, lower WebView2 memory with `set_memory_usage_level` when the window is hidden or minimised.
 
 ### 3.3 IPC
@@ -394,6 +394,18 @@ Beyond what 1.9 has (mode, flavor, accent, `theme.json` colors). Not scheduled y
 - [ ] Density: spacing and tile size (compact, normal, large).
 - [ ] Border width and focus ring style.
 - [ ] All of these in `theme.json` too, and shareable theme files (import/export).
+
+### Linux fixes and VM test
+
+Found running the app under WSL (Ubuntu 24.04, WSLg), where audio and the reader work. WSLg is Weston, not GNOME or KDE, so the desktop checks need a VM.
+
+- [ ] Media controls without a D-Bus session bus: souvlaki's MPRIS thread panics on an `unwrap()` inside the crate. Check for the session bus before creating `MediaControls` (or run it behind `catch_unwind`), log a warning and carry on without media keys.
+- [ ] `libxkbcommon-x11.so` is loaded by winit at runtime; without `libxkbcommon-x11-0` the app panics at start. Bundle it in the AppImage by hand (linuxdeploy only sees linked libraries), add it to the `.deb` dependencies and the CI package list, and note it in the README for building from source.
+- [ ] Hyper-V test VMs: Ubuntu 24.04 (GNOME) from Hyper-V Quick Create and a Kubuntu or Fedora KDE VM from an ISO. Use the basic session, not the enhanced session, which runs X11 over xrdp. The test servers are reached through the PC's LAN address, not `localhost`.
+- [ ] In both VMs, on Wayland: install the AppImage from a release build (`scripts/package-linux.sh`), log in, play, and use the reader with EPUB, PDF and CBZ.
+- [ ] In both VMs: MPRIS shows title, author, cover and position in the desktop's media widget, and play/pause, seek and next/previous work from it (closes the Phase 0 MPRIS item).
+- [ ] In both VMs: fractional scaling at 125 % and 150 %, keyring storage of the login (GNOME Keyring, KWallet through Secret Service), and the reader window on Wayland (closes the Phase 0 reader and scaling items).
+- [ ] In both VMs: measure memory as PSS from `/proc/<pid>/smaps_rollup` for idle, browsing, playing and the reader, and add the numbers to `docs/decisions/0002-stack.md`.
 
 ### Slim LGPL libmpv
 
