@@ -126,4 +126,25 @@ Phase 2, 2.1 to 2.3 are implemented:
 
 Phase 2 is implemented; its exit criterion (download, play offline, sync without lost or regressed progress) is what `contract_offline` checks. Not tried by hand in the UI yet.
 
-Next: Phase 3 (ebook reader), after the dogfooding week.
+## Phase 3
+
+3.1 to 3.6 are implemented; nothing has been tried by hand yet, and the new contract tests have not run (Docker was off).
+
+- What the web reader stores (2.26.3 and 2.37.2 alike): EPUB writes the epub.js start CFI of the page (a point CFI) and its fraction, and only reads back values starting with `epubcfi`. PDF and comics write the 1-based page as a number and `(page - 1) / pages`. MOBI saves nothing. The server keeps `ebookLocation` as a string column but may hand a number back, so `abs-api` accepts both.
+- ADR 0004: PDF (pdf.js 5.5.207, vendored by foliate-js) and CBZ open in `abs-reader` through foliate-js. No pdfium, no comic view in Slint.
+- `crates/reader-ipc` (`abs-reader-ipc`) has the JSON-lines messages. The reader starts hidden, waits for `open` on stdin, and reuses its window for the next book. `relocate` has a collapsed (point) CFI for reflowable books, or `page`/`pages` for fixed layout. Settings changed in the reader window come back as `settings`; the app stores them under `reader_settings` (one set for all books).
+- The reader page has a top bar (contents, title, chapter, settings), the TOC from foliate's `ui/tree.js`, a settings panel (pages/scroll, light/sepia/dark, book/serif/sans font, size, line height, margins), arrow/PageUp/PageDown/space keys, T and S for the panels, and wheel paging in paginated mode. WebView2 goes to the low memory level while minimised.
+- `abs-reader <file> [location]` still opens a book directly for testing.
+- Core: `ebooks` finds the book in a finished download, else fetches it through `/api/items/:id/ebook/:ino` (no download permission needed) into `<cache>/<account>/ebooks/` (newest 10 kept), else uses a cached copy when offline. `Command::OpenEbook` answers with `EbookReady`/`EbookFailed`.
+- `Command::SaveEbookProgress` stores the position locally and puts it in `pending_sync` before sending, so a quit mid-request loses nothing. Queued positions are sent (newest per item) at the start of every offline flush; a network error leaves them queued, a refusal drops them. No conflict prompt for reading positions: last write wins.
+- Downloads include the ebook file (`manifest.ebook`); ebook-only items can be downloaded.
+- App: the item page shows Read when the item has an EPUB, PDF, CBZ, MOBI, AZW3 or FB2, and "N % read". The app debounces `relocate` for 5 s and saves on close, on switching books and on quit. The reader is `abs-reader` next to the app exe, or `ABS_READER_PATH`; in development run `cargo build -p abs-reader` once so it exists in `target/debug`.
+- Packaging: both scripts build `abs-reader` and copy foliate-js without tests, build files and source maps (5.6 MB, `scripts/copy-foliate.*`). `THIRD-PARTY-LICENSES.html` now covers the whole workspace; license texts of foliate-js, pdf.js, zip.js and fflate are in `packaging/licenses`. Neither package script has been run since.
+- Tests: unit tests for IPC messages, positions in web reader format, the cache and queue payloads, ebook download plans. Contract tests `ebook_file_and_reading_position` (abs-api) and `contract_ebooks` (engine: open, save, offline queue, reconnect; new test user `reader`, so rerun `docker/init_server.py` on existing servers).
+
+Open:
+- Run the contract tests on both servers.
+- Try EPUB, the 12 MB Alice PDF scan and the CBZ in the reader window. If pdf.js is too slow on the scan, revisit ADR 0004.
+- 3.7 round trip with the web reader in both directions. foliate-js and epub.js both write standard CFIs, but whether each lands on the same page in the other is the open question.
+- Linux: `build_gtk`, WebKitGTK inside the AppImage.
+- Measure the reader memory again (Phase 0 budget: reader tree 110 MB) and check it is freed when the window closes.

@@ -261,34 +261,35 @@ Goal: a good single-view player on a data model that already supports many accou
   - PDF.js inside the reader, and CBZ through foliate-js too (ADR 0004).
 
 ### 3.2 `abs-reader` binary
-- [ ] tao + wry window; custom protocol serves foliate-js assets and the book bytes from a file path given by the main app.
-- [ ] Strict CSP; no network access from the webview.
+- [x] tao + wry window; custom protocol serves foliate-js assets and the book bytes from a file path given by the main app.
+- [x] Strict CSP; no network access from the webview.
 - [ ] On Linux, use `build_gtk` for Wayland.
-- [ ] On Windows, lower WebView2 memory with `set_memory_usage_level` when the window is hidden or minimised.
+- [x] On Windows, lower WebView2 memory with `set_memory_usage_level` when the window is hidden or minimised.
 
 ### 3.3 IPC
-- [ ] JSON lines over stdin/stdout.
-- [ ] Main -> reader: `open {path, format, location, settings}`, `settings {...}`, `close`.
-- [ ] Reader -> main: `ready`, `relocate {cfi, fraction, chapter}`, `toc [...]`, `error`, `closed`.
-- [ ] Shared message types in a tiny crate or module used by both binaries.
+- [x] JSON lines over stdin/stdout.
+- [x] Main -> reader: `open {path, format, location, settings}`, `settings {...}`, `close`.
+- [x] Reader -> main: `ready`, `relocate {cfi, fraction, chapter}`, `toc [...]`, `error`, `closed`.
+  - `relocate` also carries `page` and `pages` for PDF and comics; `settings` goes back to main when the user changes them in the reader window.
+- [x] Shared message types in a tiny crate or module used by both binaries (`crates/reader-ipc`).
 
 ### 3.4 Main app integration
-- [ ] Fetch the ebook from `/api/items/:id/ebook/:fileid?` into the cache (or use the downloaded file).
-- [ ] Launch the helper, pass the saved `ebookLocation`.
-- [ ] On `relocate`: debounce (about 5 s), then `PATCH /api/me/progress/:id` with `ebookLocation` (CFI) and `ebookProgress`; queue when offline.
-- [ ] Ebook downloads reuse the Phase 2 download manager.
+- [x] Fetch the ebook from `/api/items/:id/ebook/:fileid?` into the cache (or use the downloaded file).
+- [x] Launch the helper, pass the saved `ebookLocation`.
+- [x] On `relocate`: debounce (about 5 s), then `PATCH /api/me/progress/:id` with `ebookLocation` (CFI) and `ebookProgress`; queue when offline.
+- [x] Ebook downloads reuse the Phase 2 download manager.
 
 ### 3.5 Reader features
-- [ ] Paginated and scroll modes.
-- [ ] Font size, font family, line height, margins.
-- [ ] Light, dark, sepia themes.
-- [ ] Table of contents panel; keyboard and mouse-wheel navigation.
-- [ ] Remember settings per user, not per book.
+- [x] Paginated and scroll modes.
+- [x] Font size, font family, line height, margins.
+- [x] Light, dark, sepia themes.
+- [x] Table of contents panel; keyboard and mouse-wheel navigation.
+- [x] Remember settings per user, not per book.
 
 ### 3.6 PDF and CBZ
-- [ ] PDF via the approach chosen in 3.1; pdfium loaded at runtime only when a PDF opens; bundle the pdfium binary on Windows.
-- [ ] CBZ: `zip` + `image` crates, LRU of decoded pages, fit width/height, two-page mode optional.
-- [ ] CBR: not supported (unrar license); MOBI/AZW3 work through foliate-js but are untested extras.
+- [x] PDF via the approach chosen in 3.1 (pdf.js through foliate-js, ADR 0004; no pdfium).
+- [x] CBZ through foliate-js as well (ADR 0004), instead of `zip` + `image` in the main app.
+- [x] CBR: not supported (unrar license); MOBI/AZW3 work through foliate-js but are untested extras.
 
 ### 3.7 Round-trip test
 - [ ] Set a position in the desktop reader, open the ABS web reader: same chapter and page.
