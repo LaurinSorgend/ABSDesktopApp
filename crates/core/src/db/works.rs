@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use super::{DbResult, now_ms};
-use crate::works::{Candidate, MatchMethod, Override};
+use crate::works::{Candidate, MatchMethod, MemberState, Override};
 
 /// An item, by account and remote id.
 pub type ItemKey = (String, String);
@@ -255,6 +255,34 @@ impl<'a> Works<'a> {
                 item_id: r.get(2)?,
                 method: MatchMethod::parse(&method),
                 confidence: r.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// The members with their progress and downloads, oldest account first.
+    /// `connected` is left false for the caller to fill in.
+    pub fn member_states(&self, work_id: i64) -> DbResult<Vec<MemberState>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT m.account_id, m.item_id, i.duration,
+                    CASE WHEN p.position > 0 OR p.is_finished = 1
+                         OR coalesce(p.ebook_progress, 0) > 0 THEN p.updated_at END,
+                    dl.item_id IS NOT NULL
+             FROM work_member m
+             JOIN account a ON a.id = m.account_id
+             JOIN item i ON i.account_id = m.account_id AND i.remote_id = m.item_id
+             LEFT JOIN progress p ON p.account_id = m.account_id AND p.item_id = m.item_id
+             LEFT JOIN download dl ON dl.account_id = m.account_id AND dl.item_id = m.item_id
+                 AND dl.state = 'done'
+             WHERE m.work_id = ?1 ORDER BY a.created_at, a.id, m.item_id",
+        )?;
+        let rows = stmt.query_map([work_id], |r| {
+            Ok(MemberState {
+                key: (r.get(0)?, r.get(1)?),
+                duration: r.get(2)?,
+                progress_updated_at: r.get(3)?,
+                downloaded: r.get(4)?,
+                connected: false,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)

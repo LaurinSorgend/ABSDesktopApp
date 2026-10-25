@@ -44,6 +44,27 @@ impl AbsClient {
         self.send(request).await.map(drop)
     }
 
+    /// `PATCH /api/me/progress/:id` with a listening position, outside any session.
+    pub async fn set_progress(
+        &self,
+        item_id: &str,
+        current_time: f64,
+        duration: f64,
+    ) -> Result<()> {
+        let progress = if duration > 0.0 {
+            (current_time / duration).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let request = self
+            .http()
+            .patch(self.url(&format!("api/me/progress/{item_id}"))?)
+            .json(
+                &json!({ "currentTime": current_time, "duration": duration, "progress": progress }),
+            );
+        self.send(request).await.map(drop)
+    }
+
     /// `PATCH /api/me/progress/:id` with the reading position, as the web reader sends it.
     pub async fn set_ebook_progress(
         &self,

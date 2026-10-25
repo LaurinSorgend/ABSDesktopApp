@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 
 use super::worker::{Shared, lock_map, sessions};
 use super::{Event, offline};
-use crate::account::{AccountError, Session};
+use crate::account::{AccountError, Session, lock};
 use crate::playback::{self, ActivePlayback, ListenTracker, LocalPlayback, PlayStart};
 
 /// Playback commands, forwarded from [`super::Command`].
@@ -46,6 +46,11 @@ impl Active {
             Mode::Server(playback) => &mut playback.tracker,
             Mode::Local(local) => &mut local.tracker,
         }
+    }
+
+    /// The last reported position.
+    fn position(&mut self) -> f64 {
+        self.tracker().position()
     }
 
     /// The access token the tracks need while they stream from the server.
@@ -121,7 +126,10 @@ pub(super) async fn run(
                 force_sync,
             } => {
                 if let Some(active) = active.as_mut() {
-                    report(&shared, active, position, playing, force_sync).await;
+                    let synced = report(&shared, active, position, playing, force_sync).await;
+                    if synced && (force_sync || !playing) {
+                        spawn_mirror(&shared, &active.start, position);
+                    }
                     send_new_headers(&shared, active, &mut sent_token);
                 }
             }
@@ -185,10 +193,17 @@ async fn start_server(
     })
 }
 
-async fn report(shared: &Shared, active: &mut Active, position: f64, playing: bool, force: bool) {
+/// Syncs when due or forced. True when it synced.
+async fn report(
+    shared: &Shared,
+    active: &mut Active,
+    position: f64,
+    playing: bool,
+    force: bool,
+) -> bool {
     let due = active.tracker().report(Instant::now(), position, playing);
     if !(due || force) {
-        return;
+        return false;
     }
     let result = active.sync(shared).await;
     let account_id = active.start.account_id.clone();
@@ -200,6 +215,28 @@ async fn report(shared: &Shared, active: &mut Active, position: f64, playing: bo
         (shared.emit)(Event::SyncFailed {
             account_id,
             message: e.to_string(),
+        });
+    }
+    true
+}
+
+/// Copies the position to the work's members with the same recording, if that is on.
+fn spawn_mirror(shared: &Arc<Shared>, start: &PlayStart, position: f64) {
+    let played = (start.account_id.clone(), start.item_id.clone());
+    let targets = {
+        let db = lock(&shared.db);
+        crate::works::mirror_keys(&db.store(), &played, start.duration).unwrap_or_default()
+    };
+    for (account_id, item_id) in targets {
+        let Some(session) = sessions(shared, Some(&account_id)).into_iter().next() else {
+            continue;
+        };
+        let duration = start.duration;
+        tokio::spawn(async move {
+            let _ = session
+                .client
+                .set_progress(&item_id, position, duration)
+                .await;
         });
     }
 }
@@ -219,16 +256,19 @@ fn send_new_headers(shared: &Shared, active: &Active, sent: &mut Option<String>)
 
 /// Closes the item; a local session it leaves behind is sent if the server is there.
 async fn close(shared: &Arc<Shared>, active: Option<Active>) {
-    let Some(active) = active else {
+    let Some(mut active) = active else {
         return;
     };
     let account_id = active.start.account_id.clone();
+    let start = active.start.clone();
+    let position = active.position();
     if let Err(e) = active.close(shared).await {
         (shared.emit)(Event::SyncFailed {
             account_id: account_id.clone(),
             message: e.to_string(),
         });
     }
+    spawn_mirror(shared, &start, position);
     offline::spawn_flush(shared, &account_id);
 }
 
