@@ -11,7 +11,8 @@ export component ChapterRow inherits Rectangle {
     callback activate(float);
 
     min-height: 36px;
-    background: chapter.current ? Theme.surface0 : touch.has-hover ? Theme.mantle : transparent;
+    background: chapter.current ? Theme.surface0 : touch.has-hover ? Theme.mantle : Theme.mantle.transparentize(1);
+    animate background { duration: Theme.quick; easing: ease-out; }
     accessible-role: button;
     accessible-label: chapter.title;
     accessible-action-default => {

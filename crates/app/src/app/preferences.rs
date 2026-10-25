@@ -7,8 +7,8 @@ use slint::ComponentHandle;
 use super::App;
 use crate::paths::dir_size;
 use crate::settings::{
-    ACCENT, CACHE_MEGABYTES, CLOSE_TO_TRAY, CONFLICT, CONFLICT_MINUTES, COVER_CACHE, Choices,
-    DARK_FLAVOR, DEFAULT_SPEED, LIGHT_FLAVOR, PROGRESS_BAR, SKIP_BACK, SKIP_BACK_SECONDS,
+    ACCENT, ANIMATIONS, CACHE_MEGABYTES, CLOSE_TO_TRAY, CONFLICT, CONFLICT_MINUTES, COVER_CACHE,
+    Choices, DARK_FLAVOR, DEFAULT_SPEED, LIGHT_FLAVOR, PROGRESS_BAR, SKIP_BACK, SKIP_BACK_SECONDS,
     SKIP_FORWARD, SKIP_FORWARD_SECONDS, THEME_MODE,
 };
 use crate::tray::{Labels, Tray};
@@ -55,7 +55,9 @@ impl App {
         let settings = store.settings();
         let _ = match key {
             SKIP_BACK | SKIP_FORWARD | DEFAULT_SPEED | CLOSE_TO_TRAY | PROGRESS_BAR
-            | THEME_MODE | LIGHT_FLAVOR | DARK_FLAVOR | ACCENT => settings.set(key, index),
+            | THEME_MODE | LIGHT_FLAVOR | DARK_FLAVOR | ACCENT | ANIMATIONS => {
+                settings.set(key, index)
+            }
             COVER_CACHE => {
                 let megabytes = CACHE_MEGABYTES[index.min(CACHE_MEGABYTES.len() - 1)];
                 self.engine.send(Command::SetCoverCacheSize { megabytes });

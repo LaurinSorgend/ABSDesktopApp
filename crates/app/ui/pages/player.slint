@@ -10,6 +10,27 @@ import {
     MutedIcon,
 } from "../icons.slint";
 
+/// Play and pause drawn on top of each other; the outgoing shape turns away and shrinks
+/// while the incoming one turns in.
+component PlayPauseIcon inherits Rectangle {
+    width: 20px;
+    height: 20px;
+    PauseIcon {
+        color: Theme.on-accent;
+        opacity: Ui.playing ? 1 : 0;
+        transform-rotation: Ui.playing ? 0deg : -90deg;
+        transform-scale: Ui.playing ? 100% : 40%;
+        animate opacity, transform-rotation, transform-scale { duration: Theme.settle; easing: ease-out-expo; }
+    }
+    PlayIcon {
+        color: Theme.on-accent;
+        opacity: Ui.playing ? 0 : 1;
+        transform-rotation: Ui.playing ? 90deg : 0deg;
+        transform-scale: Ui.playing ? 40% : 100%;
+        animate opacity, transform-rotation, transform-scale { duration: Theme.settle; easing: ease-out-expo; }
+    }
+}
+
 /// Previous chapter, skip back, play/pause, skip forward, next chapter.
 export component Transport inherits HorizontalLayout {
     spacing: 4px;
@@ -45,23 +66,21 @@ export component Transport inherits HorizontalLayout {
             color: Theme.subtext;
         }
     }
-    IconButton {
+    play := IconButton {
         label: Ui.playing ? @tr("Pause") : @tr("Play");
         width: 48px;
         height: 48px;
-        background: Theme.accent;
+        rest-color: Theme.accent;
+        hover-color: Theme.accent.darker(0.1);
+        press-color: Theme.accent.darker(0.2);
         clicked => {
             Ui.toggle-play();
         }
-        if Ui.playing: PauseIcon {
+        PlayPauseIcon {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            color: Theme.on-accent;
-        }
-        if !Ui.playing: PlayIcon {
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            color: Theme.on-accent;
+            transform-scale: play.pressed ? 88% : 100%;
+            animate transform-scale { duration: Theme.quick; easing: ease-out; }
         }
     }
     IconButton {
@@ -227,8 +246,14 @@ component NowPlayingSummary inherits Rectangle {
 export component PlayerBar inherits Rectangle {
     property <length> center-width: clamp(self.width - 2 * 300px, 360px, 720px);
     property <length> side-width: (self.width - self.center-width) / 2;
+    property <bool> arrived;
+    init => {
+        self.arrived = true;
+    }
     height: center.preferred-height + 2 * Theme.gap;
     background: Theme.mantle;
+    opacity: arrived ? 1 : 0;
+    animate opacity { duration: Theme.arrive; easing: ease-out-expo; }
 
     Rectangle {
         y: 0;
@@ -294,7 +319,8 @@ component BookmarkList inherits VerticalLayout {
     }
     for bookmark in Ui.bookmarks: Rectangle {
         min-height: 36px;
-        background: touch.has-hover ? Theme.mantle : transparent;
+        background: touch.has-hover ? Theme.mantle : Theme.mantle.transparentize(1);
+        animate background { duration: Theme.quick; easing: ease-out; }
         HorizontalLayout {
             padding-left: Theme.gap;
             spacing: Theme.pad;
@@ -333,11 +359,13 @@ component BookmarkList inherits VerticalLayout {
 }
 
 component NowPlaying inherits VerticalLayout {
+    /// Width of the cover and of everything under it.
+    in property <length> size: 320px;
     spacing: Theme.pad;
     alignment: start;
     Cover {
-        width: 320px;
-        height: 320px;
+        width: root.size;
+        height: root.size;
         source: Ui.now-cover;
         has-image: Ui.now-has-cover;
         title: Ui.now-title;
@@ -346,7 +374,7 @@ component NowPlaying inherits VerticalLayout {
         text: Ui.now-title;
         wrap: word-wrap;
         overflow: clip;
-        width: 320px;
+        width: root.size;
     }
     Label {
         text: Ui.now-author;
@@ -354,7 +382,7 @@ component NowPlaying inherits VerticalLayout {
     }
     VerticalLayout {
         spacing: 4px;
-        width: 320px;
+        width: root.size;
         Text {
             text: Ui.chapter-title;
             color: Theme.text;
@@ -405,6 +433,8 @@ component NowPlaying inherits VerticalLayout {
 }
 
 export component PlayerPage inherits Rectangle {
+    /// The cover grows with the window and leaves room for the chapter list.
+    property <length> cover-size: clamp(min((self.width - 3 * Theme.pad) * 0.45, self.height - 2 * Theme.pad - 400px), 320px, 640px);
     HorizontalLayout {
         padding: Theme.pad;
         spacing: 2 * Theme.pad;
@@ -413,9 +443,11 @@ export component PlayerPage inherits Rectangle {
             font-size: Theme.text-base;
         }
         if Ui.has-media: ScrollView {
-            width: 352px;
+            width: root.cover-size + 32px;
             content-height: max(self.height, now.preferred-height);
-            now := NowPlaying { }
+            now := NowPlaying {
+                size: root.cover-size;
+            }
         }
         if Ui.has-media: VerticalLayout {
             spacing: Theme.pad;

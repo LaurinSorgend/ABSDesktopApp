@@ -23,11 +23,14 @@ export component Button inherits Rectangle {
 
     min-width: max(88px, label.preferred-width + 24px);
     min-height: 36px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
     background: !enabled ? Theme.mantle
-        : primary ? (touch.has-hover ? Theme.accent.darker(0.1) : Theme.accent)
-        : (touch.has-hover ? Theme.surface0 : Theme.base);
+        : primary ? (touch.pressed ? Theme.accent.darker(0.2) : touch.has-hover ? Theme.accent.darker(0.1) : Theme.accent)
+        : (touch.pressed ? Theme.surface1 : touch.has-hover ? Theme.surface0 : Theme.base);
     border-width: 1px;
-    border-color: primary && enabled ? Theme.accent : Theme.overlay0;
+    border-color: primary && enabled ? Theme.accent : touch.has-hover ? Theme.overlay2 : Theme.overlay0;
+    animate background, border-color { duration: Theme.quick; easing: ease-out; }
     accessible-role: button;
     accessible-label: text;
     accessible-action-default => {
@@ -73,9 +76,16 @@ export component IconButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked;
 
+    in property <color> rest-color: transparent;
+    in property <color> hover-color: Theme.surface0;
+    in property <color> press-color: Theme.surface1;
+    /// The press dips the icon slightly, as a physical key would.
+    out property <bool> pressed: touch.pressed;
+
     width: 40px;
     height: 40px;
-    background: touch.has-hover ? Theme.surface0 : transparent;
+    background: touch.pressed ? press-color : touch.has-hover ? hover-color : rest-color;
+    animate background { duration: Theme.quick; easing: ease-out; }
     accessible-role: button;
     accessible-label: label;
     accessible-action-default => {
@@ -124,7 +134,15 @@ export component TextField inherits Rectangle {
     min-width: 160px;
     background: Theme.mantle;
     border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.accent : Theme.overlay0;
+    border-color: input.has-focus ? Theme.accent : touch.has-hover ? Theme.overlay2 : Theme.overlay0;
+    animate border-color { duration: Theme.settle; easing: ease-out; }
+
+    touch := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => {
+            input.focus();
+        }
+    }
     accessible-role: text-input;
     accessible-label: label;
 
@@ -170,9 +188,10 @@ export component Segmented inherits HorizontalLayout {
     for option[index] in options: Rectangle {
         min-width: max(48px, option-text.preferred-width + 20px);
         min-height: 32px;
-        background: index == root.selected ? Theme.accent : touch.has-hover ? Theme.surface0 : Theme.base;
+        background: index == root.selected ? Theme.accent : touch.pressed ? Theme.surface1 : touch.has-hover ? Theme.surface0 : Theme.base;
         border-width: 1px;
         border-color: index == root.selected ? Theme.accent : Theme.overlay0;
+        animate background, border-color { duration: Theme.settle; easing: ease-out-expo; }
         accessible-role: tab;
         accessible-label: option;
         accessible-item-selected: index == root.selected;
@@ -191,6 +210,7 @@ export component Segmented inherits HorizontalLayout {
             color: index == root.selected ? Theme.on-accent : Theme.text;
             horizontal-alignment: center;
             vertical-alignment: center;
+            animate color { duration: Theme.settle; easing: ease-out-expo; }
         }
     }
 }
@@ -212,36 +232,41 @@ export component SeekBar inherits Rectangle {
     accessible-label: label;
     accessible-value: round(shown * 100) + "%";
 
+    property <bool> active: touch.has-hover || touch.pressed;
+    property <length> track: active ? 6px : 4px;
+    animate track { duration: Theme.quick; easing: ease-out; }
+
     Rectangle {
-        y: (parent.height - 4px) / 2;
-        height: 4px;
+        y: (parent.height - root.track) / 2;
+        height: root.track;
         background: Theme.surface1;
     }
 
     Rectangle {
         x: 0;
-        y: (parent.height - 4px) / 2;
-        height: 4px;
+        y: (parent.height - root.track) / 2;
+        height: root.track;
         width: parent.width * root.shown;
         background: Theme.accent;
     }
 
     for marker in root.markers: Rectangle {
         x: parent.width * marker - 1px;
-        y: (parent.height - 4px) / 2;
+        y: (parent.height - root.track) / 2;
         width: 2px;
-        height: 4px;
+        height: root.track;
         background: Theme.base;
     }
 
     Rectangle {
         x: parent.width * root.shown - self.width / 2;
         y: (parent.height - self.height) / 2;
-        width: touch.has-hover || touch.pressed ? 14px : 12px;
+        width: touch.pressed ? 16px : root.active ? 14px : 12px;
         height: self.width;
         background: Theme.accent;
         border-width: 2px;
         border-color: Theme.text;
+        animate width { duration: Theme.quick; easing: ease-out; }
     }
 
     touch := TouchArea {
@@ -273,9 +298,10 @@ export component Dropdown inherits Rectangle {
 
     min-width: max(72px, current.preferred-width + 36px);
     min-height: 36px;
-    background: touch.has-hover ? Theme.surface0 : Theme.base;
+    background: touch.pressed ? Theme.surface1 : touch.has-hover ? Theme.surface0 : Theme.base;
     border-width: 1px;
-    border-color: Theme.overlay0;
+    border-color: touch.has-hover ? Theme.overlay2 : Theme.overlay0;
+    animate background, border-color { duration: Theme.quick; easing: ease-out; }
     accessible-role: combobox;
     accessible-label: label;
     accessible-value: selected >= 0 && selected < options.length ? options[selected] : "";
@@ -362,6 +388,7 @@ export component Dropdown inherits Rectangle {
             for option[index] in root.options: Rectangle {
                 height: root.row-height;
                 background: index == root.selected ? Theme.accent : item-touch.has-hover ? Theme.surface0 : transparent;
+                animate background { duration: Theme.quick; easing: ease-out; }
                 Text {
                     x: 10px;
                     height: parent.height;
@@ -392,6 +419,13 @@ export component Banner inherits Rectangle {
     callback dismiss();
 
     background: kind == 2 ? Theme.red : kind == 1 ? Theme.yellow : Theme.surface0;
+    animate background { duration: Theme.settle; easing: ease-out; }
+    property <bool> arrived;
+    init => {
+        self.arrived = true;
+    }
+    opacity: arrived ? 1 : 0;
+    animate opacity { duration: Theme.arrive; easing: ease-out-expo; }
 
     HorizontalLayout {
         padding-left: Theme.pad;
@@ -437,6 +471,12 @@ export component Prompt inherits Rectangle {
     background: Theme.surface0;
     border-width: 1px;
     border-color: Theme.accent;
+    property <bool> arrived;
+    init => {
+        self.arrived = true;
+    }
+    opacity: arrived ? 1 : 0;
+    animate opacity { duration: Theme.arrive; easing: ease-out-expo; }
     accessible-role: groupbox;
     accessible-label: text;
 

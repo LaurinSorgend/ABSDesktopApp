@@ -68,4 +68,15 @@ export global Theme {
     out property <length> tile-width: 160px;
     out property <length> tile-height: 230px;
     out property <length> row-height: 246px;
+
+    /// Off in the settings: every duration below becomes zero, so changes apply at once.
+    in property <bool> motion: true;
+    /// Hover and press feedback.
+    out property <duration> quick: motion ? 120ms : 0ms;
+    /// State changes such as a selection moving.
+    out property <duration> settle: motion ? 220ms : 0ms;
+    /// Pages and bars arriving.
+    out property <duration> arrive: motion ? 360ms : 0ms;
+    /// How far a page or bar travels while it arrives.
+    out property <length> rise: motion ? 10px : 0px;
 }
