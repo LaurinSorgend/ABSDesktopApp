@@ -392,6 +392,29 @@ Beyond what 1.9 has (mode, flavor, accent, `theme.json` colors). Not scheduled y
 - [ ] Border width and focus ring style.
 - [ ] All of these in `theme.json` too, and shareable theme files (import/export).
 
+### Audio effects
+
+Applied while listening, on this machine only. Files on the server and downloads are never changed. Not scheduled yet; do after dogfooding.
+- [ ] Built on libmpv's `af` property, which runs FFmpeg filters and can change during playback. `Player` gets `set_filters(&[Filter])`; `MpvPlayer` turns the list into an `af` string.
+- [ ] Loudness: `loudnorm` (EBU R128, one pass) or `dynaudnorm` for books whose volume jumps between chapters or narrators. `speechnorm` as a third choice for quiet speech.
+- [ ] Noise cleanup, with the algorithm selectable: `afftdn` (FFT denoiser, cheap), `anlmdn` (non-local means, more CPU), `arnndn` (RNNoise, needs a bundled `.rnnn` model).
+- [ ] Hiss and rumble: `highpass` and `lowpass` with presets; a small voice equalizer (`equalizer` bands).
+- [ ] Dynamics: `acompressor` for listening in noisy places.
+- [ ] Optional silence trimming (`silenceremove`) with a threshold. The displayed position must stay in book time, so measure how mpv reports time with it on before shipping it.
+- [ ] Settings: a global default plus an override per item, stored locally. A switch in the player to compare with and without effects.
+- [ ] Check that the LGPL libmpv build for releases includes these filters. Measure CPU per filter on a low-end laptop and note the cost next to each choice.
+
+### Transcripts and read-along
+
+Depends on Phase 3. Not scheduled yet.
+- [ ] Transcript: generated on this machine with whisper.cpp (`whisper-rs`), on request per item, with word timestamps. The model is a separate download the user chooses (size vs. accuracy). Runs in the background, can resume, and is cached per item and file hash.
+- [ ] Transcript panel in the player: follows the position, highlights the current sentence, click to seek, search inside the book.
+- [ ] Read-along when the item also has an ebook: highlight the passage being read and turn pages automatically.
+- [ ] Alignment, in order of preference: EPUB 3 Media Overlays (SMIL) if the book has them; otherwise align the whisper transcript to the ebook text (fuzzy sequence alignment on normalized words), giving a map from audio time to CFI ranges. Cache the map per item.
+- [ ] IPC additions for `abs-reader`: main -> reader `highlight {cfi}` and `follow {on}`; reader -> main `seek-request {cfi}` when the user clicks a sentence.
+- [ ] Following stops when the user turns pages or scrolls by hand; a "back to audio" button resumes it.
+- [ ] Measure transcription time and memory per hour of audio for each model size before deciding the default.
+
 ### Testing
 - Unit tests in `core` and `abs-api` for anything with logic (token scheduling, time mapping, matcher, conflict rules).
 - Integration tests against the oldest supported and the latest ABS in CI.
@@ -423,3 +446,4 @@ Single-maintainer or unstable dependencies each sit behind a small internal trai
 | How does session sync behave after a server restart? | 1.8: sync returns 404; starting a new session and syncing again works (tested on 2.37.2) |
 | Does yaabsa already cover multi-account or OIDC? | before Phase 4 |
 | Final license | 0.1 |
+| Which whisper model size is the default for transcripts? | Transcripts and read-along |
