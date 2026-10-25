@@ -1,7 +1,9 @@
 """Initialise a fresh Audiobookshelf test server.
 
 Creates the root admin, the test users and one library per fixture folder,
-then scans them, waits for the scans and adds one collection and one series. Safe to rerun: existing users and libraries are kept.
+then scans them, waits for the scans and adds one collection and one series.
+The Matching library gets metadata that differs between the 2.26 and the newer
+server, for the work matching tests. Safe to rerun: existing users and libraries are kept.
 
 Usage: python docker/init_server.py http://localhost:13379
 """
@@ -25,7 +27,27 @@ LIBRARIES = [
     {"name": "Audiobooks", "mediaType": "book", "folders": [{"fullPath": "/media/audiobooks"}]},
     {"name": "Ebooks", "mediaType": "book", "folders": [{"fullPath": "/media/ebooks"}]},
     {"name": "Grid", "mediaType": "book", "folders": [{"fullPath": "/media/grid"}]},
+    {"name": "Matching", "mediaType": "book", "folders": [{"fullPath": "/media/matching"}]},
 ]
+
+# Metadata for the Matching library by relPath: on every server, then per server
+# ("old" for 2.26, "new" for later versions).
+MATCHING_COMMON = {
+    "Fixture Author/Shared Narration": {"narrators": ["Common Reader"]},
+    "Fixture Author/Fixture Tale Abridged": {"title": "Fixture Tale", "abridged": True},
+    "Fixture Author/Asin Book": {"asin": "B0MATCH001"},
+}
+MATCHING_VARIANT = {
+    "old": {
+        "Fixture Author/Two Narrators": {"narrators": ["Narrator One"]},
+        "Fixture Author/Isbn Book": {"isbn": "0-261-10221-4"},
+    },
+    "new": {
+        "Fixture Author/Two Narrators": {"narrators": ["Narrator Two"]},
+        "Fixture Author/Asin Book": {"title": "Asin Book: Collector's Edition", "asin": "B0MATCH001"},
+        "Fixture Author/Isbn Book": {"title": "The Isbn Book Revisited", "isbn": "978-0-261-10221-7"},
+    },
+}
 
 
 def request(base, method, path, body=None, token=None):
@@ -133,6 +155,21 @@ def ensure_series(base, token):
         print(f"added {item['media']['metadata']['title']} to {SERIES} #{sequence}")
 
 
+def ensure_matching_metadata(base, token):
+    """Apply the per-server metadata of the Matching library."""
+    version = request(base, "GET", "/status")["serverVersion"]
+    variant = "old" if version.startswith("2.26.") else "new"
+    libraries = request(base, "GET", "/api/libraries", token=token)["libraries"]
+    library = next(lib for lib in libraries if lib["name"] == "Matching")
+    items = request(base, "GET", f"/api/libraries/{library['id']}/items?minified=1", token=token)["results"]
+    for item in items:
+        rel = item["relPath"].replace("\\", "/")
+        metadata = {**MATCHING_COMMON.get(rel, {}), **MATCHING_VARIANT[variant].get(rel, {})}
+        if metadata:
+            request(base, "PATCH", f"/api/items/{item['id']}/media", {"metadata": metadata}, token)
+            print(f"matching metadata for {rel} ({variant})")
+
+
 def main():
     base = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://localhost:13379"
     try:
@@ -143,6 +180,7 @@ def main():
         wait_for_scans(base, token)
         ensure_collection(base, token)
         ensure_series(base, token)
+        ensure_matching_metadata(base, token)
     except urllib.error.HTTPError as err:
         sys.exit(f"{err.code} {err.reason}: {err.read().decode()}")
 

@@ -37,7 +37,7 @@ async fn add_sync_and_restore() {
         assert!(credentials.load(&session.account.id).unwrap().is_some());
 
         let report = sync_catalog(&session, &db).await.unwrap();
-        assert_eq!(report.libraries, 3, "{server}");
+        assert_eq!(report.libraries, 4, "{server}");
         assert!(report.items >= 502, "{server}: {report:?}");
         let grid = grid_count(&db, &session.account.id);
         assert_eq!(grid, 500, "{server}");

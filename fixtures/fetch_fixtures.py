@@ -14,6 +14,7 @@ MEDIA = Path(__file__).parent / "media"
 AUDIO = MEDIA / "audiobooks"
 EBOOKS = MEDIA / "ebooks"
 GRID = MEDIA / "grid"
+MATCHING = MEDIA / "matching"
 
 LIBRIVOX_ID = "thehappyprinceandothertales_1411_librivox"
 LIBRIVOX_FILES = [f"thehappyprinceandothertales_{n:02}_wilde_64kb.mp3" for n in range(1, 6)]
@@ -26,6 +27,18 @@ LONG_BOOK_CHAPTER_MINUTES = 30
 LONG_BOOK_ASIN = "B0FIXTURE1"
 COMIC_PAGES = 24
 GRID_ITEMS = 500
+
+# Books for the work matching tests: folder (author, title) and length in minutes.
+# docker/init_server.py gives some of them different metadata on each server.
+MATCHING_BOOKS = [
+    ("Fixture Author", "Shared Narration", 10),
+    ("Fixture Author", "Two Narrators", 10),
+    ("Fixture Author", "Fixture Tale", 12),
+    ("Fixture Author", "Fixture Tale Abridged", 5),
+    ("Other Author", "Fixture Tale", 12),
+    ("Fixture Author", "Asin Book", 3),
+    ("Fixture Author", "Isbn Book", 3),
+]
 
 
 def download(url, target):
@@ -137,6 +150,22 @@ def build_grid_library():
     marker.touch()
 
 
+def build_matching_library():
+    """Short silent books whose metadata the init script varies per server."""
+    for author, title, minutes in MATCHING_BOOKS:
+        target = MATCHING / author / title / f"{title}.mp3"
+        if target.exists():
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        part = target.with_name(target.stem + ".part.mp3")
+        ffmpeg(
+            "-f", "lavfi", "-i", "anullsrc=r=8000:cl=mono", "-t", str(minutes * 60),
+            "-c:a", "libmp3lame", "-b:a", "8k", "-metadata", f"title={title}",
+            "-metadata", f"artist={author}", str(part),
+        )
+        part.rename(target)
+
+
 def main():
     source = fetch_multi_file_book()
     build_long_m4b(source)
@@ -144,6 +173,7 @@ def main():
     download(PDF_URL, EBOOKS / "Lewis Carroll" / "Alice PDF" / "Alice's Adventures in Wonderland.pdf")
     build_comic()
     build_grid_library()
+    build_matching_library()
     print("fixtures ready in", MEDIA)
 
 
