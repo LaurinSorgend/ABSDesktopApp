@@ -53,6 +53,37 @@ export struct AccountData {
     status: string,
     active: bool,
     needs-login: bool,
+    enabled: bool,
+}
+
+/// A library on the all-accounts page that can be shown or hidden.
+export struct LibraryChoice {
+    label: string,
+    selected: bool,
+}
+
+/// One copy of a work on the work page.
+export struct MemberData {
+    account-id: string,
+    item-id: string,
+    title: string,
+    /// Account and library.
+    place: string,
+    narrator: string,
+    duration-text: string,
+    progress-text: string,
+    /// Why it counts as the same book.
+    match-text: string,
+    can-split: bool,
+    can-reset: bool,
+}
+
+/// A book that could be merged into the work on the work page.
+export struct MatchData {
+    account-id: string,
+    item-id: string,
+    title: string,
+    place: string,
 }
 
 export struct DetailData {
@@ -82,6 +113,10 @@ export struct DetailData {
     download-state: int,
     download-text: string,
     download-fraction: float,
+    /// 0 when the item belongs to no work yet.
+    work-id: int,
+    /// Copies of the same book across accounts, this one included.
+    copies: int,
 }
 
 /// A row of the downloads list in the settings.
@@ -104,6 +139,8 @@ export enum Page {
     player,
     settings,
     add-account,
+    works,
+    work,
 }
 
 export enum LibraryView {

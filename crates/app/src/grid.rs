@@ -11,9 +11,14 @@ use crate::{TileData, TileRow};
 
 const PREFETCH_ROWS: usize = 1;
 
+/// Builds a tile's id from its item.
+pub type TileKey = fn(&ItemSummary) -> String;
+
 pub struct Grid {
     items: Vec<ItemSummary>,
-    index: HashMap<String, usize>,
+    /// Positions of each item id; one id can appear for several accounts.
+    index: HashMap<String, Vec<usize>>,
+    key: TileKey,
     columns: usize,
     rows: Rc<VecModel<TileRow>>,
     row_tiles: Vec<Rc<VecModel<TileData>>>,
@@ -21,10 +26,17 @@ pub struct Grid {
 }
 
 impl Grid {
+    /// Tiles named by item id, for grids of one account.
     pub fn new() -> Self {
+        Self::with_key(|item| item.remote_id.clone())
+    }
+
+    /// Tiles named by `key`, for grids that mix accounts.
+    pub fn with_key(key: TileKey) -> Self {
         Self {
             items: Vec::new(),
             index: HashMap::new(),
+            key,
             columns: 1,
             rows: Rc::new(VecModel::default()),
             row_tiles: Vec::new(),
@@ -42,11 +54,13 @@ impl Grid {
 
     /// Replaces the items and scrolls the cover window back to the top.
     pub fn set_items(&mut self, items: Vec<ItemSummary>, covers: &mut Covers) {
-        self.index = items
-            .iter()
-            .enumerate()
-            .map(|(i, item)| (item.remote_id.clone(), i))
-            .collect();
+        self.index.clear();
+        for (i, item) in items.iter().enumerate() {
+            self.index
+                .entry(item.remote_id.clone())
+                .or_default()
+                .push(i);
+        }
         self.items = items;
         self.visible = (0, self.visible.1.saturating_sub(self.visible.0).max(4));
         self.reflow(covers);
@@ -84,7 +98,7 @@ impl Grid {
 
     /// Shows a cover that finished loading, or clears one that was evicted.
     pub fn set_cover(&self, item_id: &str, image: Option<&Image>) {
-        if let Some(&index) = self.index.get(item_id) {
+        for &index in self.index.get(item_id).into_iter().flatten() {
             self.update_tile(index, |tile| {
                 tile.cover = image.cloned().unwrap_or_default();
                 tile.has_cover = image.is_some();
@@ -95,19 +109,25 @@ impl Grid {
     /// Updates progress and titles of items that changed.
     pub fn update_items(&mut self, changed: &[ItemSummary]) {
         for item in changed {
-            let Some(&index) = self.index.get(&item.remote_id) else {
-                continue;
-            };
-            self.items[index] = item.clone();
-            self.update_tile(index, |tile| {
-                let fresh = tile_for(item, None);
-                tile.title = fresh.title;
-                tile.author = fresh.author;
-                tile.progress = fresh.progress;
-                tile.finished = fresh.finished;
-                tile.downloaded = fresh.downloaded;
-            });
+            let positions = self.index.get(&item.remote_id).cloned().unwrap_or_default();
+            for index in positions {
+                if self.items[index].account_id == item.account_id {
+                    self.update_item(index, item);
+                }
+            }
         }
+    }
+
+    fn update_item(&mut self, index: usize, item: &ItemSummary) {
+        self.items[index] = item.clone();
+        self.update_tile(index, |tile| {
+            let fresh = tile_for(item, None);
+            tile.title = fresh.title;
+            tile.author = fresh.author;
+            tile.progress = fresh.progress;
+            tile.finished = fresh.finished;
+            tile.downloaded = fresh.downloaded;
+        });
     }
 
     fn reflow(&mut self, covers: &mut Covers) {
@@ -116,7 +136,13 @@ impl Grid {
             .chunks(self.columns)
             .map(|chunk| {
                 Rc::new(VecModel::from(
-                    chunk.iter().map(|i| tile_for(i, None)).collect::<Vec<_>>(),
+                    chunk
+                        .iter()
+                        .map(|i| TileData {
+                            id: (self.key)(i).into(),
+                            ..tile_for(i, None)
+                        })
+                        .collect::<Vec<_>>(),
                 ))
             })
             .collect();

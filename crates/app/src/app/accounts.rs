@@ -11,7 +11,7 @@ use crate::{AccountData, Page};
 impl App {
     pub(super) fn accounts_loaded(&mut self, accounts: Vec<Account>) {
         for account in &accounts {
-            self.conns.insert(account.id.clone(), Conn::Connecting);
+            self.conns.insert(account.id.clone(), initial_conn(account));
         }
         self.accounts = accounts;
         let stored = self
@@ -59,6 +59,24 @@ impl App {
             ui.set_add_password("".into());
         });
         self.activate(&id);
+    }
+
+    /// An account was turned on or off.
+    pub(super) fn account_updated(&mut self, account: Account) {
+        self.conns
+            .insert(account.id.clone(), initial_conn(&account));
+        if let Some(slot) = self.accounts.iter_mut().find(|a| a.id == account.id) {
+            *slot = account;
+        }
+        self.refresh_accounts();
+        self.update_banner();
+    }
+
+    pub fn set_account_enabled(&mut self, account_id: &str, enabled: bool) {
+        self.engine.send(Command::SetAccountEnabled {
+            account_id: account_id.to_owned(),
+            enabled,
+        });
     }
 
     pub(super) fn add_failed(&mut self, message: String) {
@@ -193,6 +211,12 @@ impl App {
         urls.into_iter().next()
     }
 
+    pub(super) fn account_host(&self, account: &Account) -> String {
+        self.server_url(account)
+            .map(|url| host(&url))
+            .unwrap_or_default()
+    }
+
     pub(super) fn server_label(&self) -> String {
         self.active_account()
             .and_then(|a| self.server_url(a))
@@ -214,10 +238,13 @@ impl App {
             .iter()
             .map(|u| u.as_str().into())
             .collect();
+        let multi = self.accounts.len() > 1;
         self.ui(|ui, _| {
             ui.set_accounts(ModelRc::new(VecModel::from(rows)));
             ui.set_server_urls(ModelRc::new(VecModel::from(urls)));
+            ui.set_multi_account(multi);
         });
+        self.refresh_source_settings();
     }
 
     fn active_server_urls(&self) -> Vec<String> {
@@ -292,6 +319,7 @@ impl App {
                 Some(Conn::Connected) => s.invoke_status_connected(),
                 Some(Conn::Offline) => s.invoke_status_offline(),
                 Some(Conn::NeedsLogin) => s.invoke_status_needs_login(),
+                Some(Conn::Disabled) => s.invoke_status_disabled(),
                 _ => s.invoke_status_connecting(),
             })
             .unwrap_or_default();
@@ -306,7 +334,16 @@ impl App {
             status,
             active: self.active.as_deref() == Some(account.id.as_str()),
             needs_login: conn == Some(Conn::NeedsLogin),
+            enabled: account.enabled,
         }
+    }
+}
+
+fn initial_conn(account: &Account) -> Conn {
+    if account.enabled {
+        Conn::Connecting
+    } else {
+        Conn::Disabled
     }
 }
 

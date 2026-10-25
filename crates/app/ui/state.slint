@@ -2,7 +2,7 @@
 
 import {
     TileData, TileRow, ShelfData, NamedId, GroupData, ChapterData, BookmarkData, AccountData,
-    DetailData, DownloadData, Page, LibraryView,
+    DetailData, DownloadData, Page, LibraryView, LibraryChoice, MemberData, MatchData,
 } from "data.slint";
 
 export global Ui {
@@ -70,6 +70,43 @@ export global Ui {
     callback toggle-desc();
     callback set-filter(int);
     callback open-group(string);
+
+    // All accounts: books of the chosen libraries, one tile per work or per copy
+    in property <bool> multi-account;
+    in property <bool> works-merged: true;
+    in property <[LibraryChoice]> works-libraries;
+    in property <int> works-sort;
+    in property <bool> works-desc;
+    in property <int> works-filter;
+    in property <[TileRow]> works-rows;
+    in property <string> works-note;
+    callback set-works-merged(bool);
+    callback toggle-works-library(int);
+    callback set-works-sort(int);
+    callback toggle-works-desc();
+    callback set-works-filter(int);
+    callback open-works-tile(string);
+
+    // Work: the copies of one book across accounts
+    in property <int> work-id;
+    in property <string> work-title;
+    in property <string> work-author;
+    in property <image> work-cover;
+    in property <bool> work-has-cover;
+    in property <string> work-play-note;
+    in property <[MemberData]> work-members;
+    in property <[string]> work-account-options;
+    in property <int> work-account-index;
+    in-out property <string> work-match-text;
+    in property <[MatchData]> work-match-results;
+    callback open-work(int);
+    callback play-work();
+    callback set-work-account(int);
+    callback open-member(string, string);
+    callback split-member(string, string);
+    callback reset-member(string, string);
+    callback search-work-match(string);
+    callback merge-into-work(string, string);
 
     // Group (series, author, collection)
     in property <string> group-title;
@@ -190,6 +227,10 @@ export global Ui {
     callback set-setting(string, int);
     callback use-account(string);
     callback remove-account(string);
+    callback set-account-enabled(string, bool);
+    in property <[string]> preferred-account-options;
+    in property <int> preferred-account-index;
+    in property <bool> mirror-progress;
     callback relogin(string);
     callback add-another-account();
 

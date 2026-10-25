@@ -30,7 +30,7 @@ component AccentPicker inherits HorizontalLayout {
         }
     }
 }
-import { Button, Heading, Label, Segmented, TextField } from "../widgets.slint";
+import { Button, Dropdown, Heading, Label, Segmented, TextField } from "../widgets.slint";
 
 component AccountRow inherits Rectangle {
     in property <AccountData> account;
@@ -65,6 +65,12 @@ component AccountRow inherits Rectangle {
             text: @tr("Use");
             clicked => {
                 Ui.use-account(root.account.id);
+            }
+        }
+        Button {
+            text: root.account.enabled ? @tr("Turn off") : @tr("Turn on");
+            clicked => {
+                Ui.set-account-enabled(root.account.id, !root.account.enabled);
             }
         }
         Button {
@@ -397,6 +403,33 @@ export component SettingsPage inherits Rectangle {
                 options: Ui.conflict-options;
                 selected: Ui.conflict-index;
                 key: "conflict_minutes";
+            }
+            if Ui.multi-account: Heading {
+                text: @tr("Books on several accounts");
+                font-size: Theme.text-lg;
+            }
+            if Ui.multi-account: VerticalLayout {
+                spacing: 4px;
+                Label {
+                    text: @tr("Play from this account when no copy has progress or a download");
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    Dropdown {
+                        label: @tr("Preferred account");
+                        options: Ui.preferred-account-options;
+                        selected: Ui.preferred-account-index;
+                        select(index) => {
+                            Ui.set-setting("preferred_account", index);
+                        }
+                    }
+                }
+            }
+            if Ui.multi-account: Setting {
+                title: @tr("Copy the position to copies of the same recording on other accounts");
+                options: [@tr("Off"), @tr("On")];
+                selected: Ui.mirror-progress ? 1 : 0;
+                key: "mirror_progress";
             }
             Appearance { }
             Heading {

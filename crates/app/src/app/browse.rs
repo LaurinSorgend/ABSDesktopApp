@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use abs_core::db::{ItemQuery, ItemSort, ItemSummary, ProgressFilter};
+use abs_core::db::{ItemQuery, ItemSort, ProgressFilter};
 use abs_core::engine::{Command, Group, GroupKind};
 use slint::{Image, ModelRc, VecModel};
 
@@ -185,13 +185,21 @@ impl App {
     }
 
     pub fn grid_columns(&mut self, name: &str, columns: usize) {
-        if let Some(grid) = self.browse.grid(name) {
+        let grid = match name {
+            "works" => Some(&mut self.works.grid),
+            name => self.browse.grid(name),
+        };
+        if let Some(grid) = grid {
             grid.set_columns(columns, &mut self.covers);
         }
     }
 
     pub fn grid_visible(&mut self, name: &str, first: usize, last: usize) {
-        if let Some(grid) = self.browse.grid(name) {
+        let grid = match name {
+            "works" => Some(&mut self.works.grid),
+            name => self.browse.grid(name),
+        };
+        if let Some(grid) = grid {
             grid.show_rows(first, last, &mut self.covers);
         }
     }
@@ -416,6 +424,7 @@ impl App {
     /// The catalog of an account changed: reload what the pages show.
     pub(super) fn catalog_changed(&mut self, account_id: &str) {
         self.set_syncing(account_id, false);
+        self.refresh_works();
         if self.active.as_deref() != Some(account_id) {
             return;
         }
@@ -433,14 +442,21 @@ impl App {
 
     /// Progress changed on this or another device.
     pub(super) fn progress_changed(&mut self, account_id: &str, item_ids: &[String]) {
+        self.refresh_detail_progress(account_id, item_ids);
+        let ids: Vec<&str> = item_ids.iter().map(String::as_str).collect();
+        let items = self
+            .db
+            .store()
+            .catalog()
+            .items_by_ids(account_id, &ids)
+            .unwrap_or_default();
+        self.works.grid.update_items(&items);
         if self.active.as_deref() != Some(account_id) {
             return;
         }
-        let items: Vec<ItemSummary> = self.items_by_ids(item_ids);
         self.browse.library_grid.update_items(&items);
         self.browse.group_grid.update_items(&items);
         self.browse.search_grid.update_items(&items);
         self.refresh_home();
-        self.refresh_detail_progress(item_ids);
     }
 }

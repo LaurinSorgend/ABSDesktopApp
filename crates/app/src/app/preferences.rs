@@ -1,6 +1,7 @@
 //! The settings page.
 
 use abs_core::engine::Command;
+use abs_core::works::{MIRROR_PROGRESS_SETTING, PREFERRED_ACCOUNT_SETTING};
 
 use slint::ComponentHandle;
 
@@ -64,6 +65,13 @@ impl App {
                 Ok(())
             }
             CONFLICT => settings.set(key, CONFLICT_MINUTES[index.min(CONFLICT_MINUTES.len() - 1)]),
+            PREFERRED_ACCOUNT_SETTING => {
+                match index.checked_sub(1).and_then(|i| self.accounts.get(i)) {
+                    Some(account) => settings.set(key, &account.id),
+                    None => settings.remove(key),
+                }
+            }
+            MIRROR_PROGRESS_SETTING => settings.set(key, index == 1),
             _ => Ok(()),
         };
         if key == COVER_CACHE {
@@ -81,6 +89,29 @@ impl App {
         }
         self.apply_choices();
         self.apply_theme();
+        self.refresh_source_settings();
+    }
+
+    /// The preferred account list and the mirror switch.
+    pub(super) fn refresh_source_settings(&self) {
+        let settings = self.db.store().settings();
+        let preferred = settings.get(PREFERRED_ACCOUNT_SETTING).ok().flatten();
+        let mirror = settings
+            .get_or(MIRROR_PROGRESS_SETTING, false)
+            .unwrap_or(false);
+        let oldest = self
+            .ui(|_, s| s.invoke_oldest_account())
+            .unwrap_or_default();
+        let mut options = vec![oldest];
+        options.extend(self.accounts.iter().map(|a| self.account_place(a).into()));
+        let index = preferred
+            .and_then(|id| self.accounts.iter().position(|a| a.id == id))
+            .map_or(0, |i| i as i32 + 1);
+        self.ui(|ui, _| {
+            ui.set_preferred_account_options(slint::ModelRc::new(slint::VecModel::from(options)));
+            ui.set_preferred_account_index(index);
+            ui.set_mirror_progress(mirror);
+        });
     }
 
     /// Closing the window keeps the app running while it plays and the tray is shown.

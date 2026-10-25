@@ -88,6 +88,39 @@ export global Strings {
     public pure function status-needs-login() -> string {
         @tr("login needed")
     }
+    public pure function status-disabled() -> string {
+        @tr("turned off")
+    }
+    public pure function match-same-item() -> string {
+        @tr("Same item on the same server")
+    }
+    public pure function match-asin() -> string {
+        @tr("Same ASIN")
+    }
+    public pure function match-isbn() -> string {
+        @tr("Same ISBN")
+    }
+    public pure function match-title() -> string {
+        @tr("Same title, author and length")
+    }
+    public pure function match-manual() -> string {
+        @tr("Put together by you")
+    }
+    public pure function match-split() -> string {
+        @tr("Kept apart by you")
+    }
+    public pure function plays-from(place: string) -> string {
+        @tr("Plays from {}", place)
+    }
+    public pure function general-choice() -> string {
+        @tr("General choice")
+    }
+    public pure function oldest-account() -> string {
+        @tr("Oldest account")
+    }
+    public pure function no-libraries-chosen() -> string {
+        @tr("Choose at least one library.")
+    }
     public pure function add-account-title() -> string {
         @tr("Add an account")
     }

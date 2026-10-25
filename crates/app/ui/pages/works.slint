@@ -1,0 +1,302 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Ui } from "../state.slint";
+import { LibraryChoice, MemberData, MatchData } from "../data.slint";
+import { Cover, TileGrid } from "../tiles.slint";
+import { Button, Dropdown, Heading, Label, Segmented, TextField } from "../widgets.slint";
+
+/// A library that can be shown or hidden on the all-accounts page.
+component LibraryChip inherits Rectangle {
+    in property <LibraryChoice> choice;
+    callback toggled;
+
+    height: 32px;
+    width: chip-text.preferred-width + 2 * Theme.pad;
+    background: choice.selected ? Theme.accent : touch.has-hover ? Theme.surface1 : Theme.surface0;
+    animate background { duration: Theme.quick; easing: ease-out; }
+    accessible-role: checkbox;
+    accessible-checkable: true;
+    accessible-checked: choice.selected;
+    accessible-label: choice.label;
+    accessible-action-default => {
+        root.toggled();
+    }
+    chip-text := Text {
+        text: root.choice.label;
+        color: root.choice.selected ? Theme.base : Theme.text;
+        font-size: Theme.text-sm;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.toggled();
+        }
+    }
+}
+
+component WorksToolbar inherits HorizontalLayout {
+    spacing: Theme.pad;
+    alignment: start;
+    Segmented {
+        label: @tr("Show");
+        options: [@tr("One per book"), @tr("Every copy")];
+        selected: Ui.works-merged ? 0 : 1;
+        select(index) => {
+            Ui.set-works-merged(index == 0);
+        }
+    }
+    Segmented {
+        label: @tr("Sort");
+        options: [@tr("Title"), @tr("Author"), @tr("Added"), @tr("Length")];
+        selected: Ui.works-sort;
+        select(index) => {
+            Ui.set-works-sort(index);
+        }
+    }
+    Button {
+        text: Ui.works-desc ? @tr("Descending") : @tr("Ascending");
+        clicked => {
+            Ui.toggle-works-desc();
+        }
+    }
+    Segmented {
+        label: @tr("Filter");
+        options: [@tr("All"), @tr("Not started"), @tr("In progress"), @tr("Finished"), @tr("Downloaded")];
+        selected: Ui.works-filter;
+        select(index) => {
+            Ui.set-works-filter(index);
+        }
+    }
+}
+
+/// Books of all accounts: the chosen libraries, merged by book or copy by copy.
+export component WorksPage inherits Rectangle {
+    VerticalLayout {
+        padding-top: Theme.pad;
+        spacing: Theme.pad;
+        VerticalLayout {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad + Ui.back-inset;
+            spacing: Theme.pad;
+            vertical-stretch: 0;
+            Heading {
+                text: @tr("All accounts");
+            }
+            WorksToolbar { }
+            Flickable {
+                height: 32px;
+                content-width: chips.preferred-width;
+                chips := HorizontalLayout {
+                    spacing: Theme.gap;
+                    alignment: start;
+                    for choice[index] in Ui.works-libraries: LibraryChip {
+                        choice: choice;
+                        toggled => {
+                            Ui.toggle-works-library(index);
+                        }
+                    }
+                }
+            }
+            if Ui.works-note != "": Label {
+                text: Ui.works-note;
+            }
+        }
+        TileGrid {
+            vertical-stretch: 1;
+            rows: Ui.works-rows;
+            columns-changed(columns) => {
+                Ui.grid-columns("works", columns);
+            }
+            visible-rows(first, last) => {
+                Ui.grid-visible("works", first, last);
+            }
+            open(id) => {
+                Ui.open-works-tile(id);
+            }
+        }
+    }
+}
+
+component MemberRow inherits Rectangle {
+    in property <MemberData> member;
+    min-height: 64px;
+    border-width: 1px;
+    border-color: Theme.surface1;
+    HorizontalLayout {
+        padding: Theme.gap;
+        padding-left: Theme.pad;
+        spacing: Theme.gap;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            spacing: 2px;
+            Text {
+                text: root.member.title;
+                color: Theme.text;
+                font-weight: 500;
+                overflow: elide;
+            }
+            Label {
+                text: root.member.place;
+                overflow: elide;
+            }
+            Label {
+                text: @tr("{} · {} · {}", root.member.narrator != "" ? root.member.narrator : @tr("no narrator"), root.member.duration-text, root.member.progress-text);
+                overflow: elide;
+            }
+            if root.member.match-text != "": Label {
+                text: root.member.match-text;
+                color: Theme.accent;
+                overflow: elide;
+            }
+        }
+        Button {
+            text: @tr("Open");
+            clicked => {
+                Ui.open-member(root.member.account-id, root.member.item-id);
+            }
+        }
+        if root.member.can-split: Button {
+            text: @tr("Not the same book");
+            clicked => {
+                Ui.split-member(root.member.account-id, root.member.item-id);
+            }
+        }
+        if root.member.can-reset: Button {
+            text: @tr("Undo");
+            clicked => {
+                Ui.reset-member(root.member.account-id, root.member.item-id);
+            }
+        }
+    }
+}
+
+component MatchRow inherits Rectangle {
+    in property <MatchData> match;
+    min-height: 52px;
+    border-width: 1px;
+    border-color: Theme.surface1;
+    HorizontalLayout {
+        padding: Theme.gap;
+        padding-left: Theme.pad;
+        spacing: Theme.gap;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.match.title;
+                color: Theme.text;
+                overflow: elide;
+            }
+            Label {
+                text: root.match.place;
+                overflow: elide;
+            }
+        }
+        Button {
+            text: @tr("Same book");
+            clicked => {
+                Ui.merge-into-work(root.match.account-id, root.match.item-id);
+            }
+        }
+    }
+}
+
+component WorkHeader inherits HorizontalLayout {
+    spacing: 2 * Theme.pad;
+    alignment: start;
+    Cover {
+        width: 200px;
+        height: 200px;
+        source: Ui.work-cover;
+        has-image: Ui.work-has-cover;
+        title: Ui.work-title;
+    }
+    VerticalLayout {
+        spacing: Theme.gap;
+        alignment: start;
+        horizontal-stretch: 1;
+        padding-right: Ui.back-inset;
+        Heading {
+            text: Ui.work-title;
+            wrap: word-wrap;
+        }
+        Text {
+            text: Ui.work-author;
+            color: Theme.subtext;
+            font-size: Theme.text-lg;
+        }
+        Label {
+            text: Ui.work-play-note;
+        }
+        HorizontalLayout {
+            spacing: Theme.gap;
+            alignment: start;
+            Button {
+                text: @tr("Play");
+                primary: true;
+                clicked => {
+                    Ui.play-work();
+                }
+            }
+        }
+        VerticalLayout {
+            spacing: 4px;
+            Label {
+                text: @tr("Play from this account when no copy has progress or a download");
+            }
+            HorizontalLayout {
+                alignment: start;
+                Dropdown {
+                    label: @tr("Account for this book");
+                    options: Ui.work-account-options;
+                    selected: Ui.work-account-index;
+                    select(index) => {
+                        Ui.set-work-account(index);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The copies of one book across accounts, with merge and split.
+export component WorkPage inherits Rectangle {
+    ScrollView {
+        content-height: max(self.height, content.preferred-height);
+        content := VerticalLayout {
+            padding: Theme.pad;
+            spacing: Theme.pad;
+            alignment: start;
+            WorkHeader { }
+            Heading {
+                text: @tr("Copies");
+                font-size: Theme.text-lg;
+            }
+            for member in Ui.work-members: MemberRow {
+                member: member;
+            }
+            Heading {
+                text: @tr("Add a copy");
+                font-size: Theme.text-lg;
+            }
+            Label {
+                text: @tr("Find the same book on another account when it was not recognised.");
+                wrap: word-wrap;
+            }
+            TextField {
+                label: @tr("Find a book");
+                placeholder: @tr("Title, author, narrator or series");
+                text <=> Ui.work-match-text;
+                edited(text) => {
+                    Ui.search-work-match(text);
+                }
+            }
+            for match in Ui.work-match-results: MatchRow {
+                match: match;
+            }
+        }
+    }
+}

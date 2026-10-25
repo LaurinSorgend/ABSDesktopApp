@@ -30,11 +30,14 @@ pub enum Action {
 impl App {
     /// Plays an item of the active account, from `start` or where it was left.
     pub fn play_item(&mut self, item_id: &str, start: Option<f64>) {
-        let Some(account_id) = self.active.clone() else {
-            return;
-        };
+        if let Some(account_id) = self.item_account(item_id) {
+            self.play_account_item(&account_id, item_id, start);
+        }
+    }
+
+    pub fn play_account_item(&mut self, account_id: &str, item_id: &str, start: Option<f64>) {
         if let Some(playback) = &mut self.playback {
-            playback.request(&account_id, item_id, start);
+            playback.request(account_id, item_id, start);
         }
         self.update_player_view();
     }
