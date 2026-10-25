@@ -28,8 +28,18 @@ const showError = error => {
     send({ type: 'error', message: String(error?.stack ?? error) })
 }
 
+/** foliate-js does not give pdf.js its wasm decoders; without them scans stay blank. */
+const preparePdfjs = async () => {
+    await import('./foliate/vendor/pdfjs/pdf.mjs')
+    const lib = globalThis.pdfjsLib
+    const getDocument = lib.getDocument
+    const wasmUrl = new URL('pdfjs-wasm/', location.href).href
+    lib.getDocument = params => getDocument({ ...params, wasmUrl })
+}
+
 const loadBook = async () => {
     const meta = await (await fetch('meta.json')).json()
+    if (meta.format === 'pdf') await preparePdfjs()
     const blob = await (await fetch('book')).blob()
     return { meta, file: new File([blob], `book.${meta.format}`) }
 }
