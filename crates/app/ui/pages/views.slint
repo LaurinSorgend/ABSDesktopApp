@@ -1,0 +1,353 @@
+// The player in full screen and the mini player. Both take their colors, shapes and
+// controls from the theme, like the rest of the window.
+
+import { Theme } from "../theme.slint";
+import { Ui } from "../state.slint";
+import { Cover } from "../tiles.slint";
+import { Sheen } from "../glass.slint";
+import { Dropdown, IconButton, Label } from "../widgets.slint";
+import { SeekBar } from "../pickers.slint";
+import { BookProgress, ChapterProgress, Transport, ViewButtons, Volume } from "player.slint";
+import { ExpandIcon, PinIcon, MutedIcon, VolumeIcon } from "../icons.slint";
+
+/// The playing item's cover, blurred and covered with the theme's base color so text
+/// in the theme's colors stays readable on it.
+component CoverBackdrop inherits Rectangle {
+    background: Theme.crust;
+    if Ui.now-has-backdrop: Image {
+        width: parent.width;
+        height: parent.height;
+        source: Ui.now-backdrop;
+        image-fit: cover;
+    }
+    Rectangle {
+        background: @linear-gradient(180deg,
+            Theme.base.with-alpha(Theme.dark ? 0.55 : 0.6) 0%,
+            Theme.base.with-alpha(Theme.dark ? 0.75 : 0.8) 55%,
+            Theme.base.with-alpha(0.94) 100%);
+    }
+}
+
+component SpeedAndSleep inherits HorizontalLayout {
+    spacing: Theme.gap;
+    alignment: start;
+    Dropdown {
+        label: @tr("Speed");
+        options: Ui.speed-options;
+        selected: Ui.speed-index;
+        above: true;
+        select(index) => {
+            Ui.set-speed(index);
+        }
+    }
+    Dropdown {
+        label: @tr("Sleep timer");
+        options: Ui.sleep-options;
+        selected: Ui.sleep-index;
+        above: true;
+        min-width: 140px;
+        select(index) => {
+            Ui.set-sleep(index);
+        }
+    }
+}
+
+/// Large cover, title, author and chapter, with the controls along the bottom.
+export component FullScreenPlayer inherits Rectangle {
+    property <length> margin: clamp(self.width / 20, 24px, 64px);
+    property <length> cover-size: clamp(min(self.height - 320px, self.width * 0.4), 160px, 560px);
+    property <bool> arrived;
+    init => {
+        self.arrived = true;
+    }
+    opacity: arrived ? 1 : 0;
+    animate opacity { duration: Theme.arrive; easing: ease-out-expo; }
+
+    CoverBackdrop { }
+    TouchArea { }
+
+    VerticalLayout {
+        padding: root.margin;
+        spacing: 2 * Theme.pad;
+        HorizontalLayout {
+            Label {
+                text: Ui.loading-media ? @tr("Loading…") : @tr("Now playing");
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            ViewButtons { }
+        }
+        if !Ui.has-media: Label {
+            text: @tr("Nothing is playing. Pick a book from the library.");
+            font-size: Theme.text-base;
+            vertical-stretch: 1;
+        }
+        if Ui.has-media: HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: 2 * root.margin / 3;
+            VerticalLayout {
+                alignment: end;
+                Rectangle {
+                    width: root.cover-size;
+                    height: root.cover-size;
+                    border-radius: cover.border-radius;
+                    drop-shadow-offset-y: Theme.cover-shadow;
+                    drop-shadow-blur: 3 * Theme.cover-shadow;
+                    drop-shadow-color: Theme.shadow;
+                    transform-scale: root.arrived ? 100% : 94%;
+                    animate transform-scale { duration: Theme.arrive; easing: ease-out-expo; }
+                    cover := Cover {
+                        source: Ui.now-cover;
+                        has-image: Ui.now-has-cover;
+                        title: Ui.now-title;
+                    }
+                }
+            }
+            VerticalLayout {
+                alignment: end;
+                spacing: Theme.gap;
+                horizontal-stretch: 1;
+                Label {
+                    text: Ui.chapter-title;
+                    font-size: Theme.text-base;
+                }
+                Text {
+                    text: Ui.now-title;
+                    color: Theme.text;
+                    font-size: clamp(root.width / 22, 1.5 * Theme.text-xl, 3 * Theme.text-xl);
+                    font-weight: Theme.heading-weight;
+                    wrap: word-wrap;
+                    overflow: elide;
+                    max-height: 3.6 * self.font-size;
+                }
+                Text {
+                    text: Ui.now-author;
+                    color: Theme.subtext;
+                    font-size: Theme.text-lg;
+                    overflow: elide;
+                }
+            }
+        }
+        if Ui.has-media: VerticalLayout {
+            spacing: Theme.gap;
+            BookProgress { }
+            if Ui.progress-mode != 0: ChapterProgress { }
+        }
+        if Ui.has-media: HorizontalLayout {
+            spacing: Theme.pad;
+            SpeedAndSleep {
+                width: (parent.width - transport.preferred-width) / 2 - Theme.pad;
+            }
+            transport := Transport {
+                play-size: 64px;
+            }
+            HorizontalLayout {
+                alignment: end;
+                Volume { }
+            }
+        }
+    }
+}
+
+/// The time and chapter in the style of a small display, in the number font and accent.
+component Display inherits Rectangle {
+    background: Theme.crust;
+    border-radius: Theme.radius;
+    border-width: max(1px, Theme.border);
+    border-color: Theme.stroke;
+    clip: true;
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+        Text {
+            text: Ui.loading-media ? "--:--" : Ui.position-text;
+            color: Theme.accent;
+            font-family: Theme.mono;
+            font-size: Theme.text-xl;
+            vertical-alignment: center;
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: Ui.now-title;
+                color: Theme.text;
+                font-size: Theme.text-sm;
+                font-weight: Theme.strong-weight;
+                overflow: elide;
+            }
+            Label {
+                text: Ui.chapter-title != "" ? Ui.chapter-title : Ui.now-author;
+            }
+            Label {
+                text: @tr("{} left", Ui.remaining-text);
+                font-family: Theme.mono;
+            }
+        }
+    }
+}
+
+component SmallButton inherits IconButton {
+    width: 28px;
+    height: 28px;
+}
+
+/// A strip to drag the frameless window by, with the pin and the way back.
+component TitleStrip inherits Rectangle {
+    height: 28px;
+    WindowMoveArea {
+        HorizontalLayout {
+            spacing: 2px;
+            Label {
+                text: @tr("Audiobookshelf");
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            SmallButton {
+                label: Ui.mini-on-top ? @tr("Stop keeping on top") : @tr("Keep on top");
+                rest-color: Ui.mini-on-top ? Theme.accent-soft : transparent;
+                clicked => {
+                    Ui.toggle-mini-on-top();
+                }
+                PinIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 16px;
+                    height: 16px;
+                    color: Ui.mini-on-top ? Theme.accent : Theme.text;
+                }
+            }
+            SmallButton {
+                label: @tr("Back to the full window");
+                clicked => {
+                    Ui.set-view(0);
+                }
+                ExpandIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 16px;
+                    height: 16px;
+                }
+            }
+        }
+    }
+}
+
+component MiniVolume inherits HorizontalLayout {
+    spacing: 2px;
+    SmallButton {
+        y: 2px;
+        label: Ui.muted ? @tr("Unmute") : @tr("Mute");
+        clicked => {
+            Ui.toggle-mute();
+        }
+        if !Ui.muted: VolumeIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 16px;
+            height: 16px;
+        }
+        if Ui.muted: MutedIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 16px;
+            height: 16px;
+        }
+    }
+    SeekBar {
+        label: @tr("Volume");
+        width: 72px;
+        value: Ui.muted ? 0 : Ui.volume / 100;
+        scrub(fraction) => {
+            Ui.set-volume(fraction * 100);
+        }
+        seek(fraction) => {
+            Ui.set-volume(fraction * 100);
+        }
+    }
+}
+
+/// The speed; each click goes to the next one, since a list would not fit the window.
+component SpeedStep inherits Rectangle {
+    width: max(48px, speed.preferred-width + 16px);
+    height: 32px;
+    y: 2px;
+    border-radius: Theme.corner(self.height);
+    background: touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover : Theme.control;
+    border-width: Theme.border;
+    border-color: Theme.rim;
+    accessible-role: button;
+    accessible-label: @tr("Speed");
+    accessible-value: speed.text;
+    accessible-action-default => {
+        Ui.set-speed(Math.mod(Ui.speed-index + 1, Ui.speed-options.length));
+    }
+    speed := Text {
+        text: Ui.speed-options[Ui.speed-index];
+        color: Theme.text;
+        font-family: Theme.mono;
+        font-size: Theme.text-sm;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            Ui.set-speed(Math.mod(Ui.speed-index + 1, Ui.speed-options.length));
+        }
+    }
+}
+
+/// A small window in the style of Winamp: display, seek bar and controls.
+export component MiniPlayer inherits Rectangle {
+    background: Theme.base;
+    Rectangle {
+        background: Theme.bar;
+        border-width: max(1px, Theme.border);
+        border-color: Theme.rim;
+        if Theme.sheen: Sheen {
+            width: parent.width;
+            height: parent.height;
+            radius: 0;
+        }
+        VerticalLayout {
+            padding: Theme.gap;
+            padding-top: 2px;
+            spacing: 6px;
+            TitleStrip { }
+            HorizontalLayout {
+                spacing: Theme.gap;
+                Cover {
+                    width: 64px;
+                    height: 64px;
+                    source: Ui.now-cover;
+                    has-image: Ui.now-has-cover;
+                    title: Ui.now-title;
+                }
+                Display {
+                    horizontal-stretch: 1;
+                }
+            }
+            SeekBar {
+                label: @tr("Position in book");
+                value: Ui.position-fraction;
+                markers: Ui.chapter-markers;
+                seek(fraction) => {
+                    Ui.seek-fraction(fraction);
+                }
+            }
+            HorizontalLayout {
+                spacing: Theme.gap;
+                Transport {
+                    compact: true;
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+                MiniVolume { }
+                SpeedStep { }
+            }
+        }
+    }
+}

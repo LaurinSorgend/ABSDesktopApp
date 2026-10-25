@@ -9,7 +9,7 @@ import { ChapterRow } from "detail.slint";
 import { Button, Dropdown, Heading, IconButton, Label, SeekBar } from "../widgets.slint";
 import {
     PlayIcon, PauseIcon, PreviousIcon, NextIcon, RewindIcon, ForwardIcon, CloseIcon, VolumeIcon,
-    MutedIcon,
+    MutedIcon, FullScreenIcon, ExitFullScreenIcon, MiniPlayerIcon,
 } from "../icons.slint";
 
 /// Play and pause drawn on top of each other; the outgoing shape turns away and shrinks
@@ -35,9 +35,15 @@ component PlayPauseIcon inherits Rectangle {
 
 /// Previous chapter, skip back, play/pause, skip forward, next chapter.
 export component Transport inherits HorizontalLayout {
+    /// Smaller buttons without the skip lengths, for the mini player.
+    in property <bool> compact;
+    in property <length> play-size: compact ? 36px : 48px;
+    property <length> button: compact ? 32px : 40px;
     spacing: 4px;
     alignment: center;
     IconButton {
+        width: root.button;
+        height: root.button;
         label: @tr("Previous chapter");
         clicked => {
             Ui.previous-chapter();
@@ -48,17 +54,19 @@ export component Transport inherits HorizontalLayout {
         }
     }
     IconButton {
+        width: root.button;
+        height: root.button;
         label: @tr("Skip back {}", Ui.skip-back-text);
         clicked => {
             Ui.skip-back();
         }
         RewindIcon {
             x: (parent.width - self.width) / 2;
-            y: 6px;
+            y: root.compact ? (parent.height - self.height) / 2 : 6px;
             width: 18px;
             height: 18px;
         }
-        Text {
+        if !root.compact: Text {
             y: parent.height - 15px;
             width: parent.width;
             horizontal-alignment: center;
@@ -70,8 +78,8 @@ export component Transport inherits HorizontalLayout {
     }
     play := IconButton {
         label: Ui.playing ? @tr("Pause") : @tr("Play");
-        width: 48px;
-        height: 48px;
+        width: root.play-size;
+        height: root.play-size;
         rest-color: Theme.action;
         hover-color: Theme.action.mix(Theme.on-action, 0.9);
         press-color: Theme.action.mix(Theme.on-action, 0.8);
@@ -91,17 +99,19 @@ export component Transport inherits HorizontalLayout {
         }
     }
     IconButton {
+        width: root.button;
+        height: root.button;
         label: @tr("Skip forward {}", Ui.skip-forward-text);
         clicked => {
             Ui.skip-forward();
         }
         ForwardIcon {
             x: (parent.width - self.width) / 2;
-            y: 6px;
+            y: root.compact ? (parent.height - self.height) / 2 : 6px;
             width: 18px;
             height: 18px;
         }
-        Text {
+        if !root.compact: Text {
             y: parent.height - 15px;
             width: parent.width;
             horizontal-alignment: center;
@@ -112,6 +122,8 @@ export component Transport inherits HorizontalLayout {
         }
     }
     IconButton {
+        width: root.button;
+        height: root.button;
         label: @tr("Next chapter");
         clicked => {
             Ui.next-chapter();
@@ -131,7 +143,7 @@ component TimeText inherits Text {
 }
 
 /// Book progress with chapter markers.
-component BookProgress inherits HorizontalLayout {
+export component BookProgress inherits HorizontalLayout {
     spacing: Theme.gap;
     TimeText {
         text: Ui.position-text;
@@ -153,7 +165,7 @@ component BookProgress inherits HorizontalLayout {
     }
 }
 
-component ChapterProgress inherits HorizontalLayout {
+export component ChapterProgress inherits HorizontalLayout {
     spacing: Theme.gap;
     TimeText {
         text: Ui.chapter-elapsed-text;
@@ -203,6 +215,35 @@ export component Volume inherits HorizontalLayout {
         }
         seek(fraction) => {
             Ui.set-volume(fraction * 100);
+        }
+    }
+}
+
+/// The mini player and full screen.
+export component ViewButtons inherits HorizontalLayout {
+    spacing: 4px;
+    IconButton {
+        label: @tr("Mini player");
+        clicked => {
+            Ui.set-view(1);
+        }
+        MiniPlayerIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+    IconButton {
+        label: Ui.view == 2 ? @tr("Leave full screen") : @tr("Full screen");
+        clicked => {
+            Ui.set-view(Ui.view == 2 ? 0 : 2);
+        }
+        if Ui.view != 2: FullScreenIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+        if Ui.view == 2: ExitFullScreenIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
         }
     }
 }
@@ -312,7 +353,8 @@ export component PlayerBar inherits Rectangle {
             height: 40px;
             spacing: Theme.gap;
             alignment: end;
-            Volume { }
+            if root.side-width > 360px: Volume { }
+            ViewButtons { }
             Dropdown {
                 label: @tr("Speed");
                 options: Ui.speed-options;
@@ -425,7 +467,13 @@ component NowPlaying inherits VerticalLayout {
         BookProgress { }
     }
     Transport { }
-    Volume { }
+    HorizontalLayout {
+        Volume { }
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+        ViewButtons { }
+    }
     HorizontalLayout {
         spacing: Theme.pad;
         alignment: start;

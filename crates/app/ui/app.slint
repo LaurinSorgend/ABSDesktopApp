@@ -14,6 +14,7 @@ import { HomePage } from "pages/home.slint";
 import { LibraryPage, GroupPage, SearchPage } from "pages/library.slint";
 import { DetailPage } from "pages/detail.slint";
 import { PlayerBar, PlayerPage, PlayerPanel } from "pages/player.slint";
+import { FullScreenPlayer, MiniPlayer } from "pages/views.slint";
 import { PeekCard } from "tiles.slint";
 import { SettingsPage, AddAccountPage } from "pages/settings.slint";
 import { WorksPage, WorkPage } from "pages/works.slint";
@@ -119,8 +120,10 @@ export component AppWindow inherits Window {
     icon: @image-url("../../../packaging/icons/abs-desktop.png");
     preferred-width: 1200px;
     preferred-height: 800px;
-    min-width: 720px;
-    min-height: 480px;
+    min-width: Ui.view == 1 ? 400px : 720px;
+    min-height: Ui.view == 1 ? 180px : 480px;
+    no-frame: Ui.view == 1;
+    always-on-top: Ui.view == 1 && Ui.mini-on-top;
     background: Theme.mica ? transparent : Theme.base;
     default-font-family: Theme.font;
     /// The system can switch between light and dark at any time; the frame and the
@@ -133,15 +136,23 @@ export component AppWindow inherits Window {
     property <bool> nav: Ui.page != Page.add-account || Ui.add-can-cancel;
     property <bool> player: Ui.has-media || Ui.loading-media;
 
-    if Theme.backdrop: Backdrop { }
+    if Theme.backdrop && Ui.view == 0: Backdrop { }
 
     keys := FocusScope {
         init => {
             self.focus();
         }
         key-pressed(event) => {
+            if event.text == Key.F11 && Ui.view != 1 {
+                Ui.set-view(Ui.view == 2 ? 0 : 2);
+                return accept;
+            }
             if event.text == Key.Escape {
-                Ui.back();
+                if Ui.view == 2 {
+                    Ui.set-view(0);
+                } else if Ui.view == 0 {
+                    Ui.back();
+                }
                 return accept;
             }
             if event.modifiers.control && (event.text == "f" || event.text == "F") {
@@ -182,7 +193,9 @@ export component AppWindow inherits Window {
             reject
         }
 
-        VerticalLayout {
+        if Ui.view == 1: MiniPlayer { }
+
+        if Ui.view != 1: VerticalLayout {
             if Ui.conflict-text != "": Prompt {
                 text: Ui.conflict-text;
                 first: Ui.conflict-keep-text;
@@ -221,9 +234,11 @@ export component AppWindow inherits Window {
             if root.player && Theme.player-position == 0: PlayerBar { }
         }
 
-        PeekCard {
+        if Ui.view == 0: PeekCard {
             window-width: root.width;
             window-height: root.height;
         }
+
+        if Ui.view == 2: FullScreenPlayer { }
     }
 }

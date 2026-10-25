@@ -381,10 +381,10 @@ Goal: a good single-view player on a data model that already supports many accou
 ### Player views
 
 Not scheduled yet; do after dogfooding, together with the theming options.
-- [ ] Mini player: a small separate window in the style of Winamp, always on top if the user wants. Cover, title, chapter, transport, progress bar, volume and speed. Switching to it hides the main window; a button switches back. Remembers its position.
-- [ ] Full screen player in the style of Spotify's full screen view: large cover, title, author and chapter, transport, progress bar with chapter markers, speed and sleep timer. The background is the cover, blurred and darkened so the text stays readable.
-- [ ] Slint has no blur filter: blur the cover in Rust (`image` crate) once per item, on the decoder thread, at a small size and scaled up.
-- [ ] Keyboard: F11 or a button toggles full screen, Esc leaves it; the player shortcuts work in both views.
+- [x] Mini player: a small separate window in the style of Winamp, always on top if the user wants. Cover, title, chapter, transport, progress bar, volume and speed. Switching to it hides the main window; a button switches back. Remembers its position.
+- [x] Full screen player in the style of Spotify's full screen view: large cover, title, author and chapter, transport, progress bar with chapter markers, speed and sleep timer. The background is the cover, blurred and darkened so the text stays readable.
+- [x] Slint has no blur filter: blur the cover in Rust (`image` crate) once per item, on the decoder thread, at a small size and scaled up.
+- [x] Keyboard: F11 or a button toggles full screen, Esc leaves it; the player shortcuts work in both views.
 
 ### Theming options
 

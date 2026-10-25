@@ -178,3 +178,13 @@ Implemented, not yet tried by hand in every theme.
 - User choices on top of any theme: font and number font (bundled plus system fonts via `fontdb`), text size, radius, density, borders, focus ring.
 - WinUI on Windows 11 puts Mica behind the window (`src/backdrop.rs`, DWM system backdrop with a transparent Slint window); every style sets the title bar to dark or light, and the non-Mica ones color it like the window. Glass shows the playing item's cover blurred behind its panels (a 96 px copy made on the cover decoder thread).
 - Tests: every bundled theme parses, survives writing and reading again, and has text on base at 7:1 or better in every palette and accent.
+- Themes can also place things and pick single widgets: a `layout` block (navigation left, right or top; player bar at the bottom or top, or a panel on the left or right) and a `widgets` block (navigation items, text fields, segmented buttons, slider thumbs, cover hover, shelves, play button, sheen, control edge, button weight). Each style sets the defaults, so older theme files look as before. `src/theme/layout.rs`.
+
+## Player views
+
+Implemented, not yet tried by hand.
+
+- One window in three shapes (`src/app/views.rs`, `ui/pages/views.slint`). Slint globals belong to one window, so a second window would need all player state twice; instead the main window turns into the mini player and back. Its pages are rebuilt when it returns.
+- Mini player: frameless, 440 x 184 by default, dragged by its top strip (`WindowMoveArea`). Cover, a display with the time in the number font and accent, title, chapter and time left, the book bar with chapter markers, compact transport, volume and speed (a button that steps through the speeds, since a list does not fit the window). A pin keeps it on top (setting `mini_on_top`); its position and size are kept in `mini_geometry`, also when the app quits in it. Going back restores the main window's place, size and maximized state.
+- Full screen: the playing cover blurred (the copy the Glass style already uses) under a gradient of the theme's base color, so text keeps the theme's colors. Large cover with the theme's cover radius and shadow, chapter, title in the heading weight, author, the book bar with chapter markers (and the chapter bar when the progress setting asks for it), speed and sleep timer, a 64 px play button and volume.
+- F11 toggles full screen, Esc leaves it; the player keys work in all three views. The player bar, the player page and the player panel have buttons for both views; in a narrow window the bar drops volume to make room for them.

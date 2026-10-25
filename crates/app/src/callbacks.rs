@@ -121,6 +121,8 @@ fn connect_player(ui: &Ui<'_>) {
     ui.on_toggle_mute(|| with_app(|app| app.toggle_mute()));
     ui.on_add_bookmark(|| with_app(|app| app.add_bookmark()));
     ui.on_remove_bookmark(on(|app, time: f32| app.remove_bookmark(time as f64)));
+    ui.on_set_view(on(|app, view: i32| app.set_view(view)));
+    ui.on_toggle_mini_on_top(|| with_app(|app| app.toggle_mini_on_top()));
 }
 
 fn connect_downloads(ui: &Ui<'_>) {

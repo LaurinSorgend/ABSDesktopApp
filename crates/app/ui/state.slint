@@ -175,6 +175,12 @@ export global Ui {
     in property <string> sleep-text;
     in property <string> skip-back-text;
     in property <string> skip-forward-text;
+    /// 0 the whole window, 1 the mini player, 2 the player in full screen.
+    in property <int> view;
+    /// The mini player stays above other windows.
+    in property <bool> mini-on-top;
+    callback set-view(int);
+    callback toggle-mini-on-top();
     callback toggle-play();
     callback skip-back();
     callback skip-forward();

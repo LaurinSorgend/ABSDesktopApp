@@ -12,6 +12,7 @@ mod preferences;
 mod reading;
 mod theme_files;
 mod themes;
+mod views;
 mod work;
 mod works;
 
@@ -80,6 +81,7 @@ pub struct App {
     reading: reading::Reading,
     works: works::Works,
     work: work::WorkView,
+    views: views::Views,
 }
 
 /// What [`App::new`] needs besides the window.
@@ -131,11 +133,13 @@ impl App {
             reading: reading::Reading::default(),
             works: works::Works::new(),
             work: work::WorkView::default(),
+            views: views::Views::default(),
         };
         app.reload_themes();
         app.bind_models();
         app.apply_choices();
         app.apply_theme();
+        app.load_view_settings();
         app.load_system_fonts();
         app
     }
@@ -317,6 +321,7 @@ impl App {
 
     /// Before the window closes: last position to the server, then stop the player.
     pub fn shutdown(&mut self) {
+        self.save_views();
         self.close_reader();
         if let Some(playback) = &mut self.playback {
             playback.shutdown();
