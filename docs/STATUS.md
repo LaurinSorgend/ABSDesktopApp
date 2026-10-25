@@ -93,7 +93,7 @@ python fixtures/capture_api.py <url>           # refresh the JSON fixtures
 - `docker/init_server.py` now waits until the scans finish, so one run sets up a fresh server.
 - `release.yml` on `v*` tags: `scripts/package-windows.ps1` (zip with exe, `libmpv-2.dll`, LICENSE, README, `THIRD-PARTY-LICENSES.html` from cargo-about, mpv/FFmpeg/font licenses) and `scripts/package-linux.sh` (AppImage via linuxdeploy on Ubuntu 22.04), then a draft GitHub release. The Windows zip builds and starts locally (61 MB, most of it libmpv); the Linux script has not run yet.
 - cargo-about config is `packaging/about.toml`; it needs `cargo install cargo-about --features cli`.
-- App icon: `packaging/icons/` from `packaging/make_icon.py`, used as the window icon. The exe has no embedded icon yet. Release builds use the Windows GUI subsystem (no console).
+- App icon: the Audiobookshelf logo (`packaging/icons/audiobookshelf-logo.png`, from ABS `client/static/Logo.png`); `packaging/make_icon.py` makes the PNG and ICO. It is the window icon, and `build.rs` embeds the ICO in the Windows exe through `winresource`. The tray icon is still the drawn play triangle in the accent color. Release builds use the Windows GUI subsystem (no console).
 - The Windows zip ships the GPL shinchiro libmpv; that is allowed under our GPL-3.0 license, but the 116 MB size stays a reason for our own build.
 
 CI runs on GitHub (private repo `LaurinSorgend/ABSDesktopApp`). The first runs found Linux-only clippy lints, a fresh server answering item counts without `total`, and Ubuntu's older libmpv lacking some options we turn off; all fixed. The release workflow has not run yet (needs a `v*` tag).
