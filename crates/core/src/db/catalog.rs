@@ -294,6 +294,24 @@ impl<'a> Catalog<'a> {
         Ok(items)
     }
 
+    /// Items of a library with this name among their comma-separated authors, by title.
+    pub fn items_by_author(
+        &self,
+        account_id: &str,
+        library_id: &str,
+        author: &str,
+    ) -> DbResult<Vec<ItemSummary>> {
+        let sql = format!(
+            "{SELECT_SUMMARY} {FROM_ITEM} WHERE item.account_id = ?1 AND item.library_id = ?2
+             AND instr(', ' || item.author || ', ', ', ' || ?3 || ', ') > 0
+             ORDER BY {}",
+            ItemSort::Title.order_by(false)
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map([account_id, library_id, author], summary_row)?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     /// The full server JSON of one item.
     pub fn item_json(&self, account_id: &str, item_id: &str) -> DbResult<Option<String>> {
         Ok(self

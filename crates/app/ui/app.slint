@@ -14,6 +14,7 @@ import { HomePage } from "pages/home.slint";
 import { LibraryPage, GroupPage, SearchPage } from "pages/library.slint";
 import { DetailPage } from "pages/detail.slint";
 import { PlayerBar, PlayerPage } from "pages/player.slint";
+import { PeekCard } from "tiles.slint";
 import { SettingsPage, AddAccountPage } from "pages/settings.slint";
 
 export { Ui, Theme, Strings, Colors }
@@ -153,6 +154,10 @@ component PageFrame inherits Rectangle {
 }
 
 component Pages inherits Rectangle {
+    property <Page> page: Ui.page;
+    changed page => {
+        Ui.peek-id = "";
+    }
     property <int> focus-request: Ui.focus-request;
     changed focus-request => {
         if Ui.page == Page.search {
@@ -295,6 +300,11 @@ export component AppWindow inherits Window {
                 }
             }
             if Ui.has-media || Ui.loading-media: PlayerBar { }
+        }
+
+        PeekCard {
+            window-width: root.width;
+            window-height: root.height;
         }
     }
 }

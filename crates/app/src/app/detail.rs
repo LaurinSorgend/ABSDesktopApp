@@ -61,6 +61,33 @@ impl App {
         self.navigate(Page::Detail);
     }
 
+    /// Fills the hover card for a tile from the stored item.
+    pub fn peek_item(&self, item_id: &str) {
+        let Some(account_id) = self.active.as_deref() else {
+            return;
+        };
+        let store = self.db.store();
+        let json = store
+            .catalog()
+            .item_json(account_id, item_id)
+            .ok()
+            .flatten();
+        let Some(detail) = json.and_then(|j| ItemDetail::from_json(&j).ok()) else {
+            return;
+        };
+        let progress = store.progress().get(account_id, item_id).ok().flatten();
+        self.ui(|ui, s| {
+            ui.set_peek(detail_data(
+                item_id,
+                &detail,
+                progress.as_ref(),
+                None,
+                true,
+                s,
+            ));
+        });
+    }
+
     pub(super) fn item_loaded(&mut self, item_id: &str, json: &str) {
         if self.detail.item_id.as_deref() != Some(item_id) {
             return;

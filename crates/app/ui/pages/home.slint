@@ -7,6 +7,9 @@ import { Heading, Label } from "../widgets.slint";
 export component HomePage inherits Rectangle {
     ScrollView {
         content-height: max(self.height, content.preferred-height);
+        changed viewport-y => {
+            Ui.peek-id = "";
+        }
         content := VerticalLayout {
             padding: Theme.pad;
             spacing: 2 * Theme.pad;

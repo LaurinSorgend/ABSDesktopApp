@@ -48,6 +48,8 @@ fn connect_browse(ui: &Ui<'_>) {
     ui.on_toggle_desc(|| with_app(|app| app.toggle_desc()));
     ui.on_set_filter(on(|app, index: i32| app.set_filter(index.max(0) as usize)));
     ui.on_open_group(on(|app, id: slint::SharedString| app.open_group(&id)));
+    ui.on_open_author(on(|app, name: slint::SharedString| app.open_author(&name)));
+    ui.on_peek_item(on(|app, id: slint::SharedString| app.peek_item(&id)));
     ui.on_search(on(|app, text: slint::SharedString| app.search(&text)));
     ui.on_search_server(|| with_app(|app| app.search_server()));
     ui.on_play_item(on(|app, id: slint::SharedString| app.play_item(&id, None)));

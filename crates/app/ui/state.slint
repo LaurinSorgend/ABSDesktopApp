@@ -13,6 +13,8 @@ export global Ui {
     in property <int> focus-request;
     callback navigate(Page);
     callback back();
+    /// Room page headers leave on the right for the floating back button.
+    out property <length> back-inset: can-go-back && page != Page.add-account ? 48px : 0;
 
     // Account and libraries
     in property <[AccountData]> accounts;
@@ -40,6 +42,15 @@ export global Ui {
     callback grid-columns(string, int);
     callback grid-visible(string, int, int);
     callback open-item(string);
+    /// Opens the books of the first of these comma-separated authors.
+    callback open-author(string);
+
+    // Hover card over a tile: the tile sets id and window position, Rust fills `peek`.
+    in-out property <string> peek-id;
+    in-out property <length> peek-x;
+    in-out property <length> peek-y;
+    in property <DetailData> peek;
+    callback peek-item(string);
 
     // Home
     in property <[ShelfData]> shelves;
