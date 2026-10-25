@@ -151,5 +151,5 @@ Linux under WSL (Ubuntu 24.04, libmpv 0.37, WebKitGTK 2.52, WSLg's Weston on Way
 - Without a D-Bus session bus (as in WSL), credentials fall back to files as designed, but souvlaki's MPRIS thread panics on an `unwrap()` inside the crate. The app keeps running without media controls. The `MediaControls` setup should catch this (check the bus first, or run souvlaki behind `catch_unwind`) so a missing bus is a logged warning.
 
 Open:
-- Linux: GNOME and KDE on Wayland (a Hyper-V VM rather than WSLg), WebKitGTK and `libxkbcommon-x11` inside the AppImage, the souvlaki panic without a session bus.
+- Linux: the two fixes above and the Hyper-V VM tests (GNOME and KDE on Wayland, AppImage) are in PLAN.md under "Linux fixes and VM test".
 - Measure the reader memory again (Phase 0 budget: reader tree 110 MB) and check it is freed when the window closes.
