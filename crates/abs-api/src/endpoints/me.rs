@@ -3,7 +3,7 @@ use serde_json::json;
 
 use crate::client::AbsClient;
 use crate::error::{Error, Result};
-use crate::models::{Bookmark, MediaProgress, ProgressList, User};
+use crate::models::{Bookmark, EbookLocation, MediaProgress, ProgressList, User};
 use crate::version::Feature;
 
 impl AbsClient {
@@ -41,6 +41,20 @@ impl AbsClient {
             .http()
             .patch(self.url(&format!("api/me/progress/{item_id}"))?)
             .json(&json!({ "isFinished": finished }));
+        self.send(request).await.map(drop)
+    }
+
+    /// `PATCH /api/me/progress/:id` with the reading position, as the web reader sends it.
+    pub async fn set_ebook_progress(
+        &self,
+        item_id: &str,
+        location: &EbookLocation,
+        progress: f64,
+    ) -> Result<()> {
+        let request = self
+            .http()
+            .patch(self.url(&format!("api/me/progress/{item_id}"))?)
+            .json(&json!({ "ebookLocation": location, "ebookProgress": progress.clamp(0.0, 1.0) }));
         self.send(request).await.map(drop)
     }
 

@@ -42,6 +42,13 @@ impl AbsClient {
         self.send(request).await
     }
 
+    /// `GET /api/items/:id/ebook/:ino`: the ebook file. Unlike [`Self::download_file`]
+    /// this needs no download permission, only access to the item.
+    pub async fn ebook(&self, item_id: &str, ino: &str) -> Result<Response> {
+        let url = self.url(&format!("api/items/{item_id}/ebook/{ino}"))?;
+        self.send(self.http().get(url)).await
+    }
+
     /// `POST /api/items/:id/play`: starts a playback session.
     pub async fn play(&self, item_id: &str, request: &PlayRequest) -> Result<PlaybackSession> {
         let url = self.url(&format!("api/items/{item_id}/play"))?;
