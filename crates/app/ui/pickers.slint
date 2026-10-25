@@ -20,7 +20,9 @@ export component Segmented inherits Rectangle {
     in property <string> label;
     callback select(int);
 
-    property <bool> track: Theme.winui || Theme.glass;
+    property <bool> track: Theme.segmented >= 2;
+    property <bool> check: Theme.segmented == 1;
+    property <bool> fluent: Theme.segmented == 3;
     property <length> item-height: Theme.control-height - 4px;
     property <length> corner: Theme.corner(item-height);
     property <length> inner: track ? 3px : 0px;
@@ -45,11 +47,11 @@ export component Segmented inherits Rectangle {
             border-bottom-left-radius: self.border-top-left-radius;
             border-top-right-radius: root.track || last ? root.corner : 0px;
             border-bottom-right-radius: self.border-top-right-radius;
-            background: chosen ? (Theme.material ? Theme.accent-soft : Theme.winui ? Theme.popup : Theme.accent)
+            background: chosen ? (root.check ? Theme.accent-soft : root.fluent ? Theme.popup : Theme.accent)
                 : touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover
                 : root.track ? transparent : Theme.control;
-            border-width: root.track ? (chosen && Theme.winui ? 1px : 0px) : Theme.border;
-            border-color: chosen && (Theme.catppuccin || Theme.abs) ? Theme.accent : Theme.stroke;
+            border-width: root.track ? (chosen && root.fluent ? 1px : 0px) : Theme.border;
+            border-color: chosen && !root.track && !root.check ? Theme.accent : Theme.stroke;
             animate background, border-color { duration: Theme.settle; easing: ease-out-expo; }
             accessible-role: tab;
             accessible-label: option;
@@ -63,11 +65,11 @@ export component Segmented inherits Rectangle {
                     root.select(index);
                 }
             }
-            property <color> ink: !chosen ? Theme.text : Theme.material ? Theme.on-accent-soft : Theme.winui ? Theme.text : Theme.on-accent;
+            property <color> ink: !chosen ? Theme.text : root.check ? Theme.on-accent-soft : root.fluent ? Theme.text : Theme.on-accent;
             row := HorizontalLayout {
                 alignment: center;
                 spacing: 6px;
-                if chosen && Theme.material: VerticalLayout {
+                if chosen && root.check: VerticalLayout {
                     alignment: center;
                     Check {
                         stroke: ink;
@@ -76,13 +78,13 @@ export component Segmented inherits Rectangle {
                 Text {
                     text: option;
                     font-size: Theme.control-text;
-                    font-weight: chosen && Theme.winui ? 600 : 400;
+                    font-weight: chosen && root.fluent ? 600 : 400;
                     color: ink;
                     vertical-alignment: center;
                     animate color { duration: Theme.settle; easing: ease-out-expo; }
                 }
             }
-            if chosen && Theme.winui: Rectangle {
+            if chosen && root.fluent: Rectangle {
                 x: (parent.width - self.width) / 2;
                 y: parent.height - self.height - 1px;
                 width: 16px;
@@ -113,7 +115,9 @@ export component SeekBar inherits Rectangle {
 
     property <bool> active: touch.has-hover || touch.pressed;
     property <length> track: active ? 6px : 4px;
-    property <length> corner: Theme.catppuccin ? 0px : self.track / 2;
+    /// 0 square, 1 dot, 2 dot on hover, 3 white knob, 4 ring.
+    property <int> kind: Theme.slider;
+    property <length> corner: kind == 0 ? 0px : self.track / 2;
     animate track { duration: Theme.quick; easing: ease-out; }
 
     Rectangle {
@@ -140,23 +144,23 @@ export component SeekBar inherits Rectangle {
         background: Theme.base;
     }
 
-    property <length> thumb: Theme.winui ? 20px
-        : Theme.abs && !active ? 0px
+    property <length> thumb: kind == 4 ? 20px
+        : kind == 2 && !active ? 0px
         : touch.pressed ? 16px : active ? 14px : 12px;
     Rectangle {
         x: parent.width * root.shown - self.width / 2;
         y: (parent.height - self.height) / 2;
-        width: root.thumb + (Theme.material || Theme.glass ? 4px : 0px);
+        width: root.thumb + (root.kind == 1 || root.kind == 3 ? 4px : 0px);
         height: self.width;
-        border-radius: Theme.catppuccin ? 0px : self.width / 2;
-        background: Theme.winui ? Theme.popup : Theme.glass ? #ffffff : Theme.accent;
-        border-width: Theme.catppuccin ? 2px : Theme.winui ? 1px : 0px;
-        border-color: Theme.catppuccin ? Theme.text : Theme.stroke;
-        drop-shadow-blur: Theme.glass || Theme.winui ? 4px : 0px;
+        border-radius: root.kind == 0 ? 0px : self.width / 2;
+        background: root.kind == 4 ? Theme.popup : root.kind == 3 ? #ffffff : Theme.accent;
+        border-width: root.kind == 0 ? 2px : root.kind == 4 ? 1px : 0px;
+        border-color: root.kind == 0 ? Theme.text : Theme.stroke;
+        drop-shadow-blur: root.kind >= 3 ? 4px : 0px;
         drop-shadow-color: Theme.shadow;
         animate width { duration: Theme.quick; easing: ease-out; }
 
-        if Theme.winui: Rectangle {
+        if root.kind == 4: Rectangle {
             property <length> dot: touch.pressed ? 10px : root.active ? 14px : 12px;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
@@ -259,7 +263,7 @@ export component Dropdown inherits Rectangle {
             text: root.selected >= 0 && root.selected < root.options.length ? root.options[root.selected] : "";
             color: Theme.text;
             font-size: Theme.control-text;
-            font-weight: Theme.winui ? 400 : 500;
+            font-weight: Theme.button-weight;
             vertical-alignment: center;
             horizontal-stretch: 1;
             overflow: elide;
@@ -272,7 +276,7 @@ export component Dropdown inherits Rectangle {
         }
     }
 
-    if Theme.winui && !touch.pressed: Rectangle {
+    if Theme.control-edge && !touch.pressed: Rectangle {
         x: root.border-radius;
         y: root.height - 1px;
         width: root.width - 2 * root.border-radius;

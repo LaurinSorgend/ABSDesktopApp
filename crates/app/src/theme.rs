@@ -3,6 +3,7 @@
 
 mod catalog;
 mod file;
+mod layout;
 mod styles;
 
 use std::path::{Path, PathBuf};

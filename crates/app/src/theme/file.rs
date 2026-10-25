@@ -5,6 +5,7 @@
 //! {
 //!   "font": "Roboto", "mono-font": "Fira Code", "font-scale": 1.1,
 //!   "radius": 8, "density": "compact", "border-width": 1, "focus-ring": "glow",
+//!   "layout": {"nav": "top"}, "widgets": {"slider": "dot"},
 //!   "light": {"accent": "#d20f39"},
 //!   "dark": {"accent": "#f38ba8"}
 //! }
@@ -17,7 +18,7 @@ use std::path::Path;
 use serde_json::{Map, Value};
 use slint::Color;
 
-use super::set_radius;
+use super::{layout, set_radius};
 use crate::{Colors, Look};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +56,9 @@ pub struct ThemeFile {
     pub density: Option<Density>,
     pub border: Option<f32>,
     pub focus: Option<FocusRing>,
+    /// `layout` and `widgets` blocks as in theme files, checked when read.
+    pub layout: Option<Value>,
+    pub widgets: Option<Value>,
     pub light: HashMap<String, Color>,
     pub dark: HashMap<String, Color>,
 }
@@ -75,6 +79,8 @@ impl ThemeFile {
         add(self.density.is_some(), "density");
         add(self.border.is_some(), "border-width");
         add(self.focus.is_some(), "focus-ring");
+        add(self.layout.is_some(), "layout");
+        add(self.widgets.is_some(), "widgets");
         add(!self.light.is_empty(), "light");
         add(!self.dark.is_empty(), "dark");
         keys
@@ -102,11 +108,17 @@ impl ThemeFile {
         if let Some(focus) = self.focus {
             look.focus = focus as i32;
         }
+        if let Some(value) = &self.layout {
+            let _ = layout::parse_layout(look, value);
+        }
+        if let Some(value) = &self.widgets {
+            let _ = layout::parse_widgets(look, value);
+        }
     }
 }
 
 /// The names `light` and `dark` accept.
-pub const COLOR_NAMES: [&str; 32] = [
+pub const COLOR_NAMES: [&str; 33] = [
     "base",
     "mantle",
     "crust",
@@ -139,6 +151,7 @@ pub const COLOR_NAMES: [&str; 32] = [
     "glow1",
     "glow2",
     "glow3",
+    "shelf",
 ];
 
 /// The color named in a theme file; `on-accent` and `on_accent` both work.
@@ -176,6 +189,7 @@ pub(super) fn slot<'a>(colors: &'a mut Colors, name: &str) -> Option<&'a mut Col
         "glow1" => &mut colors.glow1,
         "glow2" => &mut colors.glow2,
         "glow3" => &mut colors.glow3,
+        "shelf" => &mut colors.shelf,
         _ => return None,
     })
 }
@@ -215,6 +229,14 @@ pub fn parse(text: &str) -> Result<ThemeFile, String> {
             "border-width" => file.border = Some(number(key, value, 0.0, 4.0)?),
             "density" => file.density = Some(named(key, value, &DENSITIES)?),
             "focus-ring" => file.focus = Some(named(key, value, &FOCUS_RINGS)?),
+            "layout" => {
+                layout::parse_layout(&mut Look::default(), value)?;
+                file.layout = Some(value.clone());
+            }
+            "widgets" => {
+                layout::parse_widgets(&mut Look::default(), value)?;
+                file.widgets = Some(value.clone());
+            }
             "light" => file.light = colors(value)?,
             "dark" => file.dark = colors(value)?,
             other => return Err(format!("unknown key \"{other}\"")),

@@ -84,7 +84,7 @@ export component Tile inherits Rectangle {
             clip: true;
             border-radius: Theme.cover-radius;
             background: Theme.surface0;
-            drop-shadow-offset-x: Theme.abs ? Theme.cover-shadow / 3 : 0px;
+            drop-shadow-offset-x: Theme.shelf ? Theme.cover-shadow / 3 : 0px;
             drop-shadow-offset-y: Theme.cover-shadow / 3;
             drop-shadow-blur: Theme.cover-shadow;
             drop-shadow-color: Theme.shadow;
@@ -93,19 +93,19 @@ export component Tile inherits Rectangle {
                 has-image: root.data.has-cover;
                 title: root.data.title;
                 border-radius: 0px;
-                transform-scale: root.lifted && !Theme.abs ? 106% : 100%;
+                transform-scale: root.lifted && Theme.cover-zoom ? 106% : 100%;
                 animate transform-scale { duration: Theme.arrive; easing: ease-out-expo; }
             }
             Rectangle {
                 background: !root.lifted ? transparent
-                    : Theme.abs ? #00000059
-                    : Theme.material ? Theme.text.with-alpha(0.08) : transparent;
+                    : Theme.cover-hover == 2 ? #00000059
+                    : Theme.cover-hover == 1 ? Theme.text.with-alpha(0.08) : transparent;
                 animate background { duration: Theme.quick; easing: ease-out; }
             }
             Rectangle {
                 border-radius: Theme.cover-radius;
-                border-width: Theme.material || Theme.abs ? 0px : 2px;
-                border-color: !root.lifted ? Theme.accent.transparentize(1) : Theme.glass ? #ffffffcc : Theme.accent;
+                border-width: Theme.cover-hover == 0 ? 2px : 0px;
+                border-color: !root.lifted ? Theme.accent.transparentize(1) : Theme.sheen ? #ffffffcc : Theme.accent;
                 animate border-color { duration: Theme.quick; easing: ease-out; }
             }
             if root.data.progress > 0 || root.data.finished: Rectangle {
@@ -183,8 +183,8 @@ export component Tile inherits Rectangle {
 
 /// The plank the Audiobookshelf style puts under each row of books.
 component ShelfPlank inherits Rectangle {
-    property <color> top: Theme.dark ? #4a4a4a : #cfcfcf;
-    property <color> bottom: Theme.dark ? #1c1c1c : #a8a8a8;
+    property <color> top: Theme.colors.shelf;
+    property <color> bottom: top.mix(#000000, Theme.dark ? 0.38 : 0.81);
     height: 10px;
     border-radius: 2px;
     background: @linear-gradient(180deg, top 0%, bottom 100%);
@@ -239,7 +239,7 @@ export component TileGrid inherits Rectangle {
                     }
                 }
             }
-            if Theme.abs: ShelfPlank {
+            if Theme.shelf: ShelfPlank {
                 x: Theme.page-pad / 2;
                 y: Theme.tile-height + 4px;
                 width: parent.width - Theme.page-pad;
@@ -277,7 +277,7 @@ export component Shelf inherits VerticalLayout {
             }
         }
     }
-    if Theme.abs: ShelfPlank { }
+    if Theme.shelf: ShelfPlank { }
 }
 
 component PeekFact inherits HorizontalLayout {

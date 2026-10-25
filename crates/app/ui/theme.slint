@@ -43,6 +43,8 @@ export struct Colors {
     glow1: color,
     glow2: color,
     glow3: color,
+    /// Top of the shelf planks; the bottom is a darker shade.
+    shelf: color,
 }
 
 export enum ThemeStyle { catppuccin, audiobookshelf, material, winui, glass }
@@ -78,6 +80,36 @@ export struct Look {
     /// Pages sit on a layer with a rounded corner beside the sidebar.
     content-card: bool,
     backdrop: bool,
+    /// Navigation: 0 left, 1 right, 2 top.
+    nav: int,
+    /// Player: 0 bottom, 1 top, 2 left, 3 right.
+    player: int,
+    sidebar-width: length,
+    /// Width of the player as a side panel.
+    player-width: length,
+    logo: bool,
+    /// Navigation items: 0 a bar at the edge, 1 a rounded pill, 2 a short indicator.
+    nav-item: int,
+    nav-inset: length,
+    /// 0 outlined, 1 filled, 2 underlined.
+    text-field: int,
+    /// 0 joined, 1 joined with a check mark, 2 a track, 3 a track with an indicator.
+    segmented: int,
+    /// Thumb: 0 square, 1 dot, 2 dot on hover, 3 white knob, 4 ring.
+    slider: int,
+    /// 0 accent ring, 1 tint, 2 dim, 3 nothing.
+    cover-hover: int,
+    cover-zoom: bool,
+    /// Planks under rows of covers.
+    shelf: bool,
+    /// 0 like icon buttons, 1 circle, 2 soft square, 3 the control radius.
+    play-button: int,
+    play-shadow: bool,
+    /// Light across panels and on their edges.
+    sheen: bool,
+    /// A darker line under buttons and dropdowns.
+    control-edge: bool,
+    button-weight: int,
 }
 
 export global Theme {
@@ -93,7 +125,7 @@ export global Theme {
         action: #1e66f5, on-action: #eff1f5, accent-soft: #ccd0da, on-accent-soft: #4c4f69,
         control: #eff1f5, control-hover: #ccd0da, control-press: #bcc0cc, stroke: #9ca0b0,
         layer: #eff1f5, card: #eff1f5, popup: #e6e9ef, sidebar: #e6e9ef, bar: #e6e9ef,
-        shadow: #00000040, glow1: #1e66f5, glow2: #8839ef, glow3: #179299,
+        shadow: #00000040, glow1: #1e66f5, glow2: #8839ef, glow3: #179299, shelf: #cfcfcf,
     };
     in property <Colors> dark-colors: {
         base: #1e1e2e, mantle: #181825, crust: #11111b,
@@ -103,7 +135,7 @@ export global Theme {
         action: #89b4fa, on-action: #1e1e2e, accent-soft: #313244, on-accent-soft: #cdd6f4,
         control: #1e1e2e, control-hover: #313244, control-press: #45475a, stroke: #6c7086,
         layer: #1e1e2e, card: #1e1e2e, popup: #181825, sidebar: #181825, bar: #181825,
-        shadow: #00000040, glow1: #89b4fa, glow2: #cba6f7, glow3: #94e2d5,
+        shadow: #00000040, glow1: #89b4fa, glow2: #cba6f7, glow3: #94e2d5, shelf: #4a4a4a,
     };
     in property <Look> look: {
         style: ThemeStyle.catppuccin, font: "Ronzino", mono: "Fira Code", font-scale: 1,
@@ -111,6 +143,10 @@ export global Theme {
         pill: false, round-icons: false, border: 1px, focus: 0, density: 1,
         control-height: 36px, cover-shadow: 0, panel-shadow: 18px,
         floating: false, content-card: false, backdrop: false,
+        nav: 0, player: 0, sidebar-width: 184px, player-width: 320px, logo: false,
+        nav-item: 0, nav-inset: 0, text-field: 0, segmented: 0, slider: 0,
+        cover-hover: 0, cover-zoom: true, shelf: false, play-button: 0, play-shadow: false,
+        sheen: false, control-edge: false, button-weight: 500,
     };
     out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
     out property <Colors> colors: dark ? dark-colors : light-colors;
@@ -145,7 +181,7 @@ export global Theme {
     out property <color> bar: colors.bar;
     out property <color> shadow: colors.shadow;
     /// Edge of glass panels: bright where the light falls, faint on the far side.
-    out property <brush> rim: !glass ? colors.stroke
+    out property <brush> rim: !sheen ? colors.stroke
         : @linear-gradient(150deg, #ffffff.with-alpha(dark ? 0.35 : 0.95) 0%, #ffffff.with-alpha(dark ? 0.06 : 0.25) 50%, #ffffff.with-alpha(dark ? 0.18 : 0.6) 100%);
 
     out property <ThemeStyle> style: look.style;
@@ -182,9 +218,28 @@ export global Theme {
     out property <bool> floating: look.floating;
     out property <bool> content-card: look.content-card;
     out property <bool> backdrop: look.backdrop;
+    out property <int> nav-position: look.nav;
+    out property <bool> nav-top: look.nav == 2;
+    out property <int> player-position: look.player;
+    /// The player as a panel beside the pages instead of a bar.
+    out property <bool> player-side: look.player >= 2;
+    out property <length> sidebar-width: look.sidebar-width;
+    out property <length> player-width: look.player-width;
+    out property <bool> logo: look.logo;
     /// Navigation: 0 a bar at the edge, 1 a rounded pill, 2 a short pill indicator.
-    out property <int> nav-kind: material || glass ? 1 : winui ? 2 : 0;
-    out property <length> nav-inset: material ? 12px : glass ? 8px : winui ? 4px : 0px;
+    out property <int> nav-kind: look.nav-item;
+    out property <length> nav-inset: look.nav-inset;
+    out property <int> text-field: look.text-field;
+    out property <int> segmented: look.segmented;
+    out property <int> slider: look.slider;
+    out property <int> cover-hover: look.cover-hover;
+    out property <bool> cover-zoom: look.cover-zoom;
+    out property <bool> shelf: look.shelf;
+    out property <int> play-button: look.play-button;
+    out property <bool> play-shadow: look.play-shadow;
+    out property <bool> sheen: look.sheen;
+    out property <bool> control-edge: look.control-edge;
+    out property <int> button-weight: look.button-weight;
     out property <length> nav-text-x: nav-kind == 0 ? pad : nav-inset + (nav-kind == 1 ? 16px : 14px);
     /// Margin around floating panels.
     out property <length> inset: look.floating ? 10px : 0;
@@ -196,7 +251,7 @@ export global Theme {
     out property <length> page-pad: winui ? 2 * pad + 4px : pad;
     out property <length> tile-width: look.density == 0 ? 136px : look.density == 2 ? 192px : 160px;
     out property <length> tile-height: tile-width + 70px * look.font-scale;
-    out property <length> row-height: tile-height + (abs ? 28px : 16px);
+    out property <length> row-height: tile-height + (shelf ? 28px : 16px);
 
     /// Off in the settings: every duration below becomes zero, so changes apply at once.
     in property <bool> motion: true;

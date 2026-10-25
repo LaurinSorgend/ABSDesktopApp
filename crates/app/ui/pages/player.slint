@@ -4,6 +4,7 @@ import { Ui } from "../state.slint";
 import { Page } from "../data.slint";
 import { Cover } from "../tiles.slint";
 import { Sheen } from "../glass.slint";
+import { Panel } from "../shell.slint";
 import { ChapterRow } from "detail.slint";
 import { Button, Dropdown, Heading, IconButton, Label, SeekBar } from "../widgets.slint";
 import {
@@ -74,9 +75,10 @@ export component Transport inherits HorizontalLayout {
         rest-color: Theme.action;
         hover-color: Theme.action.mix(Theme.on-action, 0.9);
         press-color: Theme.action.mix(Theme.on-action, 0.8);
-        border-radius: Theme.material ? 16px : Theme.round-icons ? self.height / 2 : Theme.radius;
-        drop-shadow-offset-y: Theme.glass || Theme.abs ? 3px : 0px;
-        drop-shadow-blur: Theme.glass || Theme.abs ? 10px : 0px;
+        border-radius: Theme.play-button == 1 || (Theme.play-button == 0 && Theme.round-icons) ? self.height / 2
+            : Theme.play-button == 2 ? 16px : Theme.radius;
+        drop-shadow-offset-y: Theme.play-shadow ? 3px : 0px;
+        drop-shadow-blur: Theme.play-shadow ? 10px : 0px;
         drop-shadow-color: Theme.shadow;
         clicked => {
             Ui.toggle-play();
@@ -205,7 +207,6 @@ export component Volume inherits HorizontalLayout {
     }
 }
 
-/// The bar at the bottom while an item is loaded.
 /// Cover, title and chapter of the loaded item; opens the full player.
 component NowPlayingSummary inherits Rectangle {
     accessible-role: button;
@@ -246,10 +247,11 @@ component NowPlayingSummary inherits Rectangle {
     }
 }
 
-/// The bar at the bottom while an item is loaded. The controls sit in the middle
+/// The bar at the bottom or top while an item is loaded. The controls sit in the middle
 /// of the window; the item is on the left, volume and speed on the right.
-/// In the Glass style it floats as a panel.
+/// It floats as a panel when the theme says so.
 export component PlayerBar inherits Rectangle {
+    property <bool> top: Theme.player-position == 1;
     property <length> inner-width: self.width - 2 * Theme.inset;
     property <length> center-width: clamp(inner-width - 2 * 300px, 360px, 720px);
     property <length> side-width: (inner-width - self.center-width) / 2;
@@ -263,23 +265,24 @@ export component PlayerBar inherits Rectangle {
 
     Rectangle {
         x: Theme.inset;
+        y: root.top ? Theme.inset : 0px;
         width: root.inner-width;
         height: parent.height - Theme.inset;
         background: Theme.bar;
         border-radius: Theme.floating ? Theme.panel-radius : 0px;
         border-width: Theme.floating ? Theme.border : 0px;
         border-color: Theme.rim;
-        drop-shadow-offset-y: Theme.floating ? 8px : Theme.abs ? -4px : 0px;
+        drop-shadow-offset-y: Theme.floating ? 8px : Theme.abs ? (root.top ? 4px : -4px) : 0px;
         drop-shadow-blur: Theme.floating || Theme.abs ? Theme.panel-shadow : 0px;
         drop-shadow-color: Theme.shadow;
-        if Theme.glass: Sheen {
+        if Theme.sheen: Sheen {
             width: parent.width;
             height: parent.height;
             radius: parent.border-radius;
         }
 
         if !Theme.floating && !Theme.abs: Rectangle {
-            y: 0;
+            y: root.top ? parent.height - 1px : 0px;
             height: 1px;
             background: Theme.catppuccin ? Theme.surface1 : Theme.stroke;
         }
@@ -453,6 +456,37 @@ component NowPlaying inherits VerticalLayout {
                 select(index) => {
                     Ui.set-sleep(index);
                 }
+            }
+        }
+    }
+}
+
+/// The player as a panel beside the pages, with the cover on top.
+export component PlayerPanel inherits Rectangle {
+    width: Theme.player-width + 2 * Theme.inset;
+    property <bool> arrived;
+    init => {
+        self.arrived = true;
+    }
+    opacity: arrived ? 1 : 0;
+    animate opacity { duration: Theme.arrive; easing: ease-out-expo; }
+    Panel {
+        x: Theme.inset;
+        y: Theme.inset;
+        width: parent.width - 2 * Theme.inset;
+        height: parent.height - 2 * Theme.inset;
+        background: Theme.bar;
+        if !Theme.floating: Rectangle {
+            x: Theme.player-position == 2 ? parent.width - 1px : 0px;
+            width: 1px;
+            background: Theme.abs ? #00000033 : Theme.catppuccin ? Theme.surface1 : Theme.stroke;
+        }
+        ScrollView {
+            content-height: max(self.height, now.preferred-height + 2 * Theme.pad);
+            now := NowPlaying {
+                x: Theme.pad;
+                y: Theme.pad;
+                size: Theme.player-width - 2 * Theme.pad;
             }
         }
     }

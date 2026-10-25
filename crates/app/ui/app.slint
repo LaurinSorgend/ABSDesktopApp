@@ -13,12 +13,12 @@ import { BackIcon } from "icons.slint";
 import { HomePage } from "pages/home.slint";
 import { LibraryPage, GroupPage, SearchPage } from "pages/library.slint";
 import { DetailPage } from "pages/detail.slint";
-import { PlayerBar, PlayerPage } from "pages/player.slint";
+import { PlayerBar, PlayerPage, PlayerPanel } from "pages/player.slint";
 import { PeekCard } from "tiles.slint";
 import { SettingsPage, AddAccountPage } from "pages/settings.slint";
 import { WorksPage, WorkPage } from "pages/works.slint";
 
-import { Backdrop, ContentLayer, Sidebar } from "shell.slint";
+import { Backdrop, ContentLayer, Sidebar, TopNav } from "shell.slint";
 
 export { Ui, Theme, Strings, Colors, Look, ThemeStyle }
 export * from "data.slint";
@@ -130,6 +130,8 @@ export component AppWindow inherits Window {
         Ui.reload-theme();
     }
     default-font-size: Theme.text-base;
+    property <bool> nav: Ui.page != Page.add-account || Ui.add-can-cancel;
+    property <bool> player: Ui.has-media || Ui.loading-media;
 
     if Theme.backdrop: Backdrop { }
 
@@ -200,9 +202,12 @@ export component AppWindow inherits Window {
                     Ui.banner-dismiss();
                 }
             }
+            if root.nav && Theme.nav-top: TopNav { }
+            if root.player && Theme.player-position == 1: PlayerBar { }
             HorizontalLayout {
                 vertical-stretch: 1;
-                if Ui.page != Page.add-account || Ui.add-can-cancel: Sidebar { }
+                if root.nav && Theme.nav-position == 0: Sidebar { }
+                if root.player && Theme.player-position == 2: PlayerPanel { }
                 ContentLayer {
                     horizontal-stretch: 1;
                     Pages {
@@ -210,8 +215,10 @@ export component AppWindow inherits Window {
                         height: parent.height;
                     }
                 }
+                if root.player && Theme.player-position == 3: PlayerPanel { }
+                if root.nav && Theme.nav-position == 1: Sidebar { }
             }
-            if Ui.has-media || Ui.loading-media: PlayerBar { }
+            if root.player && Theme.player-position == 0: PlayerBar { }
         }
 
         PeekCard {

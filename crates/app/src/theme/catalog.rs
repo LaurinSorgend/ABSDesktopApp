@@ -9,6 +9,7 @@ use serde_json::{Map, Value};
 use slint::Color;
 
 use super::file::{self, COLOR_NAMES, FOCUS_RINGS};
+use super::layout;
 use super::{Style, contrast};
 use crate::{Colors, Look};
 
@@ -83,10 +84,16 @@ impl ThemeDef {
             )
         })?;
         let mut look = default_look();
+        style.defaults(&mut look);
         if let Some(value) = raw.get("look") {
             parse_look(&mut look, value)?;
         }
-        look.style = style.widgets();
+        if let Some(value) = raw.get("layout") {
+            layout::parse_layout(&mut look, value)?;
+        }
+        if let Some(value) = raw.get("widgets") {
+            layout::parse_widgets(&mut look, value)?;
+        }
         let palettes = raw
             .get("palettes")
             .and_then(Value::as_array)
@@ -196,6 +203,8 @@ impl ThemeDef {
             out += &format!("  \"accent\": {},\n", q(accent));
         }
         out += &format!("  \"look\": {},\n", look_json(&self.look));
+        out += &format!("  \"layout\": {},\n", layout::layout_json(&self.look));
+        out += &format!("  \"widgets\": {},\n", layout::widgets_json(&self.look));
         let palettes: Vec<String> = self
             .palettes
             .iter()
@@ -362,7 +371,7 @@ fn parse_palette(value: &Value) -> Result<Palette, String> {
     for key in CORE {
         core(key)?;
     }
-    let mut colors = derived(&|key| core(key).unwrap_or_default());
+    let mut colors = derived(&|key| core(key).unwrap_or_default(), dark);
     file::apply_colors(&mut colors, &given);
     let accents = match value.get("accents") {
         None => Vec::new(),
@@ -412,7 +421,7 @@ fn accent_names(raw: &Map<String, Value>, palettes: &[Palette]) -> Result<Vec<St
 }
 
 /// All colors from the core ones, as a palette without the optional colors gets them.
-fn derived(core: &dyn Fn(&str) -> Color) -> Colors {
+fn derived(core: &dyn Fn(&str) -> Color, dark: bool) -> Colors {
     let (base, text, accent) = (core("base"), core("text"), core("accent"));
     let on_accent = readable_on(accent, base, text);
     Colors {
@@ -448,6 +457,11 @@ fn derived(core: &dyn Fn(&str) -> Color) -> Colors {
         glow1: accent,
         glow2: core("overlay2"),
         glow3: core("surface2"),
+        shelf: if dark {
+            Color::from_rgb_u8(0x4a, 0x4a, 0x4a)
+        } else {
+            Color::from_rgb_u8(0xcf, 0xcf, 0xcf)
+        },
     }
 }
 
@@ -487,11 +501,7 @@ fn look_json(look: &Look) -> String {
         ("content-card", look.content_card.to_string()),
         ("backdrop", look.backdrop.to_string()),
     ];
-    let lines: Vec<String> = entries
-        .iter()
-        .map(|(k, v)| format!("    \"{k}\": {v}"))
-        .collect();
-    format!("{{\n{}\n  }}", lines.join(",\n"))
+    layout::object_json(&entries)
 }
 
 fn palette_json(palette: &Palette, names: &[String]) -> String {
