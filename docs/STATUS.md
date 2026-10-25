@@ -144,6 +144,12 @@ Phase 3 is done on Windows: Laurin tried EPUB, PDF and CBZ in the reader by hand
 - Found by hand: the Alice PDF scan was blank because pdf.js 5.5 needs its wasm decoders for JPEG 2000 and JBIG2, which foliate-js does not vendor. `abs-reader` now embeds them from pdfjs-dist 5.5.207 (`web/pdfjs-wasm`) and passes `wasmUrl`.
 - Package size (Windows zip): 59.5 MB before the reader, 62.5 MB after (foliate-js 5.1 MB and `abs-reader.exe` 1.5 MB unpacked). libmpv is 115 MB of the 154 MB unpacked; a slim LGPL build is planned in PLAN.md.
 
+Linux under WSL (Ubuntu 24.04, libmpv 0.37, WebKitGTK 2.52, WSLg's Weston on Wayland), 2026-10-25:
+- clippy, unit tests and the full integration suite (both servers, libmpv playback, ebook contracts) pass.
+- Laurin ran the app under WSLg: audio playback and the reader (EPUB, PDF, CBZ through `build_gtk`) work. WSLg is not GNOME or KDE, so MPRIS, fractional scaling and the desktop-specific checks stay open.
+- The app panics at start without `libxkbcommon-x11-0`: winit loads `libxkbcommon-x11.so` at runtime, and `libxkbcommon-dev` does not pull it in. linuxdeploy will not see a library that is only loaded at runtime, so the AppImage has to add it by hand or list it as a host dependency.
+- Without a D-Bus session bus (as in WSL), credentials fall back to files as designed, but souvlaki's MPRIS thread panics on an `unwrap()` inside the crate. The app keeps running without media controls. The `MediaControls` setup should catch this (check the bus first, or run souvlaki behind `catch_unwind`) so a missing bus is a logged warning.
+
 Open:
-- Linux: `build_gtk`, WebKitGTK inside the AppImage.
+- Linux: GNOME and KDE on Wayland (a Hyper-V VM rather than WSLg), WebKitGTK and `libxkbcommon-x11` inside the AppImage, the souvlaki panic without a session bus.
 - Measure the reader memory again (Phase 0 budget: reader tree 110 MB) and check it is freed when the window closes.
