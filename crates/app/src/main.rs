@@ -11,6 +11,8 @@ mod lru;
 mod paths;
 mod playback;
 mod reader;
+#[cfg(test)]
+mod screens;
 mod settings;
 mod system;
 mod theme;

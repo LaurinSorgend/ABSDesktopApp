@@ -5,7 +5,7 @@ import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
 import { Cover } from "../tiles.slint";
 import { Sheen } from "../glass.slint";
-import { Dropdown, IconButton, Label } from "../widgets.slint";
+import { Card, Dropdown, IconButton, Label } from "../widgets.slint";
 import { SeekBar } from "../pickers.slint";
 import { BookProgress, ChapterProgress, Transport, ViewButtons, Volume } from "player.slint";
 import { ExpandIcon, PinIcon, MutedIcon, VolumeIcon } from "../icons.slint";
@@ -149,12 +149,9 @@ export component FullScreenPlayer inherits Rectangle {
     }
 }
 
-/// The time and chapter in the style of a small display, in the number font and accent.
-component Display inherits Rectangle {
-    background: Theme.crust;
-    border-radius: Theme.radius;
-    border-width: max(1px, Theme.border);
-    border-color: Theme.stroke;
+/// The time and chapter in the style of a small display: a card of the theme, with the
+/// time in the number font and accent.
+component Display inherits Card {
     clip: true;
     HorizontalLayout {
         padding-left: 10px;

@@ -14,6 +14,8 @@ component NavItem inherits Rectangle {
     callback clicked;
 
     property <bool> edge: Theme.nav-kind == 0 && !horizontal;
+    vertical-stretch: 0;
+    horizontal-stretch: 0;
     min-height: Theme.control-height + (Theme.nav-kind == 1 ? 8px : 0px);
     min-width: horizontal ? label.preferred-width + 2 * Theme.pad : 0px;
     accessible-role: button;

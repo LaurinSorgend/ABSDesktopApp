@@ -529,12 +529,13 @@ export component PlayerPanel inherits Rectangle {
             width: 1px;
             background: Theme.abs ? #00000033 : Theme.catppuccin ? Theme.surface1 : Theme.stroke;
         }
-        ScrollView {
+        panel-scroll := ScrollView {
             content-height: max(self.height, now.preferred-height + 2 * Theme.pad);
             now := NowPlaying {
                 x: Theme.pad;
                 y: Theme.pad;
-                size: Theme.player-width - 2 * Theme.pad;
+                width: panel-scroll.visible-width - 2 * Theme.pad;
+                size: self.width;
             }
         }
     }
@@ -554,6 +555,7 @@ export component PlayerPage inherits Rectangle {
             width: root.cover-size + 32px;
             content-height: max(self.height, now.preferred-height);
             now := NowPlaying {
+                width: root.cover-size;
                 size: root.cover-size;
             }
         }

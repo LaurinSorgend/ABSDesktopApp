@@ -217,11 +217,19 @@ export component Dropdown inherits Rectangle {
         popup.show();
     }
 
+    /// Drawn like the theme's text fields: 0 outlined, 1 filled, 2 underlined.
+    property <int> kind: Theme.text-field;
+    property <length> corner: kind == 1 ? Theme.radius : Theme.corner(self.height);
+
     min-width: max(72px, current.preferred-width + 36px);
     min-height: Theme.control-height;
-    border-radius: Theme.material ? Theme.radius : Theme.corner(self.height);
-    background: touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover : Theme.control;
-    border-width: Theme.border;
+    border-top-left-radius: corner;
+    border-top-right-radius: corner;
+    border-bottom-left-radius: kind == 1 ? 0px : corner;
+    border-bottom-right-radius: kind == 1 ? 0px : corner;
+    background: kind == 1 ? (touch.pressed ? Theme.surface2 : touch.has-hover ? Theme.surface1.mix(Theme.surface2, 0.5) : Theme.surface1)
+        : touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover : Theme.control;
+    border-width: kind == 1 ? 0px : Theme.border;
     border-color: touch.has-hover && Theme.catppuccin ? Theme.overlay2 : Theme.rim;
     animate background, border-color { duration: Theme.quick; easing: ease-out; }
     accessible-role: combobox;
@@ -256,8 +264,8 @@ export component Dropdown inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: Theme.pill && !Theme.material ? 14px : 10px;
-        padding-right: Theme.pill && !Theme.material ? 12px : 8px;
+        padding-left: root.kind == 1 ? 16px : Theme.pill ? 14px : 10px;
+        padding-right: Theme.pill && root.kind != 1 ? 12px : 8px;
         spacing: 6px;
         current := Text {
             text: root.selected >= 0 && root.selected < root.options.length ? root.options[root.selected] : "";
@@ -276,10 +284,18 @@ export component Dropdown inherits Rectangle {
         }
     }
 
-    if Theme.control-edge && !touch.pressed: Rectangle {
-        x: root.border-radius;
+    if root.kind != 0: Rectangle {
+        x: root.kind == 1 ? 0px : root.corner;
+        y: root.height - self.height;
+        width: root.width - 2 * self.x;
+        height: focus.has-focus ? 2px : 1px;
+        background: focus.has-focus ? Theme.accent : root.kind == 1 ? Theme.subtext : Theme.stroke;
+    }
+
+    if root.kind == 0 && Theme.control-edge && !touch.pressed: Rectangle {
+        x: root.corner;
         y: root.height - 1px;
-        width: root.width - 2 * root.border-radius;
+        width: root.width - 2 * root.corner;
         height: 1px;
         background: Theme.stroke;
     }
@@ -287,7 +303,7 @@ export component Dropdown inherits Rectangle {
     if focus.has-focus: FocusRing {
         target-width: root.width;
         target-height: root.height;
-        target-radius: root.border-radius;
+        target-radius: root.corner;
     }
 
     popup := PopupWindow {
@@ -313,16 +329,18 @@ export component Dropdown inherits Rectangle {
             init => {
                 self.content-y = -clamp((root.selected - 4) * root.row-height, 0, max(0px, self.content-height - self.visible-height));
             }
+            // The chosen row looks like the chosen item in the navigation.
             for option[index] in root.options: Rectangle {
                 property <bool> chosen: index == root.selected;
+                property <bool> filled: Theme.nav-kind == 0;
                 y: index * root.row-height;
                 width: list.visible-width;
                 height: root.row-height;
-                border-radius: Theme.catppuccin ? 0px : Theme.radius;
-                background: chosen ? (Theme.catppuccin ? Theme.accent : Theme.accent-soft)
+                border-radius: Theme.nav-kind == 0 ? 0px : Theme.nav-kind == 1 ? min(self.height / 2, Theme.radius) : Theme.radius;
+                background: chosen ? (filled ? Theme.accent : Theme.accent-soft)
                     : item-touch.has-hover ? Theme.control-hover : transparent;
                 animate background { duration: Theme.quick; easing: ease-out; }
-                if chosen && Theme.winui: Rectangle {
+                if chosen && Theme.nav-kind == 2: Rectangle {
                     x: 0;
                     y: (parent.height - self.height) / 2;
                     width: 3px;
@@ -335,7 +353,7 @@ export component Dropdown inherits Rectangle {
                     width: parent.width - 20px;
                     height: parent.height;
                     text: option;
-                    color: chosen ? (Theme.catppuccin ? Theme.on-accent : Theme.on-accent-soft) : Theme.text;
+                    color: chosen ? (filled ? Theme.on-accent : Theme.on-accent-soft) : Theme.text;
                     font-size: Theme.control-text;
                     vertical-alignment: center;
                     overflow: elide;
