@@ -69,7 +69,13 @@ pub async fn add_account(
             None => accounts.add_server(&server_name(&client), &[&base])?,
         };
         match accounts.find(&server, &login.user.id)? {
-            Some(existing) => Ok(existing),
+            Some(existing) => {
+                accounts.set_enabled(&existing.id, true)?;
+                Ok(Account {
+                    enabled: true,
+                    ..existing
+                })
+            }
             None => accounts.add_account(&NewAccount {
                 server_id: &server,
                 user_id: &login.user.id,

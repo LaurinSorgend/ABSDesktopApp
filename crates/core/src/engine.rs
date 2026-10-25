@@ -125,6 +125,12 @@ pub enum Command {
         account_id: String,
         urls: Vec<String>,
     },
+    /// Turns an account on or off; answered with `AccountUpdated`. A disabled account
+    /// keeps its data and login but does not connect, sync or download.
+    SetAccountEnabled {
+        account_id: String,
+        enabled: bool,
+    },
     /// The user's answer to `ProgressConflict`: keep the local position or take the server's.
     ResolveConflict {
         account_id: String,
@@ -207,6 +213,8 @@ pub enum Event {
     AccountRemoved {
         account_id: String,
     },
+    /// An account row changed, as when it was enabled or disabled.
+    AccountUpdated(Account),
     /// The stored login is no longer valid.
     LoginRequired {
         account_id: String,

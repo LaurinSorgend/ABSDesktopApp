@@ -79,6 +79,30 @@ pub(super) fn recover(shared: &Shared) {
     }
 }
 
+/// Stops the running downloads of an account and puts them back in the queue.
+pub(super) fn suspend_account(shared: &Arc<Shared>, account_id: &str) {
+    let stopped: Vec<Key> = {
+        let mut tasks = lock_map(&shared.download_tasks);
+        let keys: Vec<Key> = tasks
+            .0
+            .keys()
+            .filter(|(account, _)| account == account_id)
+            .cloned()
+            .collect();
+        for key in &keys {
+            if let Some(running) = tasks.0.remove(key) {
+                running.task.abort();
+            }
+        }
+        keys
+    };
+    for (account_id, item_id) in stopped {
+        set_state(shared, &account_id, &item_id, DownloadState::Queued, None);
+        changed(shared, account_id, item_id);
+    }
+    schedule(shared);
+}
+
 /// The folder new downloads go to: the `download_root` setting, else the default.
 pub(super) fn root(shared: &Shared) -> PathBuf {
     lock(&shared.db)

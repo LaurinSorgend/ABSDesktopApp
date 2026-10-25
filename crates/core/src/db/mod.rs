@@ -28,6 +28,7 @@ static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
         M::up(include_str!("sql/0001_initial.sql")),
         M::up(include_str!("sql/0002_downloads.sql")),
         M::up(include_str!("sql/0003_local_sessions.sql")),
+        M::up(include_str!("sql/0004_account_enabled.sql")),
     ])
 });
 
