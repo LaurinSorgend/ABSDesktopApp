@@ -12,6 +12,7 @@ rust-version = "1.92"
 abs-api = { path = "crates/abs-api" }
 abs-core = { path = "crates/core" }
 abs-player = { path = "crates/player" }
+abs-reader-ipc = { path = "crates/reader-ipc" }
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
