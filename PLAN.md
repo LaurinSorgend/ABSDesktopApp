@@ -1,6 +1,6 @@
 # ABS desktop client: implementation plan (Rust)
 
-Based on `reports/Audiobookshelf native desktop app plan.md`. Stack: Rust workspace, Slint UI, libmpv for audio, souvlaki for MPRIS/SMTC, a separate `abs-reader` process (tao + wry + foliate-js) for ebooks, pdfium for PDF. Minimum supported server: Audiobookshelf 2.26.0. Latest at time of writing: 2.37.2.
+Based on `reports/Audiobookshelf native desktop app plan.md`. Stack: Rust workspace, Slint UI, libmpv for audio, souvlaki for MPRIS/SMTC, a separate `abs-reader` process (tao + wry + foliate-js) for ebooks, PDF and comics (pdf.js through foliate-js, ADR 0004). Minimum supported server: Audiobookshelf 2.26.0. Latest at time of writing: 2.37.2.
 
 Phases build on each other. Each phase ends with exit criteria; don't start the next phase until they pass.
 
@@ -73,7 +73,7 @@ Goal: prove the risky parts and measure memory before writing real code. Spike c
   - Windows checked and fine; Wayland open.
 
 ### 0.5 libmpv playback
-- [ ] Windows: get an LGPL libmpv build (`-Dgpl=false`, FFmpeg without `--enable-gpl`), check the DLL set and its size.
+- [ ] Windows: get an LGPL libmpv build (`-Dgpl=false`, FFmpeg without `--enable-gpl`), check the DLL set and its size. Planned as its own build repository, see Slim LGPL libmpv.
 - [ ] Linux: link against the system libmpv.
 - [x] Use `libmpv2` to play a direct-play `contentUrl` with the `Authorization` header set via `http-header-fields`.
 - [x] Multi-file book: load tracks as a playlist; map global time to `(track, offset)` using `startOffset`.
@@ -292,8 +292,8 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] CBR: not supported (unrar license); MOBI/AZW3 work through foliate-js but are untested extras.
 
 ### 3.7 Round-trip test
-- [ ] Set a position in the desktop reader, open the ABS web reader: same chapter and page.
-- [ ] Reverse direction.
+- [x] Set a position in the desktop reader, open the ABS web reader: same chapter and page.
+- [x] Reverse direction.
 
 **Exit criteria:** EPUB positions round-trip with the web reader in both directions; reader memory is freed when the helper exits.
 
@@ -395,6 +395,25 @@ Beyond what 1.9 has (mode, flavor, accent, `theme.json` colors). Not scheduled y
 - [ ] Border width and focus ring style.
 - [ ] All of these in `theme.json` too, and shareable theme files (import/export).
 
+### Slim LGPL libmpv
+
+The Windows package ships shinchiro's full libmpv: 115 MB of the 154 MB unpacked (62 MB zip), GPL, with video output, Vulkan, libplacebo, Lua, JavaScript and libbluray that an audiobook player never uses. Not scheduled yet.
+
+- [ ] Own repository (for example `LaurinSorgend/libmpv-audio`) with a GitHub Actions workflow that builds libmpv for audio only. Runs on a schedule (weekly) and by hand; publishes a release only when the mpv or FFmpeg version changed, so releases stay few.
+- [ ] Windows x64: cross-compile with mingw-w64, starting from shinchiro's `mpv-winbuild-cmake` with most packages turned off. Linux x86_64: build on the oldest Ubuntu the AppImage targets, for the AppImage only; distro and Flatpak builds keep using the system libmpv.
+- [ ] mpv: `-Dgpl=false`, no Lua, JavaScript, libplacebo, Vulkan, OpenGL or other video outputs, no libbluray, libarchive, cdda, dvdnav. Keep the audio outputs (WASAPI on Windows; PulseAudio, PipeWire and ALSA on Linux) and `scaletempo2`.
+- [ ] FFmpeg without `--enable-gpl` and `--enable-nonfree`, `--disable-everything`, then only what audiobooks and podcasts need:
+  - decoders: AAC, MP3, Opus, Vorbis, FLAC, ALAC, AC-3/E-AC-3, WMA, PCM, plus MJPEG/PNG for embedded covers;
+  - demuxers: MOV/MP4/M4B, Matroska, Ogg, MP3, FLAC, WAV, AAC/ADTS, ASF, HLS;
+  - protocols: file, HTTP(S) with TLS from Schannel on Windows and GnuTLS or mbedTLS on Linux (no OpenSSL with `--enable-nonfree`);
+  - filters: what mpv needs by default plus the ones the Audio effects section plans (`loudnorm`, `dynaudnorm`, `speechnorm`, `afftdn`, `anlmdn`, `arnndn`, `highpass`, `lowpass`, `equalizer`, `acompressor`, `silenceremove`).
+- [ ] Release assets: `libmpv-2.dll` with `mpv.lib`/`libmpv.dll.a` and headers (Windows), `libmpv.so.2` (Linux), the license texts of mpv, FFmpeg and every library linked in, a manifest with the exact versions and configure flags, and SHA-256 sums.
+- [ ] A smoke test in the same workflow before publishing: load the library, check `mpv_client_api_version` is 2.x, play an MP3, an M4B and an Opus file with `ao=null`, and fail on any of the filters above missing (`lavfi-list`).
+- [ ] This repository: `scripts/fetch-libmpv.ps1` (and a Linux counterpart for the AppImage) downloads a pinned release and checks its SHA-256; bumping the pin is a normal commit, so CI and releases never pick up a new build by surprise. `packaging/licenses` takes the license texts from the release.
+- [ ] Measure the DLL size and the playing memory against the shinchiro build before switching, and play every fixture through the app once.
+
+**Done when:** the Windows zip uses the slim build, no GPL-only code is linked into libmpv, and playback, HLS, seeking and speed changes work as before.
+
 ### Audio effects
 
 Applied while listening, on this machine only. Files on the server and downloads are never changed. Not scheduled yet; do after dogfooding.
@@ -405,7 +424,7 @@ Applied while listening, on this machine only. Files on the server and downloads
 - [ ] Dynamics: `acompressor` for listening in noisy places.
 - [ ] Optional silence trimming (`silenceremove`) with a threshold. The displayed position must stay in book time, so measure how mpv reports time with it on before shipping it.
 - [ ] Settings: a global default plus an override per item, stored locally. A switch in the player to compare with and without effects.
-- [ ] Check that the LGPL libmpv build for releases includes these filters. Measure CPU per filter on a low-end laptop and note the cost next to each choice.
+- [ ] Check that the slim LGPL libmpv build includes these filters (its smoke test checks them). Measure CPU per filter on a low-end laptop and note the cost next to each choice.
 
 ### Transcripts and read-along
 
