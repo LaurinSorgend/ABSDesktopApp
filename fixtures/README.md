@@ -18,6 +18,16 @@ Logins: `admin` / `admin-pass` (root) and `listener` / `listener-pass` (user).
 | Alice PDF | Ebooks | archive.org `alicesadventur00carr` (b/w scan) | 12 MB scanned PDF | no | no |
 | Test Pattern Comic | Ebooks | generated with ffmpeg `testsrc2`, 24 pages | CBZ | no | no |
 
-No fixture has an ISBN yet. Phase 4 adds `metadata.json` overrides with ISBNs and a second, overlapping library.
+The Matching library (`media/matching`, short silent MP3s) is for the work matching tests. `docker/init_server.py` patches its metadata, partly differently on the 2.26.3 ("old") and 2.37.2 ("new") server, so the two servers overlap like two real libraries would:
+
+| Folder | Both servers | Old server | New server | Same work across servers |
+|---|---|---|---|---|
+| Fixture Author/Shared Narration | narrator Common Reader | | | yes |
+| Fixture Author/Two Narrators | | narrator Narrator One | narrator Narrator Two | no |
+| Fixture Author/Fixture Tale | | | | yes, never with the abridged one |
+| Fixture Author/Fixture Tale Abridged | title Fixture Tale, abridged, 5 instead of 12 min | | | yes |
+| Other Author/Fixture Tale | | | | yes, never with Fixture Author's |
+| Fixture Author/Asin Book | ASIN `B0MATCH001` | | title "Asin Book: Collector's Edition" | yes, by ASIN |
+| Fixture Author/Isbn Book | | ISBN `0-261-10221-4` | ISBN `978-0-261-10221-7`, title "The Isbn Book Revisited" | yes, by ISBN |
 
 ABS 2.26.3 truncates the multi-file book's title to "The Happy Prince and Other Tal"; 2.37.2 shows it in full.

@@ -3,7 +3,7 @@ use crate::db::{Db, ItemRow, LibraryRow, NewAccount};
 
 const HOUR: f64 = 3600.0;
 
-/// Two accounts on two servers, each with one book library.
+/// Two accounts on two servers, each with one book library, "home" added first.
 fn two_accounts() -> (Db, String, String) {
     let mut db = Db::open_in_memory().unwrap();
     let ids = db
@@ -26,6 +26,7 @@ fn two_accounts() -> (Db, String, String) {
                 };
                 store.catalog().replace_libraries(&account.id, &[library])?;
                 ids.push(account.id);
+                std::thread::sleep(std::time::Duration::from_millis(2));
             }
             Ok(ids)
         })
