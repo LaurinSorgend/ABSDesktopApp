@@ -1,6 +1,6 @@
 """Initialise a fresh Audiobookshelf test server.
 
-Creates the root admin, two more users and one library per fixture folder,
+Creates the root admin, the test users and one library per fixture folder,
 then scans them, waits for the scans and adds one collection and one series. Safe to rerun: existing users and libraries are kept.
 
 Usage: python docker/init_server.py http://localhost:13379
@@ -17,6 +17,7 @@ USERS = [
     {"username": "listener", "password": "listener-pass", "type": "user", "isActive": True},
     {"username": "leaver", "password": "leaver-pass", "type": "user", "isActive": True},
     {"username": "traveller", "password": "traveller-pass", "type": "user", "isActive": True},
+    {"username": "reader", "password": "reader-pass", "type": "user", "isActive": True},
 ]
 COLLECTION = "Fixture favourites"
 SERIES = "Fixture series"
@@ -60,7 +61,7 @@ def login(base):
 
 def ensure_users(base, token):
     """Create the non-admin users. `leaver` is only used by logout and playback tests,
-    `traveller` only by the offline session tests."""
+    `traveller` only by the offline session tests, `reader` only by the ebook tests."""
     users = {u["username"]: u for u in request(base, "GET", "/api/users", token=token)["users"]}
     for spec in USERS:
         existing = users.get(spec["username"])

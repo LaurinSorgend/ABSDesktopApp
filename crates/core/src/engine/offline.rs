@@ -38,9 +38,13 @@ pub(super) fn spawn_flush(shared: &Arc<Shared>, account_id: &str) {
     }
 }
 
-/// Sends what can go, pulls the resulting progress and announces new conflicts.
+/// Sends queued reading positions and local sessions, pulls the resulting progress and announces new conflicts.
 pub(super) async fn flush(shared: Arc<Shared>, session: Arc<Session>) {
     let account_id = session.account.id.clone();
+    if let Err(e) = super::ebooks::flush_queue(&shared, &session).await {
+        super::worker::went_offline(&shared, &account_id, &e);
+        return;
+    }
     let pending = lock(&shared.db)
         .store()
         .local_sessions()

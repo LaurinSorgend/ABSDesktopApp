@@ -8,6 +8,7 @@ use tokio::sync::{Semaphore, mpsc};
 use tokio::task::JoinHandle;
 
 use super::downloads;
+use super::ebooks;
 use super::live::{Followup, LiveState};
 use super::offline;
 use super::playback::{self, PlaybackCommand};
@@ -38,6 +39,7 @@ enum Conn {
 pub(super) struct Parts {
     pub(super) db: Db,
     pub(super) covers: CoverCache,
+    pub(super) cache_root: std::path::PathBuf,
     pub(super) download_root: std::path::PathBuf,
     pub(super) credentials: Credentials,
 }
@@ -47,6 +49,7 @@ pub(super) struct Shared {
     pub(super) db: Mutex<Db>,
     pub(super) covers: CoverCache,
     pub(super) cover_downloads: Semaphore,
+    pub(super) cache_root: std::path::PathBuf,
     pub(super) download_root: std::path::PathBuf,
     pub(super) download_tasks: Mutex<downloads::Tasks>,
     /// The local session being recorded right now; flushes leave it alone.
@@ -73,6 +76,7 @@ pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit
         db: Mutex::new(parts.db),
         covers: parts.covers,
         cover_downloads: Semaphore::new(PARALLEL_COVER_DOWNLOADS),
+        cache_root: parts.cache_root,
         download_root: parts.download_root,
         download_tasks: Mutex::default(),
         running_local: Mutex::default(),
@@ -165,6 +169,9 @@ fn handle(
         | Command::PauseDownload { .. }
         | Command::ResumeDownload { .. }
         | Command::DeleteDownload { .. }) => downloads::handle(shared, command),
+        command @ (Command::OpenEbook { .. } | Command::SaveEbookProgress { .. }) => {
+            ebooks::handle(shared, command)
+        }
         request => requests::handle(shared, request),
     }
 }
@@ -292,6 +299,7 @@ async fn remove(shared: Arc<Shared>, account_id: String) {
         task.abort();
     }
     downloads::forget_account(&shared, &account_id).await;
+    crate::ebooks::forget_account(&shared.cache_root, &account_id);
     let conn = lock_map(&shared.conns).remove(&account_id);
     if let Some(Conn::Connected(session)) = conn {
         let _ = session.client.logout().await;

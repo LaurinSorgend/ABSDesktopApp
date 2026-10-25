@@ -5,6 +5,7 @@
 //! socket whose events update the database.
 
 mod downloads;
+mod ebooks;
 mod live;
 mod offline;
 mod playback;
@@ -149,6 +150,19 @@ pub enum Command {
         account_id: String,
         item_id: String,
     },
+    /// Finds the item's ebook (download, cache or server); answered with `EbookReady`
+    /// or `EbookFailed`.
+    OpenEbook {
+        account_id: String,
+        item_id: String,
+    },
+    /// A reading position; stored here at once, sent now or when the server is back.
+    SaveEbookProgress {
+        account_id: String,
+        item_id: String,
+        location: abs_api::models::EbookLocation,
+        progress: f64,
+    },
 }
 
 /// Ways to group a library.
@@ -283,6 +297,13 @@ pub enum Event {
         bytes_done: u64,
         size: u64,
     },
+    /// The book file to give the reader.
+    EbookReady(Box<crate::ebooks::EbookOpen>),
+    EbookFailed {
+        account_id: String,
+        item_id: String,
+        message: String,
+    },
     /// A request other than sync or playback failed.
     RequestFailed {
         account_id: String,
@@ -293,6 +314,7 @@ pub enum Event {
 /// Where the engine keeps its data.
 pub struct EngineConfig {
     pub db_path: PathBuf,
+    /// Cache folder for covers and ebooks.
     pub cover_root: PathBuf,
     /// Default folder for downloads; the `download_root` setting overrides it.
     pub download_root: PathBuf,
@@ -333,6 +355,7 @@ impl Engine {
                 let parts = worker::Parts {
                     db,
                     covers,
+                    cache_root: config.cover_root,
                     download_root: config.download_root,
                     credentials: config.credentials,
                 };
