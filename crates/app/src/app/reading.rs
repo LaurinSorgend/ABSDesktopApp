@@ -31,7 +31,7 @@ pub struct Reading {
 impl App {
     /// From the item page: find the book, then [`App::ebook_ready`] opens it.
     pub fn read_item(&mut self, item_id: &str) {
-        if let Some(account_id) = self.active.clone() {
+        if let Some(account_id) = self.item_account(item_id) {
             self.engine.send(Command::OpenEbook {
                 account_id,
                 item_id: item_id.to_owned(),

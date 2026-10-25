@@ -11,6 +11,8 @@ mod player;
 mod preferences;
 mod reading;
 mod themes;
+mod work;
+mod works;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -37,6 +39,7 @@ pub enum Conn {
     Connected,
     Offline,
     NeedsLogin,
+    Disabled,
 }
 
 pub struct App {
@@ -66,6 +69,8 @@ pub struct App {
     theme_file: PathBuf,
     tray: Option<crate::tray::Tray>,
     reading: reading::Reading,
+    works: works::Works,
+    work: work::WorkView,
 }
 
 /// What [`App::new`] needs besides the window.
@@ -108,6 +113,8 @@ impl App {
             theme_file: parts.theme_file,
             tray: None,
             reading: reading::Reading::default(),
+            works: works::Works::new(),
+            work: work::WorkView::default(),
         };
         app.bind_models();
         app.apply_choices();
@@ -121,6 +128,7 @@ impl App {
             ui.set_library_rows(self.browse.library_grid.model());
             ui.set_group_rows(self.browse.group_grid.model());
             ui.set_search_rows(self.browse.search_grid.model());
+            ui.set_works_rows(self.works.grid.model());
             ui.set_detail_chapters(self.detail.model());
             ui.set_downloads(self.downloads.model());
             ui.set_chapters(self.player_view.model());
@@ -160,6 +168,8 @@ impl App {
             Event::AddAccountFailed { message, .. } => self.add_failed(message),
             Event::AccountConnected { account_id } => self.set_conn(account_id, Conn::Connected),
             Event::AccountRemoved { account_id } => self.account_removed(&account_id),
+            Event::AccountUpdated(account) => self.account_updated(account),
+            Event::WorksChanged(_) => self.works_changed(),
             Event::LoginRequired { account_id } => self.set_conn(account_id, Conn::NeedsLogin),
             Event::Offline { account_id, .. } => self.set_conn(account_id, Conn::Offline),
             Event::SyncStarted { account_id } => self.set_syncing(&account_id, true),
@@ -232,9 +242,11 @@ impl App {
         if width == crate::covers::TILE_WIDTH {
             self.browse.set_cover(&item_id, image.as_ref());
             self.home.set_cover(&item_id, image.as_ref());
+            self.works.grid.set_cover(&item_id, image.as_ref());
         } else {
             self.detail_cover(&item_id, image.as_ref());
             self.now_cover(&item_id, image.as_ref());
+            self.work_cover(&item_id, image.as_ref());
         }
     }
 
@@ -272,6 +284,9 @@ impl App {
             ui.set_page(page);
             ui.set_can_go_back(can_go_back);
         });
+        if page == Page::Works {
+            self.refresh_works();
+        }
         if matches!(page, Page::Search | Page::AddAccount) {
             self.focus_input();
         }

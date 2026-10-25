@@ -16,6 +16,7 @@ import { DetailPage } from "pages/detail.slint";
 import { PlayerBar, PlayerPage } from "pages/player.slint";
 import { PeekCard } from "tiles.slint";
 import { SettingsPage, AddAccountPage } from "pages/settings.slint";
+import { WorksPage, WorkPage } from "pages/works.slint";
 
 export { Ui, Theme, Strings, Colors }
 export * from "data.slint";
@@ -102,6 +103,13 @@ component Sidebar inherits Rectangle {
             selected: Ui.page == Page.player;
             clicked => {
                 Ui.navigate(Page.player);
+            }
+        }
+        if Ui.multi-account: NavItem {
+            text: @tr("All accounts");
+            selected: Ui.page == Page.works || Ui.page == Page.work;
+            clicked => {
+                Ui.navigate(Page.works);
             }
         }
         Rectangle {
@@ -194,6 +202,14 @@ component Pages inherits Rectangle {
     PageFrame {
         shown: Ui.page == Page.settings;
         SettingsPage { }
+    }
+    PageFrame {
+        shown: Ui.page == Page.works;
+        WorksPage { }
+    }
+    PageFrame {
+        shown: Ui.page == Page.work;
+        WorkPage { }
     }
     PageFrame {
         shown: Ui.page == Page.add-account;

@@ -195,6 +195,12 @@ component DetailHeader inherits HorizontalLayout {
                     Ui.set-finished(Ui.detail.id, !Ui.detail.finished);
                 }
             }
+            if Ui.multi-account && Ui.detail.work-id > 0: Button {
+                text: Ui.detail.copies > 1 ? @tr("{n} copy" | "{n} copies" % Ui.detail.copies) : @tr("Find copies");
+                clicked => {
+                    Ui.open-work(Ui.detail.work-id);
+                }
+            }
         }
         if Ui.detail.has-audio || Ui.detail.has-ebook: DownloadControls { }
     }

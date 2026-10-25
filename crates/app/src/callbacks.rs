@@ -17,6 +17,38 @@ pub fn connect(window: &AppWindow) {
     connect_player(&ui);
     connect_downloads(&ui);
     connect_accounts(&ui);
+    connect_works(&ui);
+}
+
+fn connect_works(ui: &Ui<'_>) {
+    ui.on_set_works_merged(on(|app, merged: bool| app.set_works_merged(merged)));
+    ui.on_toggle_works_library(on(|app, index: i32| {
+        app.toggle_works_library(index.max(0) as usize)
+    }));
+    ui.on_set_works_sort(on(|app, index: i32| {
+        app.set_works_sort(index.max(0) as usize)
+    }));
+    ui.on_toggle_works_desc(|| with_app(|app| app.toggle_works_desc()));
+    ui.on_set_works_filter(on(|app, index: i32| {
+        app.set_works_filter(index.max(0) as usize)
+    }));
+    ui.on_open_works_tile(on(|app, key: slint::SharedString| {
+        app.open_works_tile(&key)
+    }));
+    ui.on_open_work(on(|app, id: i32| app.open_work(i64::from(id))));
+    ui.on_play_work(|| with_app(|app| app.play_work()));
+    ui.on_set_work_account(on(|app, index: i32| {
+        app.set_work_account(index.max(0) as usize)
+    }));
+    ui.on_open_member(|account, item| with_app(move |app| app.open_account_item(&account, &item)));
+    ui.on_split_member(|account, item| with_app(move |app| app.split_member(&account, &item)));
+    ui.on_reset_member(|account, item| with_app(move |app| app.reset_member(&account, &item)));
+    ui.on_search_work_match(on(|app, text: slint::SharedString| {
+        app.search_work_match(&text)
+    }));
+    ui.on_merge_into_work(|account, item| {
+        with_app(move |app| app.merge_into_work(&account, &item))
+    });
 }
 
 fn connect_navigation(ui: &Ui<'_>) {
@@ -106,6 +138,9 @@ fn connect_accounts(ui: &Ui<'_>) {
     });
     ui.on_use_account(on(|app, id: slint::SharedString| app.activate(&id)));
     ui.on_remove_account(on(|app, id: slint::SharedString| app.remove_account(&id)));
+    ui.on_set_account_enabled(|id, enabled| {
+        with_app(move |app| app.set_account_enabled(&id, enabled))
+    });
     ui.on_relogin(on(|app, id: slint::SharedString| app.relogin(&id)));
     ui.on_add_another_account(|| with_app(|app| app.show_add_account(true)));
     ui.on_add_server_url(on(|app, url: slint::SharedString| app.add_server_url(&url)));
