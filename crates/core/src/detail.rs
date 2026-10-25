@@ -21,6 +21,8 @@ pub struct ItemDetail {
     /// Empty for minified JSON; the expanded item has them.
     pub chapters: Vec<Chapter>,
     pub has_audio: bool,
+    /// The ebook format, when the item has an ebook the reader opens.
+    pub ebook_format: Option<String>,
 }
 
 impl ItemDetail {
@@ -44,6 +46,12 @@ impl ItemDetail {
             has_audio: media.duration.unwrap_or_default() > 0.0
                 || media.num_tracks.unwrap_or_default() > 0
                 || !media.tracks.is_empty(),
+            ebook_format: media
+                .ebook_file
+                .as_ref()
+                .map(crate::ebooks::format_of)
+                .or_else(|| media.ebook_format.clone())
+                .filter(|f| crate::ebooks::is_readable(f)),
         })
     }
 }
@@ -119,6 +127,16 @@ mod tests {
         assert_eq!(detail.author.as_deref(), Some("Oscar Wilde"));
         assert!(!detail.chapters.is_empty());
         assert!(detail.has_audio);
+        assert_eq!(detail.ebook_format, None);
+    }
+
+    #[test]
+    fn reads_the_ebook_format() {
+        let minified = r#"{"media":{"ebookFormat":"epub"}}"#;
+        let detail = ItemDetail::from_json(minified).unwrap();
+        assert_eq!(detail.ebook_format.as_deref(), Some("epub"));
+        let comic = r#"{"media":{"ebookFormat":"cbr"}}"#;
+        assert_eq!(ItemDetail::from_json(comic).unwrap().ebook_format, None);
     }
 
     #[test]
