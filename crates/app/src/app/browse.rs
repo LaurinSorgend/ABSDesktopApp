@@ -295,6 +295,31 @@ impl App {
         self.navigate(Page::Group);
     }
 
+    /// The books in the library by the first of these comma-separated authors, from local data.
+    pub fn open_author(&mut self, authors: &str) {
+        let name = authors.split(", ").next().unwrap_or_default().trim();
+        let (Some(account_id), Some(library_id)) = (self.active.clone(), self.library_id()) else {
+            return;
+        };
+        if name.is_empty() {
+            return;
+        }
+        let items = self
+            .db
+            .store()
+            .catalog()
+            .items_by_author(&account_id, &library_id, name)
+            .unwrap_or_default();
+        let count = items.len() as i32;
+        self.browse.open_group = None;
+        self.browse.group_grid.set_items(items, &mut self.covers);
+        self.ui(|ui, s| {
+            ui.set_group_title(name.into());
+            ui.set_group_note(s.invoke_books(count));
+        });
+        self.navigate(Page::Group);
+    }
+
     pub(super) fn group_items(&mut self, group_id: &str, item_ids: &[String]) {
         if self.browse.open_group.as_deref() == Some(group_id) {
             self.show_group_items(item_ids);

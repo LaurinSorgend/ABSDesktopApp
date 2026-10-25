@@ -186,6 +186,25 @@ fn search_matches_prefixes_and_survives_updates() {
 }
 
 #[test]
+fn items_by_author_matches_whole_names() {
+    let (db, account, library) = seeded();
+    let catalog = db.store().catalog();
+    assert_eq!(
+        catalog
+            .items_by_author(&account, &library, "Oscar Wilde")
+            .unwrap()
+            .len(),
+        2
+    );
+    assert!(
+        catalog
+            .items_by_author(&account, &library, "Oscar")
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn retain_and_library_removal_delete_items() {
     let (db, account, library) = seeded();
     let catalog = db.store().catalog();
