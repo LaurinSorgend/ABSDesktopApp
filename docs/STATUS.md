@@ -128,7 +128,7 @@ Phase 2 is implemented; its exit criterion (download, play offline, sync without
 
 ## Phase 3
 
-3.1 to 3.6 are implemented; nothing has been tried by hand yet. The new contract tests pass on both servers.
+Phase 3 is done on Windows: Laurin tried EPUB, PDF and CBZ in the reader by hand, including the round trip with the web reader. The contract tests pass on both servers.
 
 - What the web reader stores (2.26.3 and 2.37.2 alike): EPUB writes the epub.js start CFI of the page (a point CFI) and its fraction, and only reads back values starting with `epubcfi`. PDF and comics write the 1-based page as a number and `(page - 1) / pages`. MOBI saves nothing. The server keeps `ebookLocation` as a string column but may hand a number back, so `abs-api` accepts both.
 - ADR 0004: PDF (pdf.js 5.5.207, vendored by foliate-js) and CBZ open in `abs-reader` through foliate-js. No pdfium, no comic view in Slint.
@@ -139,11 +139,11 @@ Phase 2 is implemented; its exit criterion (download, play offline, sync without
 - `Command::SaveEbookProgress` stores the position locally and puts it in `pending_sync` before sending, so a quit mid-request loses nothing. Queued positions are sent (newest per item) at the start of every offline flush; a network error leaves them queued, a refusal drops them. No conflict prompt for reading positions: last write wins.
 - Downloads include the ebook file (`manifest.ebook`); ebook-only items can be downloaded.
 - App: the item page shows Read when the item has an EPUB, PDF, CBZ, MOBI, AZW3 or FB2, and "N % read". The app debounces `relocate` for 5 s and saves on close, on switching books and on quit. The reader is `abs-reader` next to the app exe, or `ABS_READER_PATH`; in development run `cargo build -p abs-reader` once so it exists in `target/debug`.
-- Packaging: both scripts build `abs-reader` and copy foliate-js without tests, build files and source maps (5.6 MB, `scripts/copy-foliate.*`). `THIRD-PARTY-LICENSES.html` now covers the whole workspace; license texts of foliate-js, pdf.js, zip.js and fflate are in `packaging/licenses`. Neither package script has been run since.
+- Packaging: both scripts build `abs-reader` and copy foliate-js without tests, build files and source maps (5.6 MB, `scripts/copy-foliate.*`). `THIRD-PARTY-LICENSES.html` now covers the whole workspace; license texts of foliate-js, pdf.js, zip.js and fflate are in `packaging/licenses`. The Windows script builds and packs; the Linux one has not run.
 - Tests: unit tests for IPC messages, positions in web reader format, the cache and queue payloads, ebook download plans. Contract tests `ebook_file_and_reading_position` (abs-api) and `contract_ebooks` (engine: open, save, offline queue, reconnect; new test user `reader`, so rerun `docker/init_server.py` on existing servers).
+- Found by hand: the Alice PDF scan was blank because pdf.js 5.5 needs its wasm decoders for JPEG 2000 and JBIG2, which foliate-js does not vendor. `abs-reader` now embeds them from pdfjs-dist 5.5.207 (`web/pdfjs-wasm`) and passes `wasmUrl`.
+- Package size (Windows zip): 59.5 MB before the reader, 62.5 MB after (foliate-js 5.1 MB and `abs-reader.exe` 1.5 MB unpacked). libmpv is 115 MB of the 154 MB unpacked; a slim LGPL build is planned in PLAN.md.
 
 Open:
-- Try EPUB, the 12 MB Alice PDF scan and the CBZ in the reader window. If pdf.js is too slow on the scan, revisit ADR 0004.
-- 3.7 round trip with the web reader in both directions. foliate-js and epub.js both write standard CFIs, but whether each lands on the same page in the other is the open question.
 - Linux: `build_gtk`, WebKitGTK inside the AppImage.
 - Measure the reader memory again (Phase 0 budget: reader tree 110 MB) and check it is freed when the window closes.
