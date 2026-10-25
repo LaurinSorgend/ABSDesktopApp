@@ -82,7 +82,7 @@ export component LibraryPage inherits Rectangle {
         spacing: Theme.pad;
         VerticalLayout {
             padding-left: Theme.pad;
-            padding-right: Theme.pad;
+            padding-right: Theme.pad + Ui.back-inset;
             spacing: Theme.pad;
             HorizontalLayout {
                 spacing: Theme.pad;
@@ -129,7 +129,7 @@ export component GroupPage inherits Rectangle {
         spacing: Theme.pad;
         VerticalLayout {
             padding-left: Theme.pad;
-            padding-right: Theme.pad;
+            padding-right: Theme.pad + Ui.back-inset;
             spacing: Theme.gap;
             Heading {
                 text: Ui.group-title;
@@ -162,7 +162,7 @@ export component SearchPage inherits Rectangle {
         spacing: Theme.pad;
         VerticalLayout {
             padding-left: Theme.pad;
-            padding-right: Theme.pad;
+            padding-right: Theme.pad + Ui.back-inset;
             spacing: Theme.gap;
             Heading {
                 text: @tr("Search");
