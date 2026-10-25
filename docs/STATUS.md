@@ -128,7 +128,7 @@ Phase 2 is implemented; its exit criterion (download, play offline, sync without
 
 ## Phase 3
 
-3.1 to 3.6 are implemented; nothing has been tried by hand yet, and the new contract tests have not run (Docker was off).
+3.1 to 3.6 are implemented; nothing has been tried by hand yet. The new contract tests pass on both servers.
 
 - What the web reader stores (2.26.3 and 2.37.2 alike): EPUB writes the epub.js start CFI of the page (a point CFI) and its fraction, and only reads back values starting with `epubcfi`. PDF and comics write the 1-based page as a number and `(page - 1) / pages`. MOBI saves nothing. The server keeps `ebookLocation` as a string column but may hand a number back, so `abs-api` accepts both.
 - ADR 0004: PDF (pdf.js 5.5.207, vendored by foliate-js) and CBZ open in `abs-reader` through foliate-js. No pdfium, no comic view in Slint.
@@ -143,7 +143,6 @@ Phase 2 is implemented; its exit criterion (download, play offline, sync without
 - Tests: unit tests for IPC messages, positions in web reader format, the cache and queue payloads, ebook download plans. Contract tests `ebook_file_and_reading_position` (abs-api) and `contract_ebooks` (engine: open, save, offline queue, reconnect; new test user `reader`, so rerun `docker/init_server.py` on existing servers).
 
 Open:
-- Run the contract tests on both servers.
 - Try EPUB, the 12 MB Alice PDF scan and the CBZ in the reader window. If pdf.js is too slow on the scan, revisit ADR 0004.
 - 3.7 round trip with the web reader in both directions. foliate-js and epub.js both write standard CFIs, but whether each lands on the same page in the other is the open question.
 - Linux: `build_gtk`, WebKitGTK inside the AppImage.
