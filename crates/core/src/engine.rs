@@ -11,6 +11,7 @@ mod offline;
 mod playback;
 mod requests;
 mod worker;
+mod works;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -23,6 +24,7 @@ use crate::credentials::Credentials;
 use crate::db::Account;
 use crate::playback::PlayStart;
 use crate::sync::CatalogReport;
+use crate::works::WorksReport;
 
 /// Setting key for the catalog re-sync interval in minutes.
 pub const SYNC_INTERVAL_SETTING: &str = "sync_interval_minutes";
@@ -131,6 +133,29 @@ pub enum Command {
         account_id: String,
         enabled: bool,
     },
+    /// Puts an item's work and the target item's work together, whatever the matching says.
+    MergeWorks {
+        account_id: String,
+        item_id: String,
+        target_account_id: String,
+        target_item_id: String,
+    },
+    /// Takes an item out of its work; matching leaves it alone from then on.
+    SplitFromWork {
+        account_id: String,
+        item_id: String,
+    },
+    /// Forgets a merge or split of the item; matching decides again.
+    ResetWorkMatch {
+        account_id: String,
+        item_id: String,
+    },
+    /// The account to play a work from when no member has progress or a download;
+    /// `None` uses the global preference.
+    SetPreferredAccount {
+        work_id: i64,
+        account_id: Option<String>,
+    },
     /// The user's answer to `ProgressConflict`: keep the local position or take the server's.
     ResolveConflict {
         account_id: String,
@@ -235,6 +260,8 @@ pub enum Event {
         account_id: String,
         item_ids: Vec<String>,
     },
+    /// The works were matched again.
+    WorksChanged(WorksReport),
     /// Items were added, changed or removed by a realtime event.
     CatalogChanged {
         account_id: String,

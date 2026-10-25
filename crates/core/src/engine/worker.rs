@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use abs_api::Realtime;
 use abs_api::reqwest::Client;
-use tokio::sync::{Semaphore, mpsc};
+use tokio::sync::{Notify, Semaphore, mpsc};
 use tokio::task::JoinHandle;
 
 use super::downloads;
@@ -13,6 +13,7 @@ use super::live::{Followup, LiveState};
 use super::offline;
 use super::playback::{self, PlaybackCommand};
 use super::requests;
+use super::works;
 use super::{Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, SYNC_INTERVAL_SETTING};
 use crate::account::{
     AccountError, Session, add_account, earlier_url_answers, lock, restore_account,
@@ -59,6 +60,8 @@ pub(super) struct Shared {
     pub(super) running_local: Mutex<Option<String>>,
     /// Conflicts the UI was told about, by account and item.
     pub(super) conflicts_shown: Mutex<HashSet<(String, String)>>,
+    /// Set when the works need matching again.
+    pub(super) works_dirty: Notify,
     credentials: Credentials,
     http: Client,
     pub(super) emit: Emit,
@@ -84,6 +87,7 @@ pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit
         download_tasks: Mutex::default(),
         running_local: Mutex::default(),
         conflicts_shown: Mutex::default(),
+        works_dirty: Notify::new(),
         credentials: parts.credentials,
         http,
         emit,
@@ -106,6 +110,8 @@ async fn main_loop(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Co
     connect_staggered(&shared, accounts);
     let (playback, playback_commands) = mpsc::unbounded_channel();
     let playback_task = tokio::spawn(playback::run(shared.clone(), playback_commands));
+    let works_task = tokio::spawn(works::run(shared.clone()));
+    works::request(&shared);
     let mut tick = tokio::time::interval(TICK);
     tick.tick().await;
     loop {
@@ -121,6 +127,7 @@ async fn main_loop(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Co
     }
     drop(playback);
     let _ = playback_task.await;
+    works_task.abort();
 }
 
 fn handle(
@@ -167,6 +174,10 @@ fn handle(
             tokio::spawn(set_enabled(shared.clone(), account_id, enabled));
         }
         command @ Command::ResolveConflict { .. } => offline::handle(shared, command),
+        command @ (Command::MergeWorks { .. }
+        | Command::SplitFromWork { .. }
+        | Command::ResetWorkMatch { .. }
+        | Command::SetPreferredAccount { .. }) => works::handle(shared, command),
         Command::SyncNow { account_id } => {
             for session in sessions(shared, account_id.as_deref()) {
                 tokio::spawn(sync(shared.clone(), session));
@@ -298,6 +309,9 @@ async fn live(shared: Arc<Shared>, session: Arc<Session>) {
             Err(_) => (None, Followup::SyncCatalog),
         };
         if let Some(event) = event {
+            if matches!(event, Event::CatalogChanged { .. }) {
+                works::request(&shared);
+            }
             (shared.emit)(event);
         }
         match followup {
@@ -349,6 +363,7 @@ async fn remove(shared: Arc<Shared>, account_id: String) {
         .accounts()
         .remove_account(&account_id);
     if removed.is_ok() {
+        works::request(&shared);
         (shared.emit)(Event::AccountRemoved { account_id });
     }
 }
@@ -367,6 +382,7 @@ async fn set_enabled(shared: Arc<Shared>, account_id: String, enabled: bool) {
         return;
     };
     (shared.emit)(Event::AccountUpdated(account.clone()));
+    works::request(&shared);
     if enabled {
         start_connect(&shared, account);
         return;
@@ -418,6 +434,7 @@ async fn sync(shared: Arc<Shared>, session: Arc<Session>) {
 async fn sync_all(shared: &Arc<Shared>, session: &Arc<Session>) -> Result<(), AccountError> {
     let account_id = session.account.id.clone();
     let report = sync_catalog(session, &shared.db).await?;
+    works::request(shared);
     (shared.emit)(Event::CatalogSynced {
         account_id: account_id.clone(),
         report,
