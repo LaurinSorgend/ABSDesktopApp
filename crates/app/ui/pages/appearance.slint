@@ -1,0 +1,501 @@
+// The appearance settings: theme, palettes, accent, fonts, shapes and local changes.
+
+import { Theme } from "../theme.slint";
+import { Ui } from "../state.slint";
+import { ThemeCard } from "../data.slint";
+import { Button, Dropdown, Heading, Label, Segmented } from "../widgets.slint";
+
+/// A heading over a group of settings; semibold body text in WinUI.
+export component SectionTitle inherits VerticalLayout {
+    in property <string> text;
+    padding-top: Theme.winui ? 20px : 0px;
+    padding-bottom: Theme.winui ? 4px : 0px;
+    Text {
+        text: root.text;
+        color: Theme.text;
+        font-size: Theme.winui ? Theme.text-base : Theme.text-lg;
+        font-weight: Theme.heading-weight;
+        overflow: elide;
+    }
+}
+
+/// Space between settings: WinUI stacks its setting cards 4 px apart.
+export global SettingsLayout {
+    out property <length> spacing: Theme.winui ? 4px : Theme.pad;
+}
+
+/// WinUI's settings card: the title on the left, the control on the right.
+component SettingCard inherits Rectangle {
+    in property <string> title;
+    min-height: 64px;
+    border-radius: Theme.card-radius;
+    background: Theme.card;
+    border-width: 1px;
+    border-color: Theme.stroke;
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 16px;
+        Text {
+            text: root.title;
+            color: Theme.text;
+            font-size: Theme.text-base;
+            vertical-alignment: center;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+        }
+        VerticalLayout {
+            alignment: center;
+            @children
+        }
+    }
+}
+
+/// A labelled row of choices stored under `key`.
+export component Setting inherits VerticalLayout {
+    in property <string> title;
+    in property <[string]> options;
+    in property <int> selected;
+    in property <string> key;
+    spacing: 4px;
+    alignment: start;
+    if Theme.winui: SettingCard {
+        title: root.title;
+        Segmented {
+            label: root.title;
+            options: root.options;
+            selected: root.selected;
+            select(index) => {
+                Ui.set-setting(root.key, index);
+            }
+        }
+    }
+    if !Theme.winui: Label {
+        text: root.title;
+    }
+    if !Theme.winui: HorizontalLayout {
+        alignment: start;
+        Segmented {
+            label: root.title;
+            options: root.options;
+            selected: root.selected;
+            select(index) => {
+                Ui.set-setting(root.key, index);
+            }
+        }
+    }
+}
+
+/// A labelled dropdown stored under `key`.
+export component DropdownSetting inherits VerticalLayout {
+    in property <string> title;
+    in property <[string]> options;
+    in property <int> selected;
+    in property <string> key;
+    spacing: 4px;
+    alignment: start;
+    if Theme.winui: SettingCard {
+        title: root.title;
+        Dropdown {
+            label: root.title;
+            options: root.options;
+            selected: root.selected;
+            min-width: 240px;
+            select(index) => {
+                Ui.set-setting(root.key, index);
+            }
+        }
+    }
+    if !Theme.winui: Label {
+        text: root.title;
+    }
+    if !Theme.winui: HorizontalLayout {
+        alignment: start;
+        Dropdown {
+            label: root.title;
+            options: root.options;
+            selected: root.selected;
+            min-width: 240px;
+            select(index) => {
+                Ui.set-setting(root.key, index);
+            }
+        }
+    }
+}
+
+/// The accent colors the theme offers, as swatches.
+component AccentPicker inherits HorizontalLayout {
+    spacing: 4px;
+    alignment: start;
+    accessible-role: tab-list;
+    accessible-label: @tr("Accent color");
+    for swatch[index] in Ui.accent-swatches: Rectangle {
+        width: 32px;
+        height: 32px;
+        border-radius: Theme.round-icons ? 16px : Theme.radius;
+        background: swatch;
+        border-width: index == Ui.accent-index ? 3px : touch.has-hover ? 2px : 1px;
+        border-color: index == Ui.accent-index || touch.has-hover ? Theme.text : Theme.stroke;
+        animate border-width, border-color { duration: Theme.quick; easing: ease-out; }
+        accessible-role: tab;
+        accessible-label: Ui.accent-names[index];
+        accessible-item-selected: index == Ui.accent-index;
+        accessible-action-default => {
+            Ui.set-setting("accent", index);
+        }
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                Ui.set-setting("accent", index);
+            }
+        }
+    }
+}
+
+/// What a style looks like, drawn small: sidebar, covers and a button.
+component ThemePreview inherits Rectangle {
+    in property <ThemeCard> card;
+    property <length> inset: card.floating ? 4px : 0px;
+    property <length> side-width: 30px;
+    background: card.page;
+    clip: true;
+    if card.backdrop: Rectangle {
+        x: -20px;
+        y: -30px;
+        width: 90px;
+        height: 90px;
+        background: @radial-gradient(circle, root.card.accent.with-alpha(0.6) 0%, root.card.accent.with-alpha(0) 70%);
+    }
+    if card.backdrop: Rectangle {
+        x: parent.width - 60px;
+        y: 10px;
+        width: 90px;
+        height: 90px;
+        background: @radial-gradient(circle, root.card.glow.with-alpha(0.6) 0%, root.card.glow.with-alpha(0) 70%);
+    }
+    Rectangle {
+        x: root.inset;
+        y: root.inset;
+        width: root.side-width;
+        height: parent.height - 2 * root.inset;
+        background: root.card.side;
+        border-radius: root.card.floating ? 6px : 0px;
+        border-width: root.card.floating ? 1px : 0px;
+        border-color: root.card.stroke;
+        Rectangle {
+            x: root.card.pill ? 3px : 0px;
+            y: 14px;
+            width: parent.width - 2 * self.x;
+            height: 7px;
+            border-radius: root.card.pill ? 3.5px : root.card.radius / 2;
+            background: root.card.pill ? root.card.accent.with-alpha(0.35) : transparent;
+        }
+        if !root.card.pill: Rectangle {
+            x: 0;
+            y: 14px;
+            width: 2px;
+            height: 7px;
+            background: root.card.accent;
+        }
+        for i in 3: Rectangle {
+            x: 5px;
+            y: 26px + i * 9px;
+            width: parent.width - 12px;
+            height: 3px;
+            border-radius: 1.5px;
+            background: root.card.stroke;
+        }
+    }
+    for i in 3: Rectangle {
+        x: root.side-width + 2 * root.inset + 6px + i * 22px;
+        y: 12px;
+        width: 18px;
+        height: 18px;
+        border-radius: root.card.radius;
+        background: root.card.cover;
+        Rectangle {
+            y: parent.height - 2px;
+            height: 2px;
+            width: parent.width * (0.8 - i * 0.3);
+            background: root.card.accent;
+        }
+    }
+    Rectangle {
+        x: root.side-width + 2 * root.inset + 6px;
+        y: 40px;
+        width: 30px;
+        height: 11px;
+        border-radius: root.card.pill ? 5.5px : root.card.radius / 2;
+        background: root.card.action;
+    }
+    Rectangle {
+        x: root.side-width + 2 * root.inset + 40px;
+        y: 40px;
+        width: 26px;
+        height: 11px;
+        border-radius: root.card.pill ? 5.5px : root.card.radius / 2;
+        border-width: 1px;
+        border-color: root.card.stroke;
+    }
+    Rectangle {
+        x: root.inset;
+        y: parent.height - 12px - root.inset;
+        width: parent.width - 2 * root.inset;
+        height: 12px;
+        visible: root.card.floating;
+        background: root.card.side;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: root.card.stroke;
+    }
+}
+
+component ThemeTile inherits Rectangle {
+    in property <ThemeCard> card;
+    in property <bool> chosen;
+    callback picked;
+    width: 112px;
+    height: 100px;
+    border-radius: Theme.card-radius;
+    background: touch.has-hover ? Theme.control-hover : transparent;
+    accessible-role: tab;
+    accessible-label: card.name;
+    accessible-item-selected: chosen;
+    accessible-action-default => {
+        root.picked();
+    }
+    VerticalLayout {
+        padding: 4px;
+        spacing: 4px;
+        Rectangle {
+            height: 64px;
+            border-radius: max(0px, Theme.card-radius - 4px);
+            border-width: root.chosen ? 2px : 1px;
+            border-color: root.chosen ? Theme.accent : Theme.stroke;
+            clip: true;
+            ThemePreview {
+                card: root.card;
+            }
+        }
+        Text {
+            text: root.card.name;
+            color: root.chosen ? Theme.accent : Theme.text;
+            font-size: Theme.text-sm;
+            font-weight: root.chosen ? Theme.strong-weight : 400;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.picked();
+        }
+    }
+}
+
+component ThemePicker inherits Flickable {
+    height: 100px;
+    content-width: row.preferred-width;
+    accessible-role: tab-list;
+    accessible-label: @tr("Theme");
+    row := HorizontalLayout {
+        spacing: Theme.gap;
+        alignment: start;
+        for card[index] in Ui.theme-cards: ThemeTile {
+            card: card;
+            chosen: index == Ui.theme-index;
+            picked => {
+                Ui.set-setting("theme", index);
+            }
+        }
+    }
+}
+
+/// Who made the chosen theme, its version and links, and import, export and remove.
+component ThemeDetails inherits VerticalLayout {
+    spacing: 4px;
+    if Ui.theme-description != "": Label {
+        text: Ui.theme-description;
+        wrap: word-wrap;
+    }
+    Label {
+        text: Ui.theme-creator != "" ? @tr("Version {} by {}", Ui.theme-version, Ui.theme-creator) : @tr("Version {}", Ui.theme-version);
+    }
+    HorizontalLayout {
+        alignment: start;
+        spacing: Theme.gap;
+        padding-top: 4px;
+        if Ui.theme-website != "": Button {
+            text: @tr("Website");
+            clicked => {
+                Ui.open-link(Ui.theme-website);
+            }
+        }
+        if Ui.theme-source != "": Button {
+            text: @tr("Source");
+            clicked => {
+                Ui.open-link(Ui.theme-source);
+            }
+        }
+        if Ui.theme-donation != "": Button {
+            text: @tr("Donate");
+            clicked => {
+                Ui.open-link(Ui.theme-donation);
+            }
+        }
+        Button {
+            text: @tr("Import theme…");
+            clicked => {
+                Ui.import-theme();
+            }
+        }
+        Button {
+            text: @tr("Export theme…");
+            clicked => {
+                Ui.export-theme();
+            }
+        }
+        if Ui.theme-installed: Button {
+            text: @tr("Remove theme");
+            clicked => {
+                Ui.remove-theme();
+            }
+        }
+    }
+    if Ui.theme-errors != "": Label {
+        text: @tr("These theme files could not be read: {}", Ui.theme-errors);
+        color: Theme.red;
+        wrap: word-wrap;
+    }
+}
+
+component ThemeFileSection inherits VerticalLayout {
+    spacing: 4px;
+    Label {
+        text: @tr("Local changes");
+    }
+    Text {
+        text: @tr("{} can change colors, fonts and shapes of the chosen theme on this computer.", Ui.theme-file);
+        color: Theme.text;
+        wrap: word-wrap;
+    }
+    if Ui.theme-note != "": Label {
+        text: Ui.theme-note;
+        wrap: word-wrap;
+    }
+    HorizontalLayout {
+        alignment: start;
+        spacing: Theme.gap;
+        padding-top: 4px;
+        Button {
+            text: @tr("Edit theme file");
+            clicked => {
+                Ui.edit-theme-file();
+            }
+        }
+        Button {
+            text: @tr("Reload");
+            clicked => {
+                Ui.reload-theme();
+            }
+        }
+        if Ui.theme-file-active: Button {
+            text: @tr("Stop using the theme file");
+            clicked => {
+                Ui.stop-theme-file();
+            }
+        }
+    }
+}
+
+export component Appearance inherits VerticalLayout {
+    spacing: SettingsLayout.spacing;
+    SectionTitle {
+        text: @tr("Appearance");
+    }
+    VerticalLayout {
+        spacing: 4px;
+        Label {
+            text: @tr("Theme");
+        }
+        ThemePicker { }
+        ThemeDetails { }
+    }
+    Setting {
+        title: @tr("Mode");
+        options: [@tr("System"), @tr("Light"), @tr("Dark")];
+        selected: Ui.theme-mode;
+        key: "theme_mode";
+    }
+    if Ui.palette-options.length > 1: DropdownSetting {
+        title: @tr("Colors in light mode");
+        options: Ui.palette-options;
+        selected: Ui.light-palette-index;
+        key: "light_palette";
+    }
+    if Ui.palette-options.length > 1: DropdownSetting {
+        title: @tr("Colors in dark mode");
+        options: Ui.palette-options;
+        selected: Ui.dark-palette-index;
+        key: "dark_palette";
+    }
+    if Ui.accent-swatches.length > 0: VerticalLayout {
+        spacing: 4px;
+        Label {
+            text: @tr("Accent color: {}", Ui.accent-index >= 0 && Ui.accent-index < Ui.accent-names.length ? Ui.accent-names[Ui.accent-index] : "");
+        }
+        AccentPicker { }
+    }
+    DropdownSetting {
+        title: @tr("Font");
+        options: Ui.font-options;
+        selected: Ui.font-index;
+        key: "font";
+    }
+    DropdownSetting {
+        title: @tr("Font for times and numbers");
+        options: Ui.mono-options;
+        selected: Ui.mono-index;
+        key: "mono_font";
+    }
+    Setting {
+        title: @tr("Text size");
+        options: ["90 %", "100 %", "110 %", "125 %"];
+        selected: Ui.font-scale-index;
+        key: "font_scale";
+    }
+    Setting {
+        title: @tr("Corner radius");
+        options: [@tr("Theme"), "0", "2", "4", "8", "12", "16"];
+        selected: Ui.radius-index;
+        key: "corner_radius";
+    }
+    Setting {
+        title: @tr("Density");
+        options: [@tr("Theme"), @tr("Compact"), @tr("Normal"), @tr("Large")];
+        selected: Ui.density-index;
+        key: "density";
+    }
+    Setting {
+        title: @tr("Borders");
+        options: [@tr("Theme"), @tr("None"), @tr("Thin"), @tr("Thick")];
+        selected: Ui.border-index;
+        key: "border_width";
+    }
+    Setting {
+        title: @tr("Focus ring");
+        options: [@tr("Theme"), @tr("Outline"), @tr("Glow"), @tr("Double")];
+        selected: Ui.focus-index;
+        key: "focus_ring";
+    }
+    Setting {
+        title: @tr("Animations");
+        options: [@tr("Off"), @tr("On")];
+        selected: Theme.motion ? 1 : 0;
+        key: "animations";
+    }
+    ThemeFileSection { }
+}

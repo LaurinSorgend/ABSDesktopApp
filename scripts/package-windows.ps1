@@ -12,6 +12,8 @@ $name = "abs-desktop-$Version-windows-x64"
 $stage = Join-Path $root "dist\$name"
 $licenses = Join-Path $stage "licenses"
 
+# A new value makes the build fetch the latest themes.
+$env:ABS_THEMES_FETCH = Get-Date -Format o
 cargo build --release --locked -p abs-desktop -p abs-reader
 if ($LASTEXITCODE) { throw "cargo build failed" }
 

@@ -163,18 +163,26 @@ impl App {
         self.playback.as_ref().is_some_and(|p| p.is_playing())
     }
 
-    pub(super) fn now_cover(&self, item_id: &str, image: Option<&Image>) {
+    pub(super) fn now_cover(&mut self, item_id: &str, image: Option<&Image>) {
         let is_now = self
             .playback
             .as_ref()
             .and_then(|p| p.now())
             .is_some_and(|n| n.item_id == item_id);
-        if let (true, Some(image)) = (is_now, image) {
-            self.ui(|ui, _| {
+        if !is_now {
+            return;
+        }
+        let blurred = self.covers.blurred(item_id);
+        self.ui(|ui, _| {
+            if let Some(image) = image {
                 ui.set_now_cover(image.clone());
                 ui.set_now_has_cover(true);
-            });
-        }
+            }
+            ui.set_now_has_backdrop(blurred.is_some());
+            if let Some(blurred) = blurred {
+                ui.set_now_backdrop(blurred);
+            }
+        });
     }
 
     pub fn add_bookmark(&mut self) {

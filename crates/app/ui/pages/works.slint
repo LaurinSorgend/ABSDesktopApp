@@ -3,7 +3,7 @@ import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
 import { LibraryChoice, MemberData, MatchData } from "../data.slint";
 import { Cover, TileGrid } from "../tiles.slint";
-import { Button, Dropdown, Heading, Label, Segmented, TextField } from "../widgets.slint";
+import { Button, Card, Dropdown, Heading, Label, Segmented, TextField } from "../widgets.slint";
 
 /// A library that can be shown or hidden on the all-accounts page.
 component LibraryChip inherits Rectangle {
@@ -11,8 +11,13 @@ component LibraryChip inherits Rectangle {
     callback toggled;
 
     height: 32px;
-    width: chip-text.preferred-width + 2 * Theme.pad;
-    background: choice.selected ? Theme.accent : touch.has-hover ? Theme.surface1 : Theme.surface0;
+    width: chip-row.preferred-width + 2 * Theme.pad;
+    border-radius: Theme.material ? 8px : Theme.corner(self.height);
+    background: choice.selected ? (Theme.material ? Theme.accent-soft : Theme.accent)
+        : Theme.catppuccin ? (touch.has-hover ? Theme.surface1 : Theme.surface0)
+        : touch.has-hover ? Theme.control-hover : Theme.control;
+    border-width: choice.selected || Theme.catppuccin ? 0px : max(1px, Theme.border);
+    border-color: Theme.stroke;
     animate background { duration: Theme.quick; easing: ease-out; }
     accessible-role: checkbox;
     accessible-checkable: true;
@@ -21,12 +26,29 @@ component LibraryChip inherits Rectangle {
     accessible-action-default => {
         root.toggled();
     }
-    chip-text := Text {
-        text: root.choice.label;
-        color: root.choice.selected ? Theme.base : Theme.text;
-        font-size: Theme.text-sm;
-        vertical-alignment: center;
-        horizontal-alignment: center;
+    property <color> ink: !root.choice.selected ? Theme.text : Theme.material ? Theme.on-accent-soft : Theme.on-accent;
+    chip-row := HorizontalLayout {
+        alignment: center;
+        spacing: 6px;
+        if root.choice.selected && Theme.material: VerticalLayout {
+            alignment: center;
+            Path {
+                width: 14px;
+                height: 14px;
+                viewbox-width: 16;
+                viewbox-height: 16;
+                commands: "M 2 8 L 6 12 L 14 4";
+                stroke: root.ink;
+                stroke-width: 2px;
+            }
+        }
+        Text {
+            text: root.choice.label;
+            color: root.ink;
+            font-size: Theme.text-sm;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
     }
     touch := TouchArea {
         mouse-cursor: pointer;
@@ -74,11 +96,11 @@ component WorksToolbar inherits HorizontalLayout {
 /// Books of all accounts: the chosen libraries, merged by book or copy by copy.
 export component WorksPage inherits Rectangle {
     VerticalLayout {
-        padding-top: Theme.pad;
+        padding-top: Theme.page-pad;
         spacing: Theme.pad;
         VerticalLayout {
-            padding-left: Theme.pad;
-            padding-right: Theme.pad + Ui.back-inset;
+            padding-left: Theme.page-pad;
+            padding-right: Theme.page-pad + Ui.back-inset;
             spacing: Theme.pad;
             vertical-stretch: 0;
             Heading {
@@ -119,11 +141,9 @@ export component WorksPage inherits Rectangle {
     }
 }
 
-component MemberRow inherits Rectangle {
+component MemberRow inherits Card {
     in property <MemberData> member;
     min-height: 64px;
-    border-width: 1px;
-    border-color: Theme.surface1;
     HorizontalLayout {
         padding: Theme.gap;
         padding-left: Theme.pad;
@@ -173,11 +193,9 @@ component MemberRow inherits Rectangle {
     }
 }
 
-component MatchRow inherits Rectangle {
+component MatchRow inherits Card {
     in property <MatchData> match;
     min-height: 52px;
-    border-width: 1px;
-    border-color: Theme.surface1;
     HorizontalLayout {
         padding: Theme.gap;
         padding-left: Theme.pad;
@@ -267,7 +285,7 @@ export component WorkPage inherits Rectangle {
     ScrollView {
         content-height: max(self.height, content.preferred-height);
         content := VerticalLayout {
-            padding: Theme.pad;
+            padding: Theme.page-pad;
             spacing: Theme.pad;
             alignment: start;
             WorkHeader { }

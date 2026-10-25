@@ -1,0 +1,254 @@
+// The window around the pages: sidebar, the WinUI content layer and the Glass backdrop.
+
+import { Theme } from "theme.slint";
+import { Ui } from "state.slint";
+import { Page } from "data.slint";
+import { Label } from "widgets.slint";
+import { Sheen } from "glass.slint";
+
+component NavItem inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected;
+    callback clicked;
+
+    min-height: Theme.control-height + (Theme.nav-kind == 1 ? 8px : 0px);
+    accessible-role: button;
+    accessible-label: text;
+    accessible-item-selected: selected;
+    accessible-action-default => {
+        root.clicked();
+    }
+    Rectangle {
+        x: Theme.nav-inset;
+        y: Theme.nav-kind == 0 ? 0px : 2px;
+        width: parent.width - 2 * Theme.nav-inset;
+        height: parent.height - 2 * self.y;
+        border-radius: Theme.material ? min(self.height / 2, Theme.card-radius)
+            : Theme.glass ? min(self.height / 2, Theme.radius)
+            : Theme.nav-kind == 2 ? Theme.radius : 0px;
+        background: root.selected ? Theme.accent-soft
+            : !touch.has-hover ? transparent
+            : Theme.catppuccin ? Theme.crust
+            : Theme.winui ? Theme.accent-soft.transparentize(0.4) : Theme.control-hover;
+        animate background { duration: Theme.quick; easing: ease-out; }
+    }
+    if Theme.nav-kind != 1: Rectangle {
+        property <length> full: Theme.nav-kind == 2 ? 16px : parent.height;
+        x: Theme.nav-inset;
+        y: (parent.height - self.height) / 2;
+        width: 3px;
+        height: root.selected ? full : 0;
+        border-radius: Theme.nav-kind == 2 ? 1.5px : 0px;
+        background: Theme.accent;
+        animate height { duration: Theme.settle; easing: ease-out-expo; }
+    }
+    Text {
+        x: Theme.nav-text-x + (Theme.nav-kind == 0 && (root.selected || touch.has-hover) ? 2px : 0px);
+        animate x { duration: Theme.settle; easing: ease-out-expo; }
+        width: parent.width - Theme.nav-text-x - Theme.pad;
+        height: parent.height;
+        text: root.text;
+        color: root.selected && Theme.nav-kind == 1 ? Theme.on-accent-soft : Theme.text;
+        font-size: Theme.text-base;
+        font-weight: root.selected && !Theme.winui ? 700 : 400;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// The app name, with the logo in the Audiobookshelf style and as a small title row,
+/// like a Windows title bar, in the WinUI style.
+component Brand inherits HorizontalLayout {
+    spacing: Theme.winui ? 12px : Theme.gap;
+    padding-left: Theme.nav-text-x;
+    padding-right: Theme.pad;
+    if Theme.abs || Theme.winui: Image {
+        source: @image-url("../../../packaging/icons/abs-desktop.png");
+        width: Theme.winui ? 16px : 28px;
+        height: self.width;
+    }
+    Text {
+        text: Theme.abs ? @tr("audiobookshelf") : @tr("Audiobookshelf");
+        color: Theme.text;
+        font-size: Theme.winui ? Theme.text-sm : Theme.text-lg;
+        font-weight: Theme.winui ? 400 : Theme.heading-weight;
+        vertical-alignment: center;
+        overflow: elide;
+        horizontal-stretch: 1;
+    }
+}
+
+/// A heading in the sidebar; WinUI's navigation headers are semibold body text.
+component SideLabel inherits HorizontalLayout {
+    in property <string> text;
+    in property <bool> header;
+    padding-left: Theme.nav-text-x;
+    padding-right: Theme.pad;
+    padding-top: header && Theme.winui ? 8px : 0px;
+    padding-bottom: header && Theme.winui ? 4px : 0px;
+    Label {
+        text: root.text;
+        color: root.header && Theme.winui ? Theme.text : Theme.subtext;
+        font-size: root.header && Theme.winui ? Theme.text-base : Theme.text-sm;
+        font-weight: root.header && Theme.winui ? 600 : 400;
+    }
+}
+
+/// Pages, libraries and settings; floats as a panel in the Glass style.
+export component Sidebar inherits Rectangle {
+    width: (Theme.winui ? 240px : 184px) + 2 * Theme.inset;
+    Rectangle {
+        x: Theme.inset;
+        y: Theme.inset;
+        width: parent.width - 2 * Theme.inset;
+        height: parent.height - 2 * Theme.inset;
+        background: Theme.sidebar;
+        border-radius: Theme.floating ? Theme.panel-radius : 0px;
+        border-width: Theme.floating ? Theme.border : 0px;
+        border-color: Theme.rim;
+        drop-shadow-offset-y: Theme.floating ? 8px : 0px;
+        drop-shadow-blur: Theme.floating ? Theme.panel-shadow : 0px;
+        drop-shadow-color: Theme.shadow;
+        if Theme.glass: Sheen {
+            width: parent.width;
+            height: parent.height;
+            radius: parent.border-radius;
+        }
+        if Theme.abs: Rectangle {
+            x: parent.width - 1px;
+            width: 1px;
+            background: #00000033;
+        }
+        VerticalLayout {
+            padding-top: Theme.winui ? 8px : Theme.pad;
+            padding-bottom: Theme.pad;
+            spacing: 2px;
+            Brand { }
+            SideLabel {
+                text: Ui.syncing ? @tr("{} · syncing", Ui.account-label) : Ui.account-label;
+            }
+            Rectangle {
+                height: Theme.pad;
+            }
+            NavItem {
+                text: @tr("Home");
+                selected: Ui.page == Page.home;
+                clicked => {
+                    Ui.navigate(Page.home);
+                }
+            }
+            NavItem {
+                text: @tr("Search");
+                selected: Ui.page == Page.search;
+                clicked => {
+                    Ui.navigate(Page.search);
+                }
+            }
+            NavItem {
+                text: @tr("Player");
+                selected: Ui.page == Page.player;
+                clicked => {
+                    Ui.navigate(Page.player);
+                }
+            }
+            if Ui.multi-account: NavItem {
+                text: @tr("All accounts");
+                selected: Ui.page == Page.works || Ui.page == Page.work;
+                clicked => {
+                    Ui.navigate(Page.works);
+                }
+            }
+            Rectangle {
+                height: Theme.pad;
+            }
+            SideLabel {
+                text: @tr("Libraries");
+                header: true;
+            }
+            for library[index] in Ui.libraries: NavItem {
+                text: library.name;
+                selected: (Ui.page == Page.library || Ui.page == Page.group) && Ui.library-index == index;
+                clicked => {
+                    Ui.select-library(index);
+                }
+            }
+            Rectangle {
+                vertical-stretch: 1;
+            }
+            NavItem {
+                text: @tr("Settings");
+                selected: Ui.page == Page.settings;
+                clicked => {
+                    Ui.navigate(Page.settings);
+                }
+            }
+        }
+    }
+}
+
+component Glow inherits Rectangle {
+    in property <color> light;
+    height: self.width;
+    background: @radial-gradient(circle, light 0%, light.transparentize(1) 70%);
+}
+
+/// Colored light behind the translucent panels of the Glass style, or the playing
+/// item's cover, blurred and softened so text on the panels stays readable.
+export component Backdrop inherits Rectangle {
+    property <length> size: max(self.width, self.height);
+    property <bool> playing-cover: Ui.has-media && Ui.now-has-backdrop;
+    background: Theme.base;
+    Glow {
+        x: -root.size * 0.2;
+        y: -root.size * 0.25;
+        width: root.size * 0.8;
+        light: Theme.colors.glow1;
+    }
+    Glow {
+        x: root.width - root.size * 0.55;
+        y: root.height * 0.15;
+        width: root.size * 0.75;
+        light: Theme.colors.glow2;
+    }
+    Glow {
+        x: root.width * 0.15;
+        y: root.height - root.size * 0.35;
+        width: root.size * 0.6;
+        light: Theme.colors.glow3;
+    }
+    Image {
+        width: parent.width;
+        height: parent.height;
+        source: Ui.now-backdrop;
+        image-fit: cover;
+        opacity: root.playing-cover ? 1 : 0;
+        animate opacity { duration: Theme.arrive; easing: ease-out; }
+    }
+    Rectangle {
+        background: Theme.base.with-alpha(Theme.dark ? 0.5 : 0.35);
+        opacity: root.playing-cover ? 1 : 0;
+        animate opacity { duration: Theme.arrive; easing: ease-out; }
+    }
+}
+
+/// WinUI puts the pages on a lighter layer with a rounded corner next to the sidebar.
+export component ContentLayer inherits Rectangle {
+    clip: Theme.content-card;
+    if Theme.content-card: Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width + 2 * Theme.panel-radius;
+        height: parent.height + 2 * Theme.panel-radius;
+        background: Theme.layer;
+        border-radius: Theme.panel-radius;
+        border-width: 1px;
+        border-color: Theme.stroke;
+    }
+    @children
+}

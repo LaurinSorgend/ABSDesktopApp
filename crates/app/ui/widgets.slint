@@ -1,18 +1,16 @@
-// Square-cornered controls on the Catppuccin theme.
+// Controls in the shape of the current style.
 
 import { Theme } from "theme.slint";
+import { FocusRing } from "focus.slint";
+import { Sheen } from "glass.slint";
 import { CloseIcon } from "icons.slint";
 
-/// Square focus ring drawn outside its parent.
-component FocusRing inherits Rectangle {
-    in property <length> target-width;
-    in property <length> target-height;
-    x: -3px;
-    y: -3px;
-    width: target-width + 6px;
-    height: target-height + 6px;
-    border-width: 2px;
-    border-color: Theme.accent;
+export { Segmented, SeekBar, Dropdown } from "pickers.slint";
+
+/// The darker bottom edge WinUI draws under its controls.
+component BottomEdge inherits Rectangle {
+    height: 1px;
+    background: Theme.stroke;
 }
 
 export component Button inherits Rectangle {
@@ -21,15 +19,16 @@ export component Button inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked;
 
-    min-width: max(88px, label.preferred-width + 24px);
-    min-height: 36px;
+    min-width: max(Theme.material ? 72px : 88px, label.preferred-width + (Theme.pill ? 32px : 24px));
+    min-height: Theme.control-height;
     horizontal-stretch: 0;
     vertical-stretch: 0;
-    background: !enabled ? Theme.mantle
-        : primary ? (touch.pressed ? Theme.accent.darker(0.2) : touch.has-hover ? Theme.accent.darker(0.1) : Theme.accent)
-        : (touch.pressed ? Theme.surface1 : touch.has-hover ? Theme.surface0 : Theme.base);
-    border-width: 1px;
-    border-color: primary && enabled ? Theme.accent : touch.has-hover ? Theme.overlay2 : Theme.overlay0;
+    border-radius: Theme.corner(self.height);
+    background: !enabled ? Theme.control
+        : primary ? (touch.pressed ? Theme.action.mix(Theme.on-action, 0.8) : touch.has-hover ? Theme.action.mix(Theme.on-action, 0.9) : Theme.action)
+        : (touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover : Theme.control);
+    border-width: primary && enabled && !Theme.catppuccin ? 0px : Theme.border;
+    border-color: primary && enabled ? Theme.action : touch.has-hover && Theme.catppuccin ? Theme.overlay2 : Theme.rim;
     animate background, border-color { duration: Theme.quick; easing: ease-out; }
     accessible-role: button;
     accessible-label: text;
@@ -55,11 +54,18 @@ export component Button inherits Rectangle {
         }
     }
 
+    if Theme.winui && !touch.pressed: BottomEdge {
+        background: root.primary ? #00000040 : Theme.stroke;
+        x: root.border-radius;
+        y: root.height - 1px;
+        width: root.width - 2 * root.border-radius;
+    }
+
     label := Text {
         text: root.text;
-        font-size: Theme.text-sm;
-        font-weight: 500;
-        color: !root.enabled ? Theme.overlay2 : root.primary ? Theme.on-accent : Theme.text;
+        font-size: Theme.control-text;
+        font-weight: Theme.winui ? 400 : 500;
+        color: !root.enabled ? Theme.overlay2 : root.primary ? Theme.on-action : Theme.material ? Theme.accent : Theme.text;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -67,23 +73,25 @@ export component Button inherits Rectangle {
     if focus.has-focus: FocusRing {
         target-width: root.width;
         target-height: root.height;
+        target-radius: root.border-radius;
     }
 }
 
-/// A square button around an icon, with an optional small label under it.
+/// A button around an icon, square or round by style, with an optional small label under it.
 export component IconButton inherits Rectangle {
     in property <string> label;
     in property <bool> enabled: true;
     callback clicked;
 
     in property <color> rest-color: transparent;
-    in property <color> hover-color: Theme.surface0;
-    in property <color> press-color: Theme.surface1;
+    in property <color> hover-color: Theme.control-hover;
+    in property <color> press-color: Theme.control-press;
     /// The press dips the icon slightly, as a physical key would.
     out property <bool> pressed: touch.pressed;
 
     width: 40px;
     height: 40px;
+    border-radius: Theme.round-icons ? self.height / 2 : Theme.radius;
     background: touch.pressed ? press-color : touch.has-hover ? hover-color : rest-color;
     animate background { duration: Theme.quick; easing: ease-out; }
     accessible-role: button;
@@ -114,9 +122,11 @@ export component IconButton inherits Rectangle {
     if focus.has-focus: FocusRing {
         target-width: root.width;
         target-height: root.height;
+        target-radius: root.border-radius;
     }
 }
 
+/// A text input: a box, Material's filled field or WinUI's field with an accent edge.
 export component TextField inherits Rectangle {
     in property <string> placeholder;
     in property <bool> password;
@@ -130,12 +140,22 @@ export component TextField inherits Rectangle {
         input.focus();
     }
 
-    min-height: 36px;
+    property <bool> underlined: Theme.material || Theme.winui;
+    property <length> corner: Theme.material ? Theme.radius : Theme.corner(self.height);
+
+    min-height: Theme.control-height;
     min-width: 160px;
-    background: Theme.mantle;
-    border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.accent : touch.has-hover ? Theme.overlay2 : Theme.overlay0;
-    animate border-color { duration: Theme.settle; easing: ease-out; }
+    clip: underlined;
+    border-top-left-radius: corner;
+    border-top-right-radius: corner;
+    border-bottom-left-radius: Theme.material ? 0px : corner;
+    border-bottom-right-radius: Theme.material ? 0px : corner;
+    background: Theme.material ? Theme.surface1
+        : Theme.winui ? (input.has-focus ? Theme.popup : touch.has-hover ? Theme.control-hover : Theme.control)
+        : Theme.catppuccin ? Theme.mantle : Theme.control;
+    border-width: Theme.material ? 0px : !underlined && input.has-focus ? max(2px, Theme.border) : Theme.border;
+    border-color: !underlined && input.has-focus ? Theme.accent : touch.has-hover && !Theme.winui ? Theme.overlay2 : Theme.stroke;
+    animate border-color, background { duration: Theme.settle; easing: ease-out; }
 
     touch := TouchArea {
         mouse-cursor: MouseCursor.text;
@@ -147,7 +167,7 @@ export component TextField inherits Rectangle {
     accessible-label: label;
 
     HorizontalLayout {
-        padding-left: 10px;
+        padding-left: Theme.material ? 16px : 10px;
         padding-right: 10px;
         input := TextInput {
             vertical-alignment: center;
@@ -165,247 +185,33 @@ export component TextField inherits Rectangle {
     }
 
     if input.text == "": Text {
-        x: 10px;
+        x: Theme.material ? 16px : 10px;
         height: parent.height;
         vertical-alignment: center;
         text: root.placeholder;
         color: Theme.subtext;
         font-size: Theme.text-base;
     }
-}
 
-/// One choice out of a few, as a row of joined buttons.
-export component Segmented inherits HorizontalLayout {
-    in property <[string]> options;
-    in property <int> selected;
-    in property <string> label;
-    callback select(int);
-
-    spacing: -1px;
-    accessible-role: tab-list;
-    accessible-label: label;
-
-    for option[index] in options: Rectangle {
-        min-width: max(48px, option-text.preferred-width + 20px);
-        min-height: 32px;
-        background: index == root.selected ? Theme.accent : touch.pressed ? Theme.surface1 : touch.has-hover ? Theme.surface0 : Theme.base;
-        border-width: 1px;
-        border-color: index == root.selected ? Theme.accent : Theme.overlay0;
-        animate background, border-color { duration: Theme.settle; easing: ease-out-expo; }
-        accessible-role: tab;
-        accessible-label: option;
-        accessible-item-selected: index == root.selected;
-        accessible-action-default => {
-            root.select(index);
-        }
-        touch := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                root.select(index);
-            }
-        }
-        option-text := Text {
-            text: option;
-            font-size: Theme.text-sm;
-            color: index == root.selected ? Theme.on-accent : Theme.text;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            animate color { duration: Theme.settle; easing: ease-out-expo; }
-        }
+    if root.underlined: Rectangle {
+        y: parent.height - self.height;
+        height: input.has-focus ? 2px : 1px;
+        background: input.has-focus ? Theme.accent : Theme.material ? Theme.subtext : Theme.overlay2;
+        animate background { duration: Theme.settle; easing: ease-out; }
     }
 }
 
-/// A horizontal bar to show and change a position from 0 to 1.
-export component SeekBar inherits Rectangle {
-    in property <float> value;
-    in property <string> label;
-    /// Positions from 0 to 1 drawn as gaps, such as chapter starts.
-    in property <[float]> markers;
-    callback seek(float);
-    /// While dragging, for controls that apply at once such as volume.
-    callback scrub(float);
-    property <float> drag;
-    property <float> shown: touch.pressed ? drag : clamp(value, 0, 1);
-
-    min-height: 20px;
-    accessible-role: slider;
-    accessible-label: label;
-    accessible-value: round(shown * 100) + "%";
-
-    property <bool> active: touch.has-hover || touch.pressed;
-    property <length> track: active ? 6px : 4px;
-    animate track { duration: Theme.quick; easing: ease-out; }
-
-    Rectangle {
-        y: (parent.height - root.track) / 2;
-        height: root.track;
-        background: Theme.surface1;
-    }
-
-    Rectangle {
-        x: 0;
-        y: (parent.height - root.track) / 2;
-        height: root.track;
-        width: parent.width * root.shown;
-        background: Theme.accent;
-    }
-
-    for marker in root.markers: Rectangle {
-        x: parent.width * marker - 1px;
-        y: (parent.height - root.track) / 2;
-        width: 2px;
-        height: root.track;
-        background: Theme.base;
-    }
-
-    Rectangle {
-        x: parent.width * root.shown - self.width / 2;
-        y: (parent.height - self.height) / 2;
-        width: touch.pressed ? 16px : root.active ? 14px : 12px;
-        height: self.width;
-        background: Theme.accent;
-        border-width: 2px;
-        border-color: Theme.text;
-        animate width { duration: Theme.quick; easing: ease-out; }
-    }
-
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        pointer-event(event) => {
-            if event.kind == PointerEventKind.down {
-                root.drag = clamp(self.mouse-x / self.width, 0, 1);
-                root.scrub(root.drag);
-            } else if event.kind == PointerEventKind.up {
-                root.seek(clamp(self.mouse-x / self.width, 0, 1));
-            }
-        }
-        moved => {
-            root.drag = clamp(self.mouse-x / self.width, 0, 1);
-            root.scrub(root.drag);
-        }
-    }
-}
-
-/// A button showing the current choice; clicking it opens the list of choices.
-export component Dropdown inherits Rectangle {
-    in property <[string]> options;
-    in property <int> selected;
-    in property <string> label;
-    /// Opens the list above the button, as in the player bar.
-    in property <bool> above;
-    callback select(int);
-    property <length> row-height: 32px;
-
-    min-width: max(72px, current.preferred-width + 36px);
-    min-height: 36px;
-    background: touch.pressed ? Theme.surface1 : touch.has-hover ? Theme.surface0 : Theme.base;
-    border-width: 1px;
-    border-color: touch.has-hover ? Theme.overlay2 : Theme.overlay0;
-    animate background, border-color { duration: Theme.quick; easing: ease-out; }
-    accessible-role: combobox;
-    accessible-label: label;
-    accessible-value: selected >= 0 && selected < options.length ? options[selected] : "";
-    accessible-action-default => {
-        popup.show();
-    }
-
-    focus := FocusScope {
-        key-pressed(event) => {
-            if event.text == " " || event.text == Key.Return {
-                popup.show();
-                return accept;
-            }
-            if event.text == Key.UpArrow && root.selected > 0 {
-                root.select(root.selected - 1);
-                return accept;
-            }
-            if event.text == Key.DownArrow && root.selected < root.options.length - 1 {
-                root.select(root.selected + 1);
-                return accept;
-            }
-            reject
-        }
-        touch := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                popup.show();
-            }
-        }
-    }
-
-    HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 8px;
-        spacing: 6px;
-        current := Text {
-            text: root.selected >= 0 && root.selected < root.options.length ? root.options[root.selected] : "";
-            color: Theme.text;
-            font-size: Theme.text-sm;
-            font-weight: 500;
-            vertical-alignment: center;
-            horizontal-stretch: 1;
-        }
-        VerticalLayout {
-            alignment: center;
-            if root.above: Path {
-                width: 10px;
-                height: 10px;
-                viewbox-width: 10;
-                viewbox-height: 10;
-                commands: "M 1 7 L 5 3 L 9 7";
-                stroke: Theme.text;
-                stroke-width: 1.5px;
-            }
-            if !root.above: Path {
-                width: 10px;
-                height: 10px;
-                viewbox-width: 10;
-                viewbox-height: 10;
-                commands: "M 1 3 L 5 7 L 9 3";
-                stroke: Theme.text;
-                stroke-width: 1.5px;
-            }
-        }
-    }
-
-    if focus.has-focus: FocusRing {
-        target-width: root.width;
-        target-height: root.height;
-    }
-
-    popup := PopupWindow {
-        x: 0;
-        y: root.above ? -self.height - 4px : root.height + 4px;
-        width: max(root.width, 120px);
-        height: root.options.length * root.row-height + 2px;
-        Rectangle {
-            background: Theme.mantle;
-            border-width: 1px;
-            border-color: Theme.overlay0;
-        }
-        VerticalLayout {
-            padding: 1px;
-            for option[index] in root.options: Rectangle {
-                height: root.row-height;
-                background: index == root.selected ? Theme.accent : item-touch.has-hover ? Theme.surface0 : transparent;
-                animate background { duration: Theme.quick; easing: ease-out; }
-                Text {
-                    x: 10px;
-                    height: parent.height;
-                    text: option;
-                    color: index == root.selected ? Theme.on-accent : Theme.text;
-                    font-size: Theme.text-sm;
-                    vertical-alignment: center;
-                }
-                item-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.select(index);
-                        popup.close();
-                    }
-                }
-            }
-        }
+/// A panel for a row of facts and buttons, as in the account and download lists.
+export component Card inherits Rectangle {
+    in property <bool> active;
+    border-radius: Theme.card-radius;
+    background: Theme.card;
+    border-width: Theme.material && !active ? 0px : max(Theme.border, active ? 1px : 0px);
+    border-color: active ? Theme.accent : Theme.catppuccin ? Theme.surface1 : Theme.rim;
+    if Theme.glass: Sheen {
+        width: parent.width;
+        height: parent.height;
+        radius: parent.border-radius;
     }
 }
 
@@ -510,7 +316,7 @@ export component Prompt inherits Rectangle {
 
 export component Heading inherits Text {
     font-size: Theme.text-xl;
-    font-weight: 700;
+    font-weight: Theme.heading-weight;
     color: Theme.text;
     overflow: elide;
 }

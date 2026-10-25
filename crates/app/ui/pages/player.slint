@@ -3,6 +3,7 @@ import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
 import { Page } from "../data.slint";
 import { Cover } from "../tiles.slint";
+import { Sheen } from "../glass.slint";
 import { ChapterRow } from "detail.slint";
 import { Button, Dropdown, Heading, IconButton, Label, SeekBar } from "../widgets.slint";
 import {
@@ -16,14 +17,14 @@ component PlayPauseIcon inherits Rectangle {
     width: 20px;
     height: 20px;
     PauseIcon {
-        color: Theme.on-accent;
+        color: Theme.on-action;
         opacity: Ui.playing ? 1 : 0;
         transform-rotation: Ui.playing ? 0deg : -90deg;
         transform-scale: Ui.playing ? 100% : 40%;
         animate opacity, transform-rotation, transform-scale { duration: Theme.settle; easing: ease-out-expo; }
     }
     PlayIcon {
-        color: Theme.on-accent;
+        color: Theme.on-action;
         opacity: Ui.playing ? 0 : 1;
         transform-rotation: Ui.playing ? 90deg : 0deg;
         transform-scale: Ui.playing ? 40% : 100%;
@@ -70,9 +71,13 @@ export component Transport inherits HorizontalLayout {
         label: Ui.playing ? @tr("Pause") : @tr("Play");
         width: 48px;
         height: 48px;
-        rest-color: Theme.accent;
-        hover-color: Theme.accent.darker(0.1);
-        press-color: Theme.accent.darker(0.2);
+        rest-color: Theme.action;
+        hover-color: Theme.action.mix(Theme.on-action, 0.9);
+        press-color: Theme.action.mix(Theme.on-action, 0.8);
+        border-radius: Theme.material ? 16px : Theme.round-icons ? self.height / 2 : Theme.radius;
+        drop-shadow-offset-y: Theme.glass || Theme.abs ? 3px : 0px;
+        drop-shadow-blur: Theme.glass || Theme.abs ? 10px : 0px;
+        drop-shadow-color: Theme.shadow;
         clicked => {
             Ui.toggle-play();
         }
@@ -243,57 +248,76 @@ component NowPlayingSummary inherits Rectangle {
 
 /// The bar at the bottom while an item is loaded. The controls sit in the middle
 /// of the window; the item is on the left, volume and speed on the right.
+/// In the Glass style it floats as a panel.
 export component PlayerBar inherits Rectangle {
-    property <length> center-width: clamp(self.width - 2 * 300px, 360px, 720px);
-    property <length> side-width: (self.width - self.center-width) / 2;
+    property <length> inner-width: self.width - 2 * Theme.inset;
+    property <length> center-width: clamp(inner-width - 2 * 300px, 360px, 720px);
+    property <length> side-width: (inner-width - self.center-width) / 2;
     property <bool> arrived;
     init => {
         self.arrived = true;
     }
-    height: center.preferred-height + 2 * Theme.gap;
-    background: Theme.mantle;
+    height: center.preferred-height + 2 * Theme.gap + Theme.inset;
     opacity: arrived ? 1 : 0;
     animate opacity { duration: Theme.arrive; easing: ease-out-expo; }
 
     Rectangle {
-        y: 0;
-        height: 1px;
-        background: Theme.surface1;
-    }
+        x: Theme.inset;
+        width: root.inner-width;
+        height: parent.height - Theme.inset;
+        background: Theme.bar;
+        border-radius: Theme.floating ? Theme.panel-radius : 0px;
+        border-width: Theme.floating ? Theme.border : 0px;
+        border-color: Theme.rim;
+        drop-shadow-offset-y: Theme.floating ? 8px : Theme.abs ? -4px : 0px;
+        drop-shadow-blur: Theme.floating || Theme.abs ? Theme.panel-shadow : 0px;
+        drop-shadow-color: Theme.shadow;
+        if Theme.glass: Sheen {
+            width: parent.width;
+            height: parent.height;
+            radius: parent.border-radius;
+        }
 
-    NowPlayingSummary {
-        x: Theme.gap;
-        y: (parent.height - 56px) / 2;
-        width: root.side-width - 2 * Theme.gap;
-        height: 56px;
-    }
+        if !Theme.floating && !Theme.abs: Rectangle {
+            y: 0;
+            height: 1px;
+            background: Theme.catppuccin ? Theme.surface1 : Theme.stroke;
+        }
 
-    center := VerticalLayout {
-        x: root.side-width;
-        y: Theme.gap;
-        width: root.center-width;
-        spacing: Ui.progress-mode == 2 ? 6px : 2px;
-        padding-bottom: Ui.progress-mode == 2 ? Theme.gap : 0;
-        Transport { }
-        if Ui.progress-mode != 1: BookProgress { }
-        if Ui.progress-mode != 0: ChapterProgress { }
-    }
+        NowPlayingSummary {
+            x: Theme.gap;
+            y: (parent.height - 56px) / 2;
+            width: root.side-width - 2 * Theme.gap;
+            height: 56px;
+        }
 
-    HorizontalLayout {
-        x: root.side-width + root.center-width + Theme.gap;
-        y: (parent.height - 40px) / 2;
-        width: root.side-width - 2 * Theme.gap;
-        height: 40px;
-        spacing: Theme.gap;
-        alignment: end;
-        Volume { }
-        Dropdown {
-            label: @tr("Speed");
-            options: Ui.speed-options;
-            selected: Ui.speed-index;
-            above: true;
-            select(index) => {
-                Ui.set-speed(index);
+        center := VerticalLayout {
+            x: root.side-width;
+            y: Theme.gap;
+            width: root.center-width;
+            spacing: Ui.progress-mode == 2 ? 6px : 2px;
+            padding-bottom: Ui.progress-mode == 2 ? Theme.gap : 0;
+            Transport { }
+            if Ui.progress-mode != 1: BookProgress { }
+            if Ui.progress-mode != 0: ChapterProgress { }
+        }
+
+        HorizontalLayout {
+            x: root.side-width + root.center-width + Theme.gap;
+            y: (parent.height - 40px) / 2;
+            width: root.side-width - 2 * Theme.gap;
+            height: 40px;
+            spacing: Theme.gap;
+            alignment: end;
+            Volume { }
+            Dropdown {
+                label: @tr("Speed");
+                options: Ui.speed-options;
+                selected: Ui.speed-index;
+                above: true;
+                select(index) => {
+                    Ui.set-speed(index);
+                }
             }
         }
     }
@@ -320,7 +344,8 @@ component BookmarkList inherits VerticalLayout {
     }
     for bookmark in Ui.bookmarks: Rectangle {
         min-height: 36px;
-        background: touch.has-hover ? Theme.mantle : Theme.mantle.transparentize(1);
+        border-radius: Theme.radius;
+        background: !touch.has-hover ? transparent : Theme.catppuccin ? Theme.mantle : Theme.control-hover;
         animate background { duration: Theme.quick; easing: ease-out; }
         HorizontalLayout {
             padding-left: Theme.gap;
@@ -437,7 +462,7 @@ export component PlayerPage inherits Rectangle {
     /// The cover grows with the window and leaves room for the chapter list.
     property <length> cover-size: clamp(min((self.width - 3 * Theme.pad) * 0.45, self.height - 2 * Theme.pad - 400px), 320px, 640px);
     HorizontalLayout {
-        padding: Theme.pad;
+        padding: Theme.page-pad;
         spacing: 2 * Theme.pad;
         if !Ui.has-media: Label {
             text: @tr("Nothing is playing. Pick a book from the library.");

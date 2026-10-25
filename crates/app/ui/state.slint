@@ -2,7 +2,7 @@
 
 import {
     TileData, TileRow, ShelfData, NamedId, GroupData, ChapterData, BookmarkData, AccountData,
-    DetailData, DownloadData, Page, LibraryView, LibraryChoice, MemberData, MatchData,
+    DetailData, DownloadData, Page, LibraryView, LibraryChoice, MemberData, MatchData, ThemeCard,
 } from "data.slint";
 
 export global Ui {
@@ -150,6 +150,9 @@ export global Ui {
     in property <string> now-author;
     in property <image> now-cover;
     in property <bool> now-has-cover;
+    /// The cover blurred, behind the Glass style while an item is loaded.
+    in property <image> now-backdrop;
+    in property <bool> now-has-backdrop;
     in property <float> position-fraction;
     in property <float> chapter-fraction;
     in property <string> position-text;
@@ -215,15 +218,44 @@ export global Ui {
     in property <bool> close-to-tray;
     in property <string> credentials-note;
     in property <int> theme-mode;
-    in property <int> light-flavor;
-    in property <int> dark-flavor;
     in property <int> accent-index;
     in property <[color]> accent-swatches;
     in property <[string]> accent-names;
     in property <string> theme-file;
     in property <string> theme-note;
+    in property <bool> theme-file-active;
     callback edit-theme-file();
     callback reload-theme();
+    callback import-theme();
+    callback export-theme();
+    callback stop-theme-file();
+    /// Bundled and installed themes, and the chosen one's details.
+    in property <[ThemeCard]> theme-cards;
+    in property <int> theme-index;
+    in property <string> theme-description;
+    in property <string> theme-version;
+    in property <string> theme-creator;
+    in property <string> theme-website;
+    in property <string> theme-source;
+    in property <string> theme-donation;
+    /// Installed by the user, so it can be removed.
+    in property <bool> theme-installed;
+    /// Theme files in the themes folder that could not be read.
+    in property <string> theme-errors;
+    in property <[string]> palette-options;
+    in property <int> light-palette-index;
+    in property <int> dark-palette-index;
+    callback remove-theme();
+    callback open-link(string);
+    in property <[string]> font-options;
+    in property <[string]> mono-options;
+    in property <int> font-index;
+    in property <int> mono-index;
+    in property <int> font-scale-index;
+    in property <int> radius-index;
+    in property <int> density-index;
+    in property <int> border-index;
+    in property <int> focus-index;
     callback set-setting(string, int);
     callback use-account(string);
     callback remove-account(string);

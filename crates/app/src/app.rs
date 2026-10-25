@@ -10,6 +10,7 @@ mod home;
 mod player;
 mod preferences;
 mod reading;
+mod theme_files;
 mod themes;
 mod work;
 mod works;
@@ -67,6 +68,14 @@ pub struct App {
     relogin: Option<String>,
     file_credentials: bool,
     theme_file: PathBuf,
+    /// Bundled and installed themes.
+    catalog: crate::theme::Catalog,
+    /// Where installed themes live.
+    themes_dir: PathBuf,
+    /// The theme applied last, for export.
+    theme: Option<crate::theme::Resolved>,
+    /// Bundled fonts, then the system's once they are read.
+    fonts: Vec<String>,
     tray: Option<crate::tray::Tray>,
     reading: reading::Reading,
     works: works::Works,
@@ -110,15 +119,24 @@ impl App {
             choices,
             relogin: None,
             file_credentials: parts.file_credentials,
+            catalog: crate::theme::Catalog::default(),
+            themes_dir: themes_dir(&parts.theme_file),
             theme_file: parts.theme_file,
+            theme: None,
+            fonts: crate::theme::BUNDLED_FONTS
+                .iter()
+                .map(|f| (*f).to_owned())
+                .collect(),
             tray: None,
             reading: reading::Reading::default(),
             works: works::Works::new(),
             work: work::WorkView::default(),
         };
+        app.reload_themes();
         app.bind_models();
         app.apply_choices();
         app.apply_theme();
+        app.load_system_fonts();
         app
     }
 
@@ -327,6 +345,14 @@ pub fn with_app(f: impl FnOnce(&mut App) + 'static) {
             slint::Timer::single_shot(std::time::Duration::ZERO, move || with_app(f));
         }
     }
+}
+
+/// Installed themes sit next to the local theme file in the data folder.
+fn themes_dir(theme_file: &std::path::Path) -> PathBuf {
+    theme_file
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .join(crate::theme::INSTALLED_DIR)
 }
 
 /// Drops the app, which stops the player.

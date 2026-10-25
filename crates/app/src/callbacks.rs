@@ -58,6 +58,11 @@ fn connect_navigation(ui: &Ui<'_>) {
     ui.on_banner_dismiss(|| with_app(|app| app.banner_dismiss()));
     ui.on_edit_theme_file(|| with_app(|app| app.edit_theme_file()));
     ui.on_reload_theme(|| with_app(|app| app.apply_theme()));
+    ui.on_import_theme(|| with_app(|app| app.import_theme()));
+    ui.on_export_theme(|| with_app(|app| app.export_theme()));
+    ui.on_stop_theme_file(|| with_app(|app| app.stop_theme_file()));
+    ui.on_remove_theme(|| with_app(|app| app.remove_theme()));
+    ui.on_open_link(|url| with_app(move |app| app.open_link(&url)));
     ui.on_sync_now(|| with_app(|app| app.sync_now()));
     ui.on_set_setting(|key, index| {
         with_app(move |app| app.set_setting(&key, index.max(0) as usize))

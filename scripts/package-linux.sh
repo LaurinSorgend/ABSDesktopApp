@@ -7,6 +7,8 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 appdir="$root/dist/AppDir"
 docs="$appdir/usr/share/doc/abs-desktop"
 
+# A new value makes the build fetch the latest themes.
+export ABS_THEMES_FETCH="$(date +%s)"
 cargo build --release --locked -p abs-desktop -p abs-reader
 
 rm -rf "$appdir"

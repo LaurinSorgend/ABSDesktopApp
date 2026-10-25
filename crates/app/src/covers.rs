@@ -13,15 +13,21 @@ use crate::lru::ByteLru;
 pub const TILE_WIDTH: u32 = 320;
 /// Cover width for the item and player pages.
 pub const LARGE_WIDTH: u32 = 800;
+/// Size of the blurred cover behind the player; it is scaled up, so small is enough.
+const BLURRED_SIZE: u32 = 96;
+/// Cache key width of a blurred cover.
+const BLURRED: u32 = 0;
 const DECODED_BYTES: usize = 96 * 1024 * 1024;
 
 type Key = (String, u32);
 
 /// A cover the decoder finished; `pixels` is `None` when there is no cover.
+/// Large covers come with a blurred copy.
 pub struct Decoded {
     pub item_id: String,
     pub width: u32,
     pub pixels: Option<SharedPixelBuffer<Rgba8Pixel>>,
+    pub blurred: Option<SharedPixelBuffer<Rgba8Pixel>>,
 }
 
 pub struct Covers {
@@ -73,10 +79,24 @@ impl Covers {
             self.missing.insert(key);
             return (None, Vec::new());
         };
+        let mut evicted = Vec::new();
+        if let Some(blurred) = decoded.blurred {
+            let bytes = blurred.as_bytes().len();
+            let blurred_key = (key.0.clone(), BLURRED);
+            evicted.extend(
+                self.images
+                    .insert(blurred_key, Image::from_rgba8(blurred), bytes),
+            );
+        }
         let bytes = pixels.as_bytes().len();
         let image = Image::from_rgba8(pixels);
-        let evicted = self.images.insert(key, image.clone(), bytes);
+        evicted.extend(self.images.insert(key, image.clone(), bytes));
         (Some(image), evicted.into_iter().map(|(id, _)| id).collect())
+    }
+
+    /// The blurred copy of a large cover that was decoded.
+    pub fn blurred(&mut self, item_id: &str) -> Option<Image> {
+        self.images.get(&(item_id.to_owned(), BLURRED)).cloned()
     }
 
     /// Forgets everything, as after switching accounts.
@@ -101,11 +121,18 @@ pub fn spawn_decoder(on_decoded: impl Fn(Decoded) + Send + 'static) -> mpsc::Sen
         .name("cover-decoder".into())
         .spawn(move || {
             for encoded in receiver {
-                let pixels = encoded.bytes.and_then(|bytes| decode(&bytes));
+                let decoded = encoded
+                    .bytes
+                    .and_then(|bytes| image::load_from_memory(&bytes).ok());
+                let blurred = decoded
+                    .as_ref()
+                    .filter(|_| encoded.width == LARGE_WIDTH)
+                    .map(blur);
                 on_decoded(Decoded {
                     item_id: encoded.item_id,
                     width: encoded.width,
-                    pixels,
+                    pixels: decoded.map(|image| pixels(&image.into_rgba8())),
+                    blurred,
                 });
             }
         })
@@ -113,11 +140,18 @@ pub fn spawn_decoder(on_decoded: impl Fn(Decoded) + Send + 'static) -> mpsc::Sen
     sender
 }
 
-fn decode(bytes: &[u8]) -> Option<SharedPixelBuffer<Rgba8Pixel>> {
-    let rgba = image::load_from_memory(bytes).ok()?.into_rgba8();
-    Some(SharedPixelBuffer::clone_from_slice(
-        rgba.as_raw(),
-        rgba.width(),
-        rgba.height(),
-    ))
+fn pixels(rgba: &image::RgbaImage) -> SharedPixelBuffer<Rgba8Pixel> {
+    SharedPixelBuffer::clone_from_slice(rgba.as_raw(), rgba.width(), rgba.height())
+}
+
+/// A small, heavily blurred copy, for a background that is scaled up.
+fn blur(cover: &image::DynamicImage) -> SharedPixelBuffer<Rgba8Pixel> {
+    let small = cover
+        .resize_to_fill(
+            BLURRED_SIZE,
+            BLURRED_SIZE,
+            image::imageops::FilterType::Triangle,
+        )
+        .into_rgba8();
+    pixels(&image::imageops::blur(&small, 6.0))
 }

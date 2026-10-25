@@ -35,7 +35,8 @@ component ItemToolbar inherits HorizontalLayout {
 component GroupList inherits ListView {
     for group in Ui.groups: Rectangle {
         height: 44px;
-        background: touch.has-hover ? Theme.surface0 : Theme.surface0.transparentize(1);
+        border-radius: Theme.radius;
+        background: touch.has-hover ? Theme.control-hover : transparent;
         animate background { duration: Theme.quick; easing: ease-out; }
         accessible-role: button;
         accessible-label: group.name;
@@ -43,8 +44,8 @@ component GroupList inherits ListView {
             Ui.open-group(group.id);
         }
         HorizontalLayout {
-            padding-left: Theme.pad;
-            padding-right: Theme.pad;
+            padding-left: Theme.page-pad;
+            padding-right: Theme.page-pad;
             spacing: Theme.pad;
             Text {
                 text: group.name;
@@ -65,7 +66,7 @@ component GroupList inherits ListView {
         Rectangle {
             y: parent.height - 1px;
             height: 1px;
-            background: Theme.surface0;
+            background: Theme.catppuccin ? Theme.surface0 : Theme.stroke;
         }
         touch := TouchArea {
             mouse-cursor: pointer;
@@ -78,11 +79,11 @@ component GroupList inherits ListView {
 
 export component LibraryPage inherits Rectangle {
     VerticalLayout {
-        padding-top: Theme.pad;
+        padding-top: Theme.page-pad;
         spacing: Theme.pad;
         VerticalLayout {
-            padding-left: Theme.pad;
-            padding-right: Theme.pad + Ui.back-inset;
+            padding-left: Theme.page-pad;
+            padding-right: Theme.page-pad + Ui.back-inset;
             spacing: Theme.pad;
             HorizontalLayout {
                 spacing: Theme.pad;
@@ -125,11 +126,11 @@ export component LibraryPage inherits Rectangle {
 
 export component GroupPage inherits Rectangle {
     VerticalLayout {
-        padding-top: Theme.pad;
+        padding-top: Theme.page-pad;
         spacing: Theme.pad;
         VerticalLayout {
-            padding-left: Theme.pad;
-            padding-right: Theme.pad + Ui.back-inset;
+            padding-left: Theme.page-pad;
+            padding-right: Theme.page-pad + Ui.back-inset;
             spacing: Theme.gap;
             Heading {
                 text: Ui.group-title;
@@ -158,11 +159,11 @@ export component SearchPage inherits Rectangle {
         field.focus-input();
     }
     VerticalLayout {
-        padding-top: Theme.pad;
+        padding-top: Theme.page-pad;
         spacing: Theme.pad;
         VerticalLayout {
-            padding-left: Theme.pad;
-            padding-right: Theme.pad + Ui.back-inset;
+            padding-left: Theme.page-pad;
+            padding-right: Theme.page-pad + Ui.back-inset;
             spacing: Theme.gap;
             Heading {
                 text: @tr("Search");

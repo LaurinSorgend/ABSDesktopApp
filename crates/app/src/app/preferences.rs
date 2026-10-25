@@ -8,16 +8,16 @@ use slint::ComponentHandle;
 use super::App;
 use crate::paths::dir_size;
 use crate::settings::{
-    ACCENT, ANIMATIONS, CACHE_MEGABYTES, CLOSE_TO_TRAY, CONFLICT, CONFLICT_MINUTES, COVER_CACHE,
-    Choices, DARK_FLAVOR, DEFAULT_SPEED, LIGHT_FLAVOR, PROGRESS_BAR, SKIP_BACK, SKIP_BACK_SECONDS,
-    SKIP_FORWARD, SKIP_FORWARD_SECONDS, THEME_MODE,
+    ACCENT, CACHE_MEGABYTES, CLOSE_TO_TRAY, CONFLICT, CONFLICT_MINUTES, COVER_CACHE, Choices,
+    DARK_PALETTE, DEFAULT_SPEED, FONT, LIGHT_PALETTE, MONO_FONT, PROGRESS_BAR, SKIP_BACK,
+    SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS, THEME, THEME_INDEX_KEYS,
 };
 use crate::tray::{Labels, Tray};
 
 impl App {
     /// Pushes the settings to the player and the settings page.
     pub(super) fn apply_choices(&mut self) {
-        let choices = self.choices;
+        let choices = self.choices.clone();
         if let Some(playback) = &mut self.playback {
             playback.apply_choices(&choices);
         }
@@ -55,10 +55,18 @@ impl App {
         let store = self.db.store();
         let settings = store.settings();
         let _ = match key {
-            SKIP_BACK | SKIP_FORWARD | DEFAULT_SPEED | CLOSE_TO_TRAY | PROGRESS_BAR
-            | THEME_MODE | LIGHT_FLAVOR | DARK_FLAVOR | ACCENT | ANIMATIONS => {
+            SKIP_BACK | SKIP_FORWARD | DEFAULT_SPEED | CLOSE_TO_TRAY | PROGRESS_BAR => {
                 settings.set(key, index)
             }
+            k if THEME_INDEX_KEYS.contains(&k) => settings.set(key, index),
+            THEME | LIGHT_PALETTE | DARK_PALETTE | ACCENT => match self.theme_value(key, index) {
+                Some((key, value)) => settings.set(&key, value),
+                None => Ok(()),
+            },
+            FONT | MONO_FONT => match self.font_at(index) {
+                name if name.is_empty() => settings.remove(key),
+                name => settings.set(key, name),
+            },
             COVER_CACHE => {
                 let megabytes = CACHE_MEGABYTES[index.min(CACHE_MEGABYTES.len() - 1)];
                 self.engine.send(Command::SetCoverCacheSize { megabytes });
@@ -77,10 +85,7 @@ impl App {
         if key == COVER_CACHE {
             self.choices.cover_cache = index;
         } else {
-            self.choices = Choices {
-                cover_cache: self.choices.cover_cache,
-                ..Choices::load(&store)
-            };
+            self.reload_choices();
         }
         if key == DEFAULT_SPEED
             && let Some(playback) = &mut self.playback
@@ -90,6 +95,14 @@ impl App {
         self.apply_choices();
         self.apply_theme();
         self.refresh_source_settings();
+    }
+
+    /// Reads the settings again; the cover cache size stays as the engine has it.
+    pub(super) fn reload_choices(&mut self) {
+        self.choices = Choices {
+            cover_cache: self.choices.cover_cache,
+            ..Choices::load(&self.db.store())
+        };
     }
 
     /// The preferred account list and the mirror switch.
