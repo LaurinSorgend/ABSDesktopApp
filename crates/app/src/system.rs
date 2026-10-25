@@ -10,7 +10,8 @@ use slint::{CloseRequestResponse, ComponentHandle};
 use crate::AppWindow;
 use crate::app::with_app;
 
-/// Media controls need the native window, which exists only once the window is shown.
+/// Media controls and the window frame need the native window, which exists only once
+/// the window is shown.
 const ATTACH_DELAY: Duration = Duration::from_millis(300);
 
 /// Keeps OS integration alive while the app runs.
@@ -25,7 +26,10 @@ pub fn attach(window: &AppWindow) -> System {
         if let Some(window) = weak.upgrade() {
             attach_media_controls(&window);
         }
-        with_app(|app| app.focus_input());
+        with_app(|app| {
+            app.focus_input();
+            app.apply_theme();
+        });
     });
     window.window().on_close_requested(on_close);
     System { _attach: attach }
@@ -60,7 +64,7 @@ fn on_close() -> CloseRequestResponse {
 }
 
 #[cfg(windows)]
-fn native_hwnd(window: &AppWindow) -> Result<Option<*mut std::ffi::c_void>, String> {
+pub(crate) fn native_hwnd(window: &AppWindow) -> Result<Option<*mut std::ffi::c_void>, String> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let handle = window.window().window_handle();
     let handle = handle.window_handle().map_err(|e| e.to_string())?;
@@ -71,6 +75,6 @@ fn native_hwnd(window: &AppWindow) -> Result<Option<*mut std::ffi::c_void>, Stri
 }
 
 #[cfg(not(windows))]
-fn native_hwnd(_window: &AppWindow) -> Result<Option<*mut std::ffi::c_void>, String> {
+pub(crate) fn native_hwnd(_window: &AppWindow) -> Result<Option<*mut std::ffi::c_void>, String> {
     Ok(None)
 }

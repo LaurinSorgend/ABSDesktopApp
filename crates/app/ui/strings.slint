@@ -142,8 +142,14 @@ export global Strings {
     public pure function megabytes(count: int) -> string {
         @tr("{} MB", count)
     }
-    public pure function custom-colors-active() -> string {
-        @tr("Custom colors are in use.")
+    public pure function theme-file-sets(keys: string) -> string {
+        @tr("The theme file sets {}, so those settings below have no effect.", keys)
+    }
+    public pure function style-font(name: string) -> string {
+        @tr("Theme default ({})", name)
+    }
+    public pure function system-font() -> string {
+        @tr("system font")
     }
     public pure function theme-file-error(message: string) -> string {
         @tr("The theme file has an error and is ignored: {}", message)

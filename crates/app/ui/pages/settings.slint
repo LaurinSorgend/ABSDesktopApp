@@ -2,41 +2,13 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
 import { AccountData, DownloadData } from "../data.slint";
+import { Button, Card, Dropdown, Heading, Label, TextField } from "../widgets.slint";
+import { Appearance, DropdownSetting, Setting, SectionTitle, SettingsLayout } from "appearance.slint";
 
-/// The accent colors of the current flavor as square swatches.
-component AccentPicker inherits HorizontalLayout {
-    spacing: 4px;
-    alignment: start;
-    accessible-role: tab-list;
-    accessible-label: @tr("Accent color");
-    for swatch[index] in Ui.accent-swatches: Rectangle {
-        width: 32px;
-        height: 32px;
-        background: swatch;
-        border-width: index == Ui.accent-index ? 3px : touch.has-hover ? 2px : 1px;
-        border-color: index == Ui.accent-index || touch.has-hover ? Theme.text : Theme.overlay0;
-        animate border-width, border-color { duration: Theme.quick; easing: ease-out; }
-        accessible-role: tab;
-        accessible-label: Ui.accent-names[index];
-        accessible-item-selected: index == Ui.accent-index;
-        accessible-action-default => {
-            Ui.set-setting("accent", index);
-        }
-        touch := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                Ui.set-setting("accent", index);
-            }
-        }
-    }
-}
-import { Button, Dropdown, Heading, Label, Segmented, TextField } from "../widgets.slint";
-
-component AccountRow inherits Rectangle {
+component AccountRow inherits Card {
     in property <AccountData> account;
     min-height: 56px;
-    border-width: 1px;
-    border-color: account.active ? Theme.accent : Theme.surface1;
+    active: account.active;
     HorizontalLayout {
         padding: Theme.gap;
         padding-left: Theme.pad;
@@ -82,11 +54,9 @@ component AccountRow inherits Rectangle {
     }
 }
 
-component DownloadRow inherits Rectangle {
+component DownloadRow inherits Card {
     in property <DownloadData> download;
     min-height: 56px;
-    border-width: 1px;
-    border-color: Theme.surface1;
     HorizontalLayout {
         padding: Theme.gap;
         padding-left: Theme.pad;
@@ -128,10 +98,9 @@ component DownloadRow inherits Rectangle {
 }
 
 component Downloads inherits VerticalLayout {
-    spacing: Theme.pad;
-    Heading {
+    spacing: SettingsLayout.spacing;
+    SectionTitle {
         text: @tr("Downloads");
-        font-size: Theme.text-lg;
     }
     VerticalLayout {
         spacing: 4px;
@@ -182,10 +151,8 @@ component ServerAddresses inherits VerticalLayout {
         text: @tr("The app tries them from the top and uses the first that answers, so put the address for your home network first.");
         wrap: word-wrap;
     }
-    for url[index] in Ui.server-urls: Rectangle {
+    for url[index] in Ui.server-urls: Card {
         min-height: 44px;
-        border-width: 1px;
-        border-color: Theme.surface1;
         HorizontalLayout {
             padding-left: Theme.pad;
             padding-right: Theme.gap;
@@ -232,112 +199,19 @@ component ServerAddresses inherits VerticalLayout {
     }
 }
 
-component Setting inherits VerticalLayout {
-    in property <string> title;
-    in property <[string]> options;
-    in property <int> selected;
-    in property <string> key;
-    spacing: 4px;
-    alignment: start;
-    Label {
-        text: root.title;
-    }
-    HorizontalLayout {
-        alignment: start;
-        Segmented {
-            label: root.title;
-            options: root.options;
-            selected: root.selected;
-            select(index) => {
-                Ui.set-setting(root.key, index);
-            }
-        }
-    }
-}
-
-component Appearance inherits VerticalLayout {
-    spacing: Theme.pad;
-    Heading {
-        text: @tr("Appearance");
-        font-size: Theme.text-lg;
-    }
-    Setting {
-        title: @tr("Theme");
-        options: [@tr("System"), @tr("Light"), @tr("Dark")];
-        selected: Ui.theme-mode;
-        key: "theme_mode";
-    }
-    Setting {
-        title: @tr("Light theme");
-        options: ["Latte", "Frappé", "Macchiato", "Mocha"];
-        selected: Ui.light-flavor;
-        key: "light_flavor";
-    }
-    Setting {
-        title: @tr("Dark theme");
-        options: ["Latte", "Frappé", "Macchiato", "Mocha"];
-        selected: Ui.dark-flavor;
-        key: "dark_flavor";
-    }
-    Setting {
-        title: @tr("Animations");
-        options: [@tr("Off"), @tr("On")];
-        selected: Theme.motion ? 1 : 0;
-        key: "animations";
-    }
-    VerticalLayout {
-        spacing: 4px;
-        Label {
-            text: @tr("Accent color: {}", Ui.accent-index >= 0 && Ui.accent-index < Ui.accent-names.length ? Ui.accent-names[Ui.accent-index] : "");
-        }
-        AccentPicker { }
-    }
-    VerticalLayout {
-        spacing: 4px;
-        Label {
-            text: @tr("Custom colors");
-        }
-        Text {
-            text: @tr("Colors in {} replace the theme's colors.", Ui.theme-file);
-            color: Theme.text;
-            wrap: word-wrap;
-        }
-        if Ui.theme-note != "": Label {
-            text: Ui.theme-note;
-            wrap: word-wrap;
-        }
-        HorizontalLayout {
-            alignment: start;
-            spacing: Theme.gap;
-            Button {
-                text: @tr("Edit theme file");
-                clicked => {
-                    Ui.edit-theme-file();
-                }
-            }
-            Button {
-                text: @tr("Reload");
-                clicked => {
-                    Ui.reload-theme();
-                }
-            }
-        }
-    }
-}
-
 export component SettingsPage inherits Rectangle {
     ScrollView {
         content-height: max(self.height, content.preferred-height);
         content := VerticalLayout {
-            padding: Theme.pad;
-            spacing: Theme.pad;
+            padding: Theme.page-pad;
+            spacing: SettingsLayout.spacing;
             alignment: start;
+            max-width: 1040px + 2 * Theme.page-pad;
             Heading {
                 text: @tr("Settings");
             }
-            Heading {
+            SectionTitle {
                 text: @tr("Accounts");
-                font-size: Theme.text-lg;
             }
             for account in Ui.accounts: AccountRow {
                 account: account;
@@ -364,9 +238,8 @@ export component SettingsPage inherits Rectangle {
                     }
                 }
             }
-            Heading {
+            SectionTitle {
                 text: @tr("Playback");
-                font-size: Theme.text-lg;
             }
             Setting {
                 title: @tr("Skip back");
@@ -404,26 +277,14 @@ export component SettingsPage inherits Rectangle {
                 selected: Ui.conflict-index;
                 key: "conflict_minutes";
             }
-            if Ui.multi-account: Heading {
+            if Ui.multi-account: SectionTitle {
                 text: @tr("Books on several accounts");
-                font-size: Theme.text-lg;
             }
-            if Ui.multi-account: VerticalLayout {
-                spacing: 4px;
-                Label {
-                    text: @tr("Play from this account when no copy has progress or a download");
-                }
-                HorizontalLayout {
-                    alignment: start;
-                    Dropdown {
-                        label: @tr("Preferred account");
-                        options: Ui.preferred-account-options;
-                        selected: Ui.preferred-account-index;
-                        select(index) => {
-                            Ui.set-setting("preferred_account", index);
-                        }
-                    }
-                }
+            if Ui.multi-account: DropdownSetting {
+                title: @tr("Play from this account when no copy has progress or a download");
+                options: Ui.preferred-account-options;
+                selected: Ui.preferred-account-index;
+                key: "preferred_account";
             }
             if Ui.multi-account: Setting {
                 title: @tr("Copy the position to copies of the same recording on other accounts");
@@ -432,9 +293,8 @@ export component SettingsPage inherits Rectangle {
                 key: "mirror_progress";
             }
             Appearance { }
-            Heading {
+            SectionTitle {
                 text: @tr("Storage");
-                font-size: Theme.text-lg;
             }
             Setting {
                 title: @tr("Cover cache size ({} used)", Ui.cache-used-text);
@@ -455,7 +315,7 @@ export component AddAccountPage inherits Rectangle {
         alignment: center;
         HorizontalLayout {
             alignment: center;
-            padding: Theme.pad;
+            padding: Theme.page-pad;
             VerticalLayout {
                 max-width: 420px;
                 horizontal-stretch: 1;

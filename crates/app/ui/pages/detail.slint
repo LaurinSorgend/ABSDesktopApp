@@ -11,7 +11,8 @@ export component ChapterRow inherits Rectangle {
     callback activate(float);
 
     min-height: 36px;
-    background: chapter.current ? Theme.surface0 : touch.has-hover ? Theme.mantle : Theme.mantle.transparentize(1);
+    border-radius: Theme.radius;
+    background: chapter.current ? Theme.accent-soft : !touch.has-hover ? transparent : Theme.catppuccin ? Theme.mantle : Theme.control-hover;
     animate background { duration: Theme.quick; easing: ease-out; }
     accessible-role: button;
     accessible-label: chapter.title;
@@ -32,9 +33,9 @@ export component ChapterRow inherits Rectangle {
         }
         Text {
             text: root.chapter.title;
-            color: Theme.text;
+            color: root.chapter.current ? Theme.on-accent-soft : Theme.text;
             font-size: Theme.text-base;
-            font-weight: root.chapter.current ? 700 : 400;
+            font-weight: root.chapter.current ? Theme.strong-weight : 400;
             vertical-alignment: center;
             overflow: elide;
             horizontal-stretch: 1;
@@ -210,7 +211,7 @@ export component DetailPage inherits Rectangle {
     ScrollView {
         content-height: max(self.height, content.preferred-height);
         content := VerticalLayout {
-            padding: Theme.pad;
+            padding: Theme.page-pad;
             spacing: 2 * Theme.pad;
             alignment: start;
             DetailHeader { }

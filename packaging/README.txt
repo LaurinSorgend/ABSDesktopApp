@@ -15,6 +15,6 @@ Third-party parts
   licenses/ffmpeg-*. The Windows DLL is the 20261021 build of
   https://github.com/shinchiro/mpv-winbuild-cmake (mpv commit e471496c56),
   whose release page has the build scripts and sources.
-- Fonts: Ronzino and Fira Code, SIL Open Font License 1.1; see licenses/*-OFL.txt.
+- Fonts: Ronzino, Fira Code, Roboto and Source Sans 3, SIL Open Font License 1.1; see licenses/*-OFL.txt.
 - The app icon is the Audiobookshelf logo (https://github.com/advplyr/audiobookshelf,
   GPL version 3).

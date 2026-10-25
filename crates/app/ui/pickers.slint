@@ -1,0 +1,349 @@
+// Choosing values: segmented buttons, the seek and volume bar, and dropdowns.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { FocusRing } from "focus.slint";
+
+component Check inherits Path {
+    width: 14px;
+    height: 14px;
+    viewbox-width: 16;
+    viewbox-height: 16;
+    commands: "M 2 8 L 6 12 L 14 4";
+    stroke-width: 2px;
+}
+
+/// One choice out of a few: joined buttons, or WinUI's and Glass's track with a raised choice.
+export component Segmented inherits Rectangle {
+    in property <[string]> options;
+    in property <int> selected;
+    in property <string> label;
+    callback select(int);
+
+    property <bool> track: Theme.winui || Theme.glass;
+    property <length> item-height: Theme.control-height - 4px;
+    property <length> corner: Theme.corner(item-height);
+    property <length> inner: track ? 3px : 0px;
+
+    background: track ? Theme.control : transparent;
+    border-radius: track ? corner + inner : 0px;
+    border-width: track ? Theme.border : 0px;
+    border-color: Theme.rim;
+    accessible-role: tab-list;
+    accessible-label: label;
+
+    HorizontalLayout {
+        padding: root.inner;
+        spacing: root.track ? 2px : -Theme.border;
+        for option[index] in root.options: Rectangle {
+            property <bool> chosen: index == root.selected;
+            property <bool> first: index == 0;
+            property <bool> last: index == root.options.length - 1;
+            min-width: max(48px, row.preferred-width + 20px);
+            min-height: root.item-height;
+            border-top-left-radius: root.track || first ? root.corner : 0px;
+            border-bottom-left-radius: self.border-top-left-radius;
+            border-top-right-radius: root.track || last ? root.corner : 0px;
+            border-bottom-right-radius: self.border-top-right-radius;
+            background: chosen ? (Theme.material ? Theme.accent-soft : Theme.winui ? Theme.popup : Theme.accent)
+                : touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover
+                : root.track ? transparent : Theme.control;
+            border-width: root.track ? (chosen && Theme.winui ? 1px : 0px) : Theme.border;
+            border-color: chosen && (Theme.catppuccin || Theme.abs) ? Theme.accent : Theme.stroke;
+            animate background, border-color { duration: Theme.settle; easing: ease-out-expo; }
+            accessible-role: tab;
+            accessible-label: option;
+            accessible-item-selected: chosen;
+            accessible-action-default => {
+                root.select(index);
+            }
+            touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.select(index);
+                }
+            }
+            property <color> ink: !chosen ? Theme.text : Theme.material ? Theme.on-accent-soft : Theme.winui ? Theme.text : Theme.on-accent;
+            row := HorizontalLayout {
+                alignment: center;
+                spacing: 6px;
+                if chosen && Theme.material: VerticalLayout {
+                    alignment: center;
+                    Check {
+                        stroke: ink;
+                    }
+                }
+                Text {
+                    text: option;
+                    font-size: Theme.control-text;
+                    font-weight: chosen && Theme.winui ? 600 : 400;
+                    color: ink;
+                    vertical-alignment: center;
+                    animate color { duration: Theme.settle; easing: ease-out-expo; }
+                }
+            }
+            if chosen && Theme.winui: Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: parent.height - self.height - 1px;
+                width: 16px;
+                height: 3px;
+                border-radius: 1.5px;
+                background: Theme.accent;
+            }
+        }
+    }
+}
+
+/// A horizontal bar to show and change a position from 0 to 1.
+export component SeekBar inherits Rectangle {
+    in property <float> value;
+    in property <string> label;
+    /// Positions from 0 to 1 drawn as gaps, such as chapter starts.
+    in property <[float]> markers;
+    callback seek(float);
+    /// While dragging, for controls that apply at once such as volume.
+    callback scrub(float);
+    property <float> drag;
+    property <float> shown: touch.pressed ? drag : clamp(value, 0, 1);
+
+    min-height: 20px;
+    accessible-role: slider;
+    accessible-label: label;
+    accessible-value: round(shown * 100) + "%";
+
+    property <bool> active: touch.has-hover || touch.pressed;
+    property <length> track: active ? 6px : 4px;
+    property <length> corner: Theme.catppuccin ? 0px : self.track / 2;
+    animate track { duration: Theme.quick; easing: ease-out; }
+
+    Rectangle {
+        y: (parent.height - root.track) / 2;
+        height: root.track;
+        border-radius: root.corner;
+        background: Theme.material ? Theme.accent-soft : Theme.glass ? Theme.control-press : Theme.surface1;
+    }
+
+    Rectangle {
+        x: 0;
+        y: (parent.height - root.track) / 2;
+        height: root.track;
+        width: parent.width * root.shown;
+        border-radius: root.corner;
+        background: Theme.accent;
+    }
+
+    for marker in root.markers: Rectangle {
+        x: parent.width * marker - 1px;
+        y: (parent.height - root.track) / 2;
+        width: 2px;
+        height: root.track;
+        background: Theme.base;
+    }
+
+    property <length> thumb: Theme.winui ? 20px
+        : Theme.abs && !active ? 0px
+        : touch.pressed ? 16px : active ? 14px : 12px;
+    Rectangle {
+        x: parent.width * root.shown - self.width / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.thumb + (Theme.material || Theme.glass ? 4px : 0px);
+        height: self.width;
+        border-radius: Theme.catppuccin ? 0px : self.width / 2;
+        background: Theme.winui ? Theme.popup : Theme.glass ? #ffffff : Theme.accent;
+        border-width: Theme.catppuccin ? 2px : Theme.winui ? 1px : 0px;
+        border-color: Theme.catppuccin ? Theme.text : Theme.stroke;
+        drop-shadow-blur: Theme.glass || Theme.winui ? 4px : 0px;
+        drop-shadow-color: Theme.shadow;
+        animate width { duration: Theme.quick; easing: ease-out; }
+
+        if Theme.winui: Rectangle {
+            property <length> dot: touch.pressed ? 10px : root.active ? 14px : 12px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: dot;
+            height: dot;
+            border-radius: dot / 2;
+            background: Theme.accent;
+            animate width, height { duration: Theme.quick; easing: ease-out; }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.drag = clamp(self.mouse-x / self.width, 0, 1);
+                root.scrub(root.drag);
+            } else if event.kind == PointerEventKind.up {
+                root.seek(clamp(self.mouse-x / self.width, 0, 1));
+            }
+        }
+        moved => {
+            root.drag = clamp(self.mouse-x / self.width, 0, 1);
+            root.scrub(root.drag);
+        }
+    }
+}
+
+component DownChevron inherits Path {
+    in property <bool> up;
+    width: 10px;
+    height: 10px;
+    viewbox-width: 10;
+    viewbox-height: 10;
+    commands: up ? "M 1 7 L 5 3 L 9 7" : "M 1 3 L 5 7 L 9 3";
+    stroke: Theme.text;
+    stroke-width: 1.5px;
+}
+
+/// A button showing the current choice; clicking it opens the list of choices.
+/// Long lists scroll and open at the current choice.
+export component Dropdown inherits Rectangle {
+    in property <[string]> options;
+    in property <int> selected;
+    in property <string> label;
+    /// Opens the list above the button, as in the player bar.
+    in property <bool> above;
+    callback select(int);
+    property <length> row-height: 32px;
+    property <int> shown-rows: min(options.length, 10);
+    property <length> list-height: shown-rows * row-height + 8px;
+
+    function open() {
+        popup.show();
+    }
+
+    min-width: max(72px, current.preferred-width + 36px);
+    min-height: Theme.control-height;
+    border-radius: Theme.material ? Theme.radius : Theme.corner(self.height);
+    background: touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover : Theme.control;
+    border-width: Theme.border;
+    border-color: touch.has-hover && Theme.catppuccin ? Theme.overlay2 : Theme.rim;
+    animate background, border-color { duration: Theme.quick; easing: ease-out; }
+    accessible-role: combobox;
+    accessible-label: label;
+    accessible-value: selected >= 0 && selected < options.length ? options[selected] : "";
+    accessible-action-default => {
+        root.open();
+    }
+
+    focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == " " || event.text == Key.Return {
+                root.open();
+                return accept;
+            }
+            if event.text == Key.UpArrow && root.selected > 0 {
+                root.select(root.selected - 1);
+                return accept;
+            }
+            if event.text == Key.DownArrow && root.selected < root.options.length - 1 {
+                root.select(root.selected + 1);
+                return accept;
+            }
+            reject
+        }
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.open();
+            }
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.pill && !Theme.material ? 14px : 10px;
+        padding-right: Theme.pill && !Theme.material ? 12px : 8px;
+        spacing: 6px;
+        current := Text {
+            text: root.selected >= 0 && root.selected < root.options.length ? root.options[root.selected] : "";
+            color: Theme.text;
+            font-size: Theme.control-text;
+            font-weight: Theme.winui ? 400 : 500;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+        VerticalLayout {
+            alignment: center;
+            DownChevron {
+                up: root.above;
+            }
+        }
+    }
+
+    if Theme.winui && !touch.pressed: Rectangle {
+        x: root.border-radius;
+        y: root.height - 1px;
+        width: root.width - 2 * root.border-radius;
+        height: 1px;
+        background: Theme.stroke;
+    }
+
+    if focus.has-focus: FocusRing {
+        target-width: root.width;
+        target-height: root.height;
+        target-radius: root.border-radius;
+    }
+
+    popup := PopupWindow {
+        x: 0;
+        y: root.above ? -self.height - 4px : root.height + 4px;
+        width: max(root.width, 160px);
+        height: root.list-height;
+        Rectangle {
+            background: Theme.popup;
+            border-width: max(1px, Theme.border);
+            border-color: Theme.rim;
+            border-radius: Theme.panel-radius;
+            drop-shadow-offset-y: 4px;
+            drop-shadow-blur: Theme.panel-shadow / 2;
+            drop-shadow-color: Theme.shadow;
+        }
+        list := ScrollView {
+            x: 4px;
+            y: 4px;
+            width: parent.width - 8px;
+            height: parent.height - 8px;
+            content-height: root.options.length * root.row-height;
+            init => {
+                self.content-y = -clamp((root.selected - 4) * root.row-height, 0, max(0px, self.content-height - self.visible-height));
+            }
+            for option[index] in root.options: Rectangle {
+                property <bool> chosen: index == root.selected;
+                y: index * root.row-height;
+                width: list.visible-width;
+                height: root.row-height;
+                border-radius: Theme.catppuccin ? 0px : Theme.radius;
+                background: chosen ? (Theme.catppuccin ? Theme.accent : Theme.accent-soft)
+                    : item-touch.has-hover ? Theme.control-hover : transparent;
+                animate background { duration: Theme.quick; easing: ease-out; }
+                if chosen && Theme.winui: Rectangle {
+                    x: 0;
+                    y: (parent.height - self.height) / 2;
+                    width: 3px;
+                    height: 16px;
+                    border-radius: 1.5px;
+                    background: Theme.accent;
+                }
+                Text {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    height: parent.height;
+                    text: option;
+                    color: chosen ? (Theme.catppuccin ? Theme.on-accent : Theme.on-accent-soft) : Theme.text;
+                    font-size: Theme.control-text;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                item-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select(index);
+                        popup.close();
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,28 @@
+// Light on the liquid glass panels of the Glass style.
+
+import { Theme } from "theme.slint";
+
+/// A sheen across the panel and a bright rim along its top edge. Place it first in the
+/// panel, sized to fill it, so the content draws over it.
+export component Sheen inherits Rectangle {
+    in property <length> radius;
+    property <float> strength: Theme.dark ? 0.45 : 1;
+    border-radius: radius;
+    background: @linear-gradient(165deg,
+        #ffffff.with-alpha(0.38 * strength) 0%,
+        #ffffff.with-alpha(0.06 * strength) 40%,
+        #ffffff.with-alpha(0) 65%,
+        #ffffff.with-alpha(0.12 * strength) 100%);
+
+    Rectangle {
+        x: root.radius * 0.6;
+        y: 1px;
+        width: parent.width - 1.2 * root.radius;
+        height: 1px;
+        background: @linear-gradient(90deg,
+            #ffffff.with-alpha(0) 0%,
+            #ffffff.with-alpha(0.9 * root.strength) 30%,
+            #ffffff.with-alpha(0.9 * root.strength) 60%,
+            #ffffff.with-alpha(0) 100%);
+    }
+}

@@ -149,3 +149,20 @@ export enum LibraryView {
     authors,
     collections,
 }
+
+/// A theme in the theme picker, drawn small in its own colors.
+export struct ThemeCard {
+    name: string,
+    creator: string,
+    page: color,
+    side: color,
+    cover: color,
+    accent: color,
+    action: color,
+    stroke: color,
+    glow: color,
+    radius: length,
+    pill: bool,
+    floating: bool,
+    backdrop: bool,
+}

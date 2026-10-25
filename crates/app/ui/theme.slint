@@ -1,8 +1,9 @@
-// Theme colors: Catppuccin Latte and Mocha until Rust applies the user's choice.
+// Theme: colors, the style's shapes and fonts. Catppuccin Latte and Mocha in the
+// Catppuccin style until Rust applies the user's choice.
 
 import { Palette } from "std-widgets.slint";
 
-/// The colors of one theme; Rust fills them from the chosen flavor, accent and theme file.
+/// The colors of one theme; Rust fills them from the style, flavor, accent and theme file.
 export struct Colors {
     base: color,
     mantle: color,
@@ -19,22 +20,97 @@ export struct Colors {
     red: color,
     yellow: color,
     green: color,
+    /// Fill of primary buttons.
+    action: color,
+    on-action: color,
+    /// Selected rows, the current chapter and selected navigation.
+    accent-soft: color,
+    on-accent-soft: color,
+    /// Buttons, fields and dropdowns at rest, under the pointer and pressed.
+    control: color,
+    control-hover: color,
+    control-press: color,
+    /// Borders of controls and cards.
+    stroke: color,
+    /// Content area, cards and floating panels.
+    layer: color,
+    card: color,
+    popup: color,
+    sidebar: color,
+    bar: color,
+    shadow: color,
+    /// Colored light behind translucent panels.
+    glow1: color,
+    glow2: color,
+    glow3: color,
+}
+
+export enum ThemeStyle { catppuccin, audiobookshelf, material, winui, glass }
+
+/// Shapes, sizes and fonts of a style, with the user's changes applied.
+export struct Look {
+    style: ThemeStyle,
+    font: string,
+    mono: string,
+    font-scale: float,
+    heading-weight: int,
+    /// Buttons, fields, dropdowns and rows.
+    radius: length,
+    cover-radius: length,
+    /// Cards and list rows.
+    card-radius: length,
+    /// Popups and floating panels.
+    panel-radius: length,
+    /// Buttons, chips and segment ends fully rounded.
+    pill: bool,
+    /// Icon buttons as circles.
+    round-icons: bool,
+    border: length,
+    /// 0 outline, 1 glow, 2 double ring.
+    focus: int,
+    /// 0 compact, 1 normal, 2 large.
+    density: int,
+    control-height: length,
+    cover-shadow: length,
+    panel-shadow: length,
+    /// Sidebar and player bar float with a margin around them.
+    floating: bool,
+    /// Pages sit on a layer with a rounded corner beside the sidebar.
+    content-card: bool,
+    backdrop: bool,
 }
 
 export global Theme {
     /// 0 follows the system, 1 light, 2 dark.
     in property <int> mode;
+    /// Windows paints Mica behind the window, so the window itself stays transparent.
+    in property <bool> mica;
     in property <Colors> light-colors: {
         base: #eff1f5, mantle: #e6e9ef, crust: #dce0e8,
         surface0: #ccd0da, surface1: #bcc0cc, surface2: #acb0be,
         overlay0: #9ca0b0, overlay2: #7c7f93, text: #4c4f69, subtext: #5c5f77,
         accent: #1e66f5, on-accent: #eff1f5, red: #d20f39, yellow: #df8e1d, green: #40a02b,
+        action: #1e66f5, on-action: #eff1f5, accent-soft: #ccd0da, on-accent-soft: #4c4f69,
+        control: #eff1f5, control-hover: #ccd0da, control-press: #bcc0cc, stroke: #9ca0b0,
+        layer: #eff1f5, card: #eff1f5, popup: #e6e9ef, sidebar: #e6e9ef, bar: #e6e9ef,
+        shadow: #00000040, glow1: #1e66f5, glow2: #8839ef, glow3: #179299,
     };
     in property <Colors> dark-colors: {
         base: #1e1e2e, mantle: #181825, crust: #11111b,
         surface0: #313244, surface1: #45475a, surface2: #585b70,
         overlay0: #6c7086, overlay2: #9399b2, text: #cdd6f4, subtext: #bac2de,
         accent: #89b4fa, on-accent: #1e1e2e, red: #f38ba8, yellow: #f9e2af, green: #a6e3a1,
+        action: #89b4fa, on-action: #1e1e2e, accent-soft: #313244, on-accent-soft: #cdd6f4,
+        control: #1e1e2e, control-hover: #313244, control-press: #45475a, stroke: #6c7086,
+        layer: #1e1e2e, card: #1e1e2e, popup: #181825, sidebar: #181825, bar: #181825,
+        shadow: #00000040, glow1: #89b4fa, glow2: #cba6f7, glow3: #94e2d5,
+    };
+    in property <Look> look: {
+        style: ThemeStyle.catppuccin, font: "Ronzino", mono: "Fira Code", font-scale: 1,
+        heading-weight: 700, radius: 0, cover-radius: 0, card-radius: 0, panel-radius: 0,
+        pill: false, round-icons: false, border: 1px, focus: 0, density: 1,
+        control-height: 36px, cover-shadow: 0, panel-shadow: 18px,
+        floating: false, content-card: false, backdrop: false,
     };
     out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
     out property <Colors> colors: dark ? dark-colors : light-colors;
@@ -54,29 +130,87 @@ export global Theme {
     out property <color> red: colors.red;
     out property <color> yellow: colors.yellow;
     out property <color> green: colors.green;
+    out property <color> action: colors.action;
+    out property <color> on-action: colors.on-action;
+    out property <color> accent-soft: colors.accent-soft;
+    out property <color> on-accent-soft: colors.on-accent-soft;
+    out property <color> control: colors.control;
+    out property <color> control-hover: colors.control-hover;
+    out property <color> control-press: colors.control-press;
+    out property <color> stroke: colors.stroke;
+    out property <color> layer: colors.layer;
+    out property <color> card: colors.card;
+    out property <color> popup: colors.popup;
+    out property <color> sidebar: colors.sidebar;
+    out property <color> bar: colors.bar;
+    out property <color> shadow: colors.shadow;
+    /// Edge of glass panels: bright where the light falls, faint on the far side.
+    out property <brush> rim: !glass ? colors.stroke
+        : @linear-gradient(150deg, #ffffff.with-alpha(dark ? 0.35 : 0.95) 0%, #ffffff.with-alpha(dark ? 0.06 : 0.25) 50%, #ffffff.with-alpha(dark ? 0.18 : 0.6) 100%);
 
-    out property <string> font: "Ronzino";
-    out property <string> mono: "Fira Code";
+    out property <ThemeStyle> style: look.style;
+    out property <bool> catppuccin: look.style == ThemeStyle.catppuccin;
+    out property <bool> abs: look.style == ThemeStyle.audiobookshelf;
+    out property <bool> material: look.style == ThemeStyle.material;
+    out property <bool> winui: look.style == ThemeStyle.winui;
+    out property <bool> glass: look.style == ThemeStyle.glass;
 
-    out property <length> text-sm: 14px;
-    out property <length> text-base: 16px;
-    out property <length> text-lg: 20px;
-    out property <length> text-xl: 24px;
+    out property <string> font: look.font;
+    out property <string> mono: look.mono;
+    out property <int> heading-weight: look.heading-weight;
 
-    out property <length> gap: 8px;
-    out property <length> pad: 16px;
-    out property <length> tile-width: 160px;
-    out property <length> tile-height: 230px;
-    out property <length> row-height: 246px;
+    /// WinUI follows the Windows type ramp: caption 12, body 14, subtitle 20, title 28.
+    out property <length> text-sm: (winui ? 12px : 14px) * look.font-scale;
+    out property <length> text-base: (winui ? 14px : 16px) * look.font-scale;
+    out property <length> text-lg: 20px * look.font-scale;
+    out property <length> text-xl: (winui ? 28px : 24px) * look.font-scale;
+    /// Text in buttons, dropdowns and segments: body text in WinUI.
+    out property <length> control-text: winui ? text-base : text-sm;
+    /// Emphasis; Windows uses semibold where others use bold.
+    out property <int> strong-weight: winui ? 600 : 700;
+
+    out property <length> radius: look.radius;
+    out property <length> cover-radius: look.cover-radius;
+    out property <length> card-radius: look.card-radius;
+    out property <length> panel-radius: look.panel-radius;
+    out property <bool> pill: look.pill;
+    out property <bool> round-icons: look.round-icons;
+    out property <length> border: look.border;
+    out property <int> focus-kind: look.focus;
+    out property <length> cover-shadow: look.cover-shadow;
+    out property <length> panel-shadow: look.panel-shadow;
+    out property <bool> floating: look.floating;
+    out property <bool> content-card: look.content-card;
+    out property <bool> backdrop: look.backdrop;
+    /// Navigation: 0 a bar at the edge, 1 a rounded pill, 2 a short pill indicator.
+    out property <int> nav-kind: material || glass ? 1 : winui ? 2 : 0;
+    out property <length> nav-inset: material ? 12px : glass ? 8px : winui ? 4px : 0px;
+    out property <length> nav-text-x: nav-kind == 0 ? pad : nav-inset + (nav-kind == 1 ? 16px : 14px);
+    /// Margin around floating panels.
+    out property <length> inset: look.floating ? 10px : 0;
+
+    out property <length> control-height: look.control-height + (look.density - 1) * 4px;
+    out property <length> gap: look.density == 0 ? 6px : look.density == 2 ? 10px : 8px;
+    out property <length> pad: look.density == 0 ? 12px : look.density == 2 ? 20px : 16px;
+    /// Margin between the pages' content and their edges.
+    out property <length> page-pad: winui ? 2 * pad + 4px : pad;
+    out property <length> tile-width: look.density == 0 ? 136px : look.density == 2 ? 192px : 160px;
+    out property <length> tile-height: tile-width + 70px * look.font-scale;
+    out property <length> row-height: tile-height + (abs ? 28px : 16px);
 
     /// Off in the settings: every duration below becomes zero, so changes apply at once.
     in property <bool> motion: true;
-    /// Hover and press feedback.
-    out property <duration> quick: motion ? 120ms : 0ms;
+    /// Hover and press feedback; WinUI uses the Fluent durations of 83, 167 and 250 ms.
+    out property <duration> quick: !motion ? 0ms : winui ? 83ms : 120ms;
     /// State changes such as a selection moving.
-    out property <duration> settle: motion ? 220ms : 0ms;
+    out property <duration> settle: !motion ? 0ms : winui ? 167ms : 220ms;
     /// Pages and bars arriving.
-    out property <duration> arrive: motion ? 360ms : 0ms;
+    out property <duration> arrive: !motion ? 0ms : winui ? 250ms : 360ms;
     /// How far a page or bar travels while it arrives.
     out property <length> rise: motion ? 10px : 0px;
+
+    /// Corner radius of a control `height` tall.
+    public pure function corner(height: length) -> length {
+        look.pill ? height / 2 : look.radius
+    }
 }

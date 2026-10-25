@@ -388,12 +388,15 @@ Not scheduled yet; do after dogfooding, together with the theming options.
 
 ### Theming options
 
-Beyond what 1.9 has (mode, flavor, accent, `theme.json` colors). Not scheduled yet; do after dogfooding.
-- [ ] UI font and the font for numbers selectable (bundled faces plus installed system fonts), with a font size scale.
-- [ ] Corner radius as a theme value (0 by default), applied to buttons, fields, tiles, covers and popups.
-- [ ] Density: spacing and tile size (compact, normal, large).
-- [ ] Border width and focus ring style.
-- [ ] All of these in `theme.json` too, and shareable theme files (import/export).
+Beyond what 1.9 has (mode, flavor, accent, `theme.json` colors).
+- [x] UI font and the font for numbers selectable (bundled faces plus installed system fonts), with a font size scale.
+- [x] Corner radius as a theme value (0 by default), applied to buttons, fields, tiles, covers and popups.
+- [x] Density: spacing and tile size (compact, normal, large).
+- [x] Border width and focus ring style.
+- [x] All of these in `theme.json` too, and shareable theme files (import/export).
+- [x] Themes with their own widget set: Catppuccin, Audiobookshelf, Material, WinUI 3 (Mica, Windows type ramp, settings cards) and Glass (floating translucent panels, the playing cover blurred behind them).
+- [x] Themes live in the private repository `LaurinSorgend/abs-desktop-themes` with name, version, creator, description, website, source and donation link; the build bundles all of them, users can install more.
+- [ ] Try every theme by hand in light and dark, on Windows and Linux.
 
 ### Linux fixes and VM test
 

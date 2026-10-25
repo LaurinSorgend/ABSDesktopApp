@@ -6,6 +6,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # The themes repository is private; the token needs read access to it.
+  ABS_THEMES_DIR: ${{ github.workspace }}/abs-desktop-themes
 
 permissions:
   contents: write
@@ -17,6 +19,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Check out the themes
+        uses: actions/checkout@v4
+        with:
+          repository: LaurinSorgend/abs-desktop-themes
+          token: ${{ secrets.THEMES_TOKEN }}
+          path: abs-desktop-themes
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-about
@@ -40,6 +48,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Check out the themes
+        uses: actions/checkout@v4
+        with:
+          repository: LaurinSorgend/abs-desktop-themes
+          token: ${{ secrets.THEMES_TOKEN }}
+          path: abs-desktop-themes
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install system libraries

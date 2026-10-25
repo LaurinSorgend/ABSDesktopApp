@@ -14,6 +14,7 @@ export component Cover inherits Rectangle {
     in property <string> title;
 
     background: Theme.surface0;
+    border-radius: min(Theme.cover-radius, self.width / 6);
     clip: true;
 
     if has-image: Image {
@@ -81,16 +82,30 @@ export component Tile inherits Rectangle {
         Rectangle {
             height: root.width;
             clip: true;
+            border-radius: Theme.cover-radius;
+            background: Theme.surface0;
+            drop-shadow-offset-x: Theme.abs ? Theme.cover-shadow / 3 : 0px;
+            drop-shadow-offset-y: Theme.cover-shadow / 3;
+            drop-shadow-blur: Theme.cover-shadow;
+            drop-shadow-color: Theme.shadow;
             Cover {
                 source: root.data.cover;
                 has-image: root.data.has-cover;
                 title: root.data.title;
-                transform-scale: root.lifted ? 106% : 100%;
+                border-radius: 0px;
+                transform-scale: root.lifted && !Theme.abs ? 106% : 100%;
                 animate transform-scale { duration: Theme.arrive; easing: ease-out-expo; }
             }
             Rectangle {
-                border-width: 2px;
-                border-color: root.lifted ? Theme.accent : Theme.accent.transparentize(1);
+                background: !root.lifted ? transparent
+                    : Theme.abs ? #00000059
+                    : Theme.material ? Theme.text.with-alpha(0.08) : transparent;
+                animate background { duration: Theme.quick; easing: ease-out; }
+            }
+            Rectangle {
+                border-radius: Theme.cover-radius;
+                border-width: Theme.material || Theme.abs ? 0px : 2px;
+                border-color: !root.lifted ? Theme.accent.transparentize(1) : Theme.glass ? #ffffffcc : Theme.accent;
                 animate border-color { duration: Theme.quick; easing: ease-out; }
             }
             if root.data.progress > 0 || root.data.finished: Rectangle {
@@ -106,9 +121,10 @@ export component Tile inherits Rectangle {
                 y: 6px;
                 width: 26px;
                 height: 26px;
+                border-radius: Theme.round-icons ? 13px : min(Theme.radius, 6px);
                 background: Theme.base;
                 border-width: 1px;
-                border-color: Theme.overlay0;
+                border-color: Theme.stroke;
                 accessible-role: image;
                 accessible-label: @tr("Downloaded");
                 DownloadIcon {
@@ -165,11 +181,23 @@ export component Tile inherits Rectangle {
     }
 }
 
+/// The plank the Audiobookshelf style puts under each row of books.
+component ShelfPlank inherits Rectangle {
+    property <color> top: Theme.dark ? #4a4a4a : #cfcfcf;
+    property <color> bottom: Theme.dark ? #1c1c1c : #a8a8a8;
+    height: 10px;
+    border-radius: 2px;
+    background: @linear-gradient(180deg, top 0%, bottom 100%);
+    drop-shadow-offset-y: 6px;
+    drop-shadow-blur: 10px;
+    drop-shadow-color: Theme.shadow;
+}
+
 /// Rows of tiles in a virtualised list. Rust re-flows the rows when `columns` changes
 /// and loads covers for the rows reported by `visible-rows`.
 export component TileGrid inherits Rectangle {
     in property <[TileRow]> rows;
-    out property <int> columns: max(1, floor((self.width - 2 * Theme.pad + Theme.pad) / (Theme.tile-width + Theme.pad)));
+    out property <int> columns: max(1, floor((self.width - 2 * Theme.page-pad + Theme.pad) / (Theme.tile-width + Theme.pad)));
     callback columns-changed(int);
     callback visible-rows(int, int);
     callback open(string);
@@ -196,16 +224,25 @@ export component TileGrid inherits Rectangle {
         changed visible-height => {
             root.report();
         }
-        for row in root.rows: HorizontalLayout {
+        for row in root.rows: Rectangle {
             height: Theme.row-height;
-            padding-left: Theme.pad;
-            spacing: Theme.pad;
-            alignment: start;
-            for tile in row.tiles: Tile {
-                data: tile;
-                open(id) => {
-                    root.open(id);
+            HorizontalLayout {
+                y: 0;
+                height: Theme.tile-height;
+                padding-left: Theme.page-pad;
+                spacing: Theme.pad;
+                alignment: start;
+                for tile in row.tiles: Tile {
+                    data: tile;
+                    open(id) => {
+                        root.open(id);
+                    }
                 }
+            }
+            if Theme.abs: ShelfPlank {
+                x: Theme.page-pad / 2;
+                y: Theme.tile-height + 4px;
+                width: parent.width - Theme.page-pad;
             }
         }
     }
@@ -230,6 +267,8 @@ export component Shelf inherits VerticalLayout {
         inner := HorizontalLayout {
             spacing: Theme.pad;
             alignment: start;
+            padding-left: Theme.cover-shadow / 2;
+            padding-top: Theme.cover-shadow / 3;
             for tile in root.shelf.tiles: Tile {
                 data: tile;
                 open(id) => {
@@ -238,6 +277,7 @@ export component Shelf inherits VerticalLayout {
             }
         }
     }
+    if Theme.abs: ShelfPlank { }
 }
 
 component PeekFact inherits HorizontalLayout {
@@ -273,12 +313,13 @@ export component PeekCard inherits Rectangle {
     x: fits-right ? Ui.peek-x + Theme.tile-width + Theme.gap : Ui.peek-x - self.width - Theme.gap;
     y: clamp(Ui.peek-y, Theme.gap, max(Theme.gap, window-height - self.height - Theme.gap));
     visible: self.opacity > 0;
-    background: Theme.mantle;
-    border-width: 1px;
-    border-color: Theme.overlay0;
+    background: Theme.popup;
+    border-width: max(1px, Theme.border);
+    border-color: Theme.rim;
+    border-radius: Theme.panel-radius;
     drop-shadow-offset-y: 6px;
-    drop-shadow-blur: 18px;
-    drop-shadow-color: #00000040;
+    drop-shadow-blur: Theme.panel-shadow;
+    drop-shadow-color: Theme.shadow;
 
     states [
         open when root.shown: {
@@ -301,7 +342,7 @@ export component PeekCard inherits Rectangle {
             text: Ui.peek.title;
             color: Theme.text;
             font-size: Theme.text-base;
-            font-weight: 700;
+            font-weight: Theme.strong-weight;
             wrap: word-wrap;
         }
         if Ui.peek.subtitle != "": Text {
