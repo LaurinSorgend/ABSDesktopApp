@@ -118,7 +118,7 @@ pub enum ItemSort {
 }
 
 impl ItemSort {
-    fn order_by(self, desc: bool) -> String {
+    pub(super) fn order_by(self, desc: bool) -> String {
         let column = match self {
             Self::Title => "item.title_sort COLLATE NOCASE",
             Self::Author => "item.author COLLATE NOCASE",

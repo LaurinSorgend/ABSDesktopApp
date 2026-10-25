@@ -177,3 +177,72 @@ fn rebuild_of_a_thousand_items_is_quick() {
         started.elapsed()
     );
 }
+
+#[test]
+fn browse_merges_by_work_within_the_chosen_libraries() {
+    use crate::db::{BrowseQuery, ItemSort, ProgressFilter, ProgressRow};
+    let (mut db, home, friend) = two_accounts();
+    add(
+        &mut db,
+        &home,
+        &[
+            book("h1", "Emma", 10.0 * HOUR),
+            book("h2", "Persuasion", 8.0 * HOUR),
+        ],
+    );
+    add(&mut db, &friend, &[book("f1", "Emma", 10.0 * HOUR)]);
+    let started = ProgressRow {
+        item_id: "f1".into(),
+        current_time: 600.0,
+        progress: 0.4,
+        is_finished: false,
+        ebook_location: None,
+        ebook_progress: None,
+        updated_at: 1,
+    };
+    db.store().progress().upsert(&friend, &started).unwrap();
+    let both = [
+        (home.clone(), "lib".to_owned()),
+        (friend.clone(), "lib".to_owned()),
+    ];
+    let query = |libraries, merged, filter| BrowseQuery {
+        libraries,
+        merged,
+        sort: ItemSort::Title,
+        desc: false,
+        filter,
+    };
+    let works = db.store().works();
+    let merged = works
+        .browse(&query(&both, true, ProgressFilter::All))
+        .unwrap();
+    let titles: Vec<(&str, &str, i64)> = merged
+        .iter()
+        .map(|r| (r.item.title.as_str(), r.item.account_id.as_str(), r.copies))
+        .collect();
+    assert_eq!(
+        titles,
+        [("Emma", home.as_str(), 2), ("Persuasion", home.as_str(), 1)]
+    );
+    assert_eq!(
+        merged[0].item.progress, 0.4,
+        "the furthest member's progress"
+    );
+    let copies = works
+        .browse(&query(&both, false, ProgressFilter::All))
+        .unwrap();
+    assert_eq!(copies.len(), 3);
+    let started = works
+        .browse(&query(&both, true, ProgressFilter::InProgress))
+        .unwrap();
+    assert_eq!(started.len(), 1);
+    let friend_only = [(friend.clone(), "lib".to_owned())];
+    let only = works
+        .browse(&query(&friend_only, true, ProgressFilter::All))
+        .unwrap();
+    assert_eq!(only.len(), 1);
+    assert_eq!(
+        (only[0].item.account_id.as_str(), only[0].copies),
+        (friend.as_str(), 1)
+    );
+}
