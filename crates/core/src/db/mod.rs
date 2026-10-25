@@ -23,7 +23,7 @@ pub use local_sessions::{Decision, LocalSessionRow, LocalSessions};
 pub use progress::{BookmarkRow, Progress, ProgressRow};
 pub use queue::{PendingSync, Queue};
 pub use settings::Settings;
-pub use works::{ItemKey, NewWork, WorkMember, WorkRow, Works};
+pub use works::{BrowseQuery, BrowseRow, ItemKey, NewWork, WorkMember, WorkRow, Works};
 
 static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
     Migrations::new(vec![

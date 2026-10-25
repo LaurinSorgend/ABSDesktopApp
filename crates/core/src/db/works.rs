@@ -1,9 +1,13 @@
+mod browse;
+
 use std::collections::HashMap;
 
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use super::{DbResult, now_ms};
 use crate::works::{Candidate, MatchMethod, MemberState, Override};
+
+pub use browse::{BrowseQuery, BrowseRow};
 
 /// An item, by account and remote id.
 pub type ItemKey = (String, String);
@@ -295,6 +299,18 @@ impl<'a> Works<'a> {
             params![work_id, account_id],
         )?;
         Ok(())
+    }
+
+    /// The user's decision about an item: `"split"`, `"merge"` or `None`.
+    pub fn override_of(&self, account_id: &str, item_id: &str) -> DbResult<Option<String>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT action FROM work_override WHERE account_id = ?1 AND item_id = ?2",
+                [account_id, item_id],
+                |r| r.get(0),
+            )
+            .optional()?)
     }
 
     /// Number of works and of works with more than one member.
