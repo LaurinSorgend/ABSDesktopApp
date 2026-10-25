@@ -13,6 +13,8 @@ pub struct Account {
     /// Stable per account; sent as `deviceInfo.deviceId`.
     pub device_id: String,
     pub created_at: i64,
+    /// A disabled account keeps its data but does not connect, sync or download.
+    pub enabled: bool,
 }
 
 /// Data for [`Accounts::add_account`].
@@ -102,6 +104,7 @@ impl<'a> Accounts<'a> {
             username: new.username.to_owned(),
             device_id: Uuid::new_v4().to_string(),
             created_at: now_ms(),
+            enabled: true,
         };
         self.conn.execute(
             "INSERT INTO account(id, server_id, user_id, username, device_id, created_at)
@@ -131,6 +134,15 @@ impl<'a> Accounts<'a> {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// Turns an account on or off. False when there is no such account.
+    pub fn set_enabled(&self, id: &str, enabled: bool) -> DbResult<bool> {
+        let changed = self.conn.execute(
+            "UPDATE account SET enabled = ?2 WHERE id = ?1",
+            params![id, enabled],
+        )?;
+        Ok(changed > 0)
+    }
+
     /// Removes an account and everything stored for it.
     pub fn remove_account(&self, id: &str) -> DbResult<()> {
         self.conn
@@ -147,7 +159,7 @@ impl<'a> Accounts<'a> {
 }
 
 const SELECT_ACCOUNT: &str =
-    "SELECT id, server_id, user_id, username, device_id, created_at FROM account";
+    "SELECT id, server_id, user_id, username, device_id, created_at, enabled FROM account";
 
 fn account_row(row: &Row<'_>) -> rusqlite::Result<Account> {
     Ok(Account {
@@ -157,6 +169,7 @@ fn account_row(row: &Row<'_>) -> rusqlite::Result<Account> {
         username: row.get(3)?,
         device_id: row.get(4)?,
         created_at: row.get(5)?,
+        enabled: row.get(6)?,
     })
 }
 
@@ -198,6 +211,9 @@ mod tests {
             accounts.account(&account.id).unwrap(),
             Some(account.clone())
         );
+        assert!(account.enabled);
+        assert!(accounts.set_enabled(&account.id, false).unwrap());
+        assert!(!accounts.account(&account.id).unwrap().unwrap().enabled);
         accounts.remove_server(&server).unwrap();
         assert!(accounts.list().unwrap().is_empty());
     }

@@ -24,6 +24,8 @@ use crate::sync::{sync_catalog, sync_progress};
 
 const TICK: Duration = Duration::from_secs(60);
 const PARALLEL_COVER_DOWNLOADS: usize = 6;
+/// Gap between the startup logins of accounts on the same server, which rate limits auth.
+const LOGIN_STAGGER: Duration = Duration::from_secs(1);
 
 type Emit = Box<dyn Fn(Event) + Send + Sync>;
 
@@ -33,6 +35,7 @@ enum Conn {
     Connected(Arc<Session>),
     Offline,
     NeedsLogin,
+    Disabled,
 }
 
 /// What the engine thread starts with.
@@ -100,9 +103,7 @@ async fn main_loop(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Co
         .unwrap_or_default();
     downloads::recover(&shared);
     (shared.emit)(Event::AccountsLoaded(accounts.clone()));
-    for account in accounts {
-        start_connect(&shared, account);
-    }
+    connect_staggered(&shared, accounts);
     let (playback, playback_commands) = mpsc::unbounded_channel();
     let playback_task = tokio::spawn(playback::run(shared.clone(), playback_commands));
     let mut tick = tokio::time::interval(TICK);
@@ -159,6 +160,12 @@ fn handle(
             tokio::spawn(remove(shared.clone(), account_id));
         }
         Command::SetServerUrls { account_id, urls } => set_server_urls(shared, &account_id, &urls),
+        Command::SetAccountEnabled {
+            account_id,
+            enabled,
+        } => {
+            tokio::spawn(set_enabled(shared.clone(), account_id, enabled));
+        }
         command @ Command::ResolveConflict { .. } => offline::handle(shared, command),
         Command::SyncNow { account_id } => {
             for session in sessions(shared, account_id.as_deref()) {
@@ -199,6 +206,26 @@ async fn add(shared: Arc<Shared>, url: String, username: String, password: Strin
     }
 }
 
+/// Connects enabled accounts, spacing out logins to the same server.
+fn connect_staggered(shared: &Arc<Shared>, accounts: Vec<Account>) {
+    let mut per_server: HashMap<String, u32> = HashMap::new();
+    for account in accounts {
+        if !account.enabled {
+            set_conn(shared, &account.id, Conn::Disabled);
+            continue;
+        }
+        let index = per_server.entry(account.server_id.clone()).or_default();
+        let delay = LOGIN_STAGGER * *index;
+        *index += 1;
+        set_conn(shared, &account.id, Conn::Connecting);
+        let shared = shared.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(delay).await;
+            connect(shared, account).await;
+        });
+    }
+}
+
 fn start_connect(shared: &Arc<Shared>, account: Account) {
     set_conn(shared, &account.id, Conn::Connecting);
     tokio::spawn(connect(shared.clone(), account));
@@ -206,6 +233,10 @@ fn start_connect(shared: &Arc<Shared>, account: Account) {
 
 async fn connect(shared: Arc<Shared>, account: Account) {
     let account_id = account.id.clone();
+    if !is_enabled(&shared, &account_id) {
+        set_conn(&shared, &account_id, Conn::Disabled);
+        return;
+    }
     match restore_account(
         &shared.db,
         &shared.credentials,
@@ -220,6 +251,10 @@ async fn connect(shared: Arc<Shared>, account: Account) {
 }
 
 fn report_connect_error(shared: &Shared, account_id: String, error: &AccountError) {
+    if !is_enabled(shared, &account_id) {
+        set_conn(shared, &account_id, Conn::Disabled);
+        return;
+    }
     let event = if error.needs_login() {
         set_conn(shared, &account_id, Conn::NeedsLogin);
         Event::LoginRequired { account_id }
@@ -236,6 +271,10 @@ fn report_connect_error(shared: &Shared, account_id: String, error: &AccountErro
 async fn connected(shared: &Arc<Shared>, session: Session) {
     let session = Arc::new(session);
     let account_id = session.account.id.clone();
+    if !is_enabled(shared, &account_id) {
+        set_conn(shared, &account_id, Conn::Disabled);
+        return;
+    }
     set_conn(shared, &account_id, Conn::Connected(session.clone()));
     (shared.emit)(Event::AccountConnected {
         account_id: account_id.clone(),
@@ -314,6 +353,41 @@ async fn remove(shared: Arc<Shared>, account_id: String) {
     }
 }
 
+/// Disabling drops the session and socket but keeps the login, so enabling needs no password.
+async fn set_enabled(shared: Arc<Shared>, account_id: String, enabled: bool) {
+    let account = {
+        let db = lock(&shared.db);
+        let accounts = db.store().accounts();
+        match accounts.set_enabled(&account_id, enabled) {
+            Ok(true) => accounts.account(&account_id).ok().flatten(),
+            _ => None,
+        }
+    };
+    let Some(account) = account else {
+        return;
+    };
+    (shared.emit)(Event::AccountUpdated(account.clone()));
+    if enabled {
+        start_connect(&shared, account);
+        return;
+    }
+    if let Some(task) = lock_map(&shared.live).remove(&account_id) {
+        task.abort();
+    }
+    set_conn(&shared, &account_id, Conn::Disabled);
+    downloads::suspend_account(&shared, &account_id);
+}
+
+fn is_enabled(shared: &Shared, account_id: &str) -> bool {
+    lock(&shared.db)
+        .store()
+        .accounts()
+        .account(account_id)
+        .ok()
+        .flatten()
+        .is_some_and(|a| a.enabled)
+}
+
 /// Catalog then progress sync. Skipped while the account is already syncing.
 async fn sync(shared: Arc<Shared>, session: Arc<Session>) {
     let account_id = session.account.id.clone();
@@ -359,52 +433,54 @@ async fn sync_all(shared: &Arc<Shared>, session: &Arc<Session>) -> Result<(), Ac
     Ok(())
 }
 
-/// Every minute: keep tokens fresh, reconnect offline accounts, re-sync when due.
+/// Every minute: reconnect offline accounts and run each connected account's own tick,
+/// so a slow server does not hold up the others.
 async fn on_tick(shared: Arc<Shared>) {
     for session in sessions(&shared, None) {
-        if let Err(e) = session.client.refresh_if_due().await
-            && e.needs_login()
-        {
-            set_conn(&shared, &session.account.id, Conn::NeedsLogin);
-            (shared.emit)(Event::LoginRequired {
-                account_id: session.account.id.clone(),
-            });
-        }
-    }
-    check_connections(&shared).await;
-    for session in sessions(&shared, None) {
-        tokio::spawn(offline::flush(shared.clone(), session));
+        tokio::spawn(account_tick(shared.clone(), session));
     }
     reconnect_offline(&shared);
     downloads::schedule(&shared);
-    let interval = sync_interval(&shared);
-    for session in sessions(&shared, None) {
-        let last = lock_map(&shared.last_sync)
-            .get(&session.account.id)
-            .copied();
-        if last.is_none_or(|t| t.elapsed() >= interval) {
-            tokio::spawn(sync(shared.clone(), session));
-        }
+}
+
+/// Keeps the token fresh, checks the server, flushes offline sessions, re-syncs when due.
+async fn account_tick(shared: Arc<Shared>, session: Arc<Session>) {
+    let account_id = session.account.id.clone();
+    if let Err(e) = session.client.refresh_if_due().await
+        && e.needs_login()
+    {
+        set_conn(&shared, &account_id, Conn::NeedsLogin);
+        (shared.emit)(Event::LoginRequired { account_id });
+        return;
+    }
+    if !check_connection(&shared, &session).await {
+        return;
+    }
+    offline::flush(shared.clone(), session.clone()).await;
+    let last = lock_map(&shared.last_sync).get(&account_id).copied();
+    if last.is_none_or(|t| t.elapsed() >= sync_interval(&shared)) {
+        sync(shared, session).await;
     }
 }
 
-/// Notices servers that went away, and moves to an earlier address that answers again.
-async fn check_connections(shared: &Arc<Shared>) {
-    for session in sessions(shared, None) {
-        if let Err(e) = session.client.ping().await {
-            went_offline(shared, &session.account.id, &e.into());
-            continue;
-        }
-        let urls = lock(&shared.db)
-            .store()
-            .accounts()
-            .server_urls(&session.account.server_id)
-            .unwrap_or_default();
-        let current = session.client.base_url().as_str();
-        if earlier_url_answers(&shared.http, &urls, current).await {
-            start_connect(shared, session.account.clone());
-        }
+/// Notices a server that went away, and moves to an earlier address that answers again.
+/// False when the session should not be used any more.
+async fn check_connection(shared: &Arc<Shared>, session: &Session) -> bool {
+    if let Err(e) = session.client.ping().await {
+        went_offline(shared, &session.account.id, &e.into());
+        return false;
     }
+    let urls = lock(&shared.db)
+        .store()
+        .accounts()
+        .server_urls(&session.account.server_id)
+        .unwrap_or_default();
+    let current = session.client.base_url().as_str();
+    if earlier_url_answers(&shared.http, &urls, current).await {
+        start_connect(shared, session.account.clone());
+        return false;
+    }
+    true
 }
 
 /// The server stopped answering: stop its socket and let the tick reconnect.
@@ -451,7 +527,7 @@ fn set_server_urls(shared: &Arc<Shared>, account_id: &str, urls: &[String]) {
         .is_some_and(|s| listed(s.client.base_url().as_str()));
     let waits_for_login = matches!(
         lock_map(&shared.conns).get(account_id),
-        Some(Conn::NeedsLogin)
+        Some(Conn::NeedsLogin | Conn::Disabled)
     );
     if !keep && !waits_for_login {
         start_connect(shared, account);
@@ -469,7 +545,7 @@ fn reconnect_offline(shared: &Arc<Shared>) {
         let conns = lock_map(&shared.conns);
         accounts
             .into_iter()
-            .filter(|a| matches!(conns.get(&a.id), None | Some(Conn::Offline)))
+            .filter(|a| a.enabled && matches!(conns.get(&a.id), None | Some(Conn::Offline)))
             .collect()
     };
     for account in offline {
