@@ -166,16 +166,27 @@ component DetailHeader inherits HorizontalLayout {
             name: @tr("Progress");
             value: Ui.detail.progress-text;
         }
+        Fact {
+            name: @tr("Reading");
+            value: Ui.detail.reading-text;
+        }
         HorizontalLayout {
             spacing: Theme.gap;
             alignment: start;
             padding-top: Theme.gap;
-            Button {
+            if Ui.detail.has-audio || !Ui.detail.has-ebook: Button {
                 text: Ui.now-id == Ui.detail.id && Ui.playing ? @tr("Playing") : Ui.detail.progress > 0 ? @tr("Continue") : @tr("Play");
                 primary: true;
                 enabled: Ui.detail.has-audio && !(Ui.now-id == Ui.detail.id && Ui.playing);
                 clicked => {
                     Ui.play-item(Ui.detail.id);
+                }
+            }
+            if Ui.detail.has-ebook: Button {
+                text: @tr("Read");
+                primary: !Ui.detail.has-audio;
+                clicked => {
+                    Ui.read-item(Ui.detail.id);
                 }
             }
             Button {
@@ -185,7 +196,7 @@ component DetailHeader inherits HorizontalLayout {
                 }
             }
         }
-        if Ui.detail.has-audio: DownloadControls { }
+        if Ui.detail.has-audio || Ui.detail.has-ebook: DownloadControls { }
     }
 }
 

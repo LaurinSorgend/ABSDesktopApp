@@ -11,4 +11,4 @@ pub mod engine;
 pub mod offline;
 pub mod playback;
 pub mod sync;
-pub use abs_api::models::Chapter;
+pub use abs_api::models::{Chapter, EbookLocation};

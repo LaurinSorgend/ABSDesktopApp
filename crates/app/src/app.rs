@@ -9,6 +9,7 @@ mod downloads;
 mod home;
 mod player;
 mod preferences;
+mod reading;
 mod themes;
 
 use std::cell::RefCell;
@@ -64,6 +65,7 @@ pub struct App {
     file_credentials: bool,
     theme_file: PathBuf,
     tray: Option<crate::tray::Tray>,
+    reading: reading::Reading,
 }
 
 /// What [`App::new`] needs besides the window.
@@ -105,6 +107,7 @@ impl App {
             file_credentials: parts.file_credentials,
             theme_file: parts.theme_file,
             tray: None,
+            reading: reading::Reading::default(),
         };
         app.bind_models();
         app.apply_choices();
@@ -213,6 +216,8 @@ impl App {
                 item_id,
                 ..
             } => self.download_progress(&account_id, &item_id),
+            Event::EbookReady(open) => self.ebook_ready(*open),
+            Event::EbookFailed { message, .. } => self.ebook_failed(&message),
             _ => {}
         }
     }
@@ -279,6 +284,7 @@ impl App {
 
     /// Before the window closes: last position to the server, then stop the player.
     pub fn shutdown(&mut self) {
+        self.close_reader();
         if let Some(playback) = &mut self.playback {
             playback.shutdown();
         }

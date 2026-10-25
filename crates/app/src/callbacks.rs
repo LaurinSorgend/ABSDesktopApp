@@ -55,6 +55,7 @@ fn connect_browse(ui: &Ui<'_>) {
     ui.on_play_item(on(|app, id: slint::SharedString| app.play_item(&id, None)));
     ui.on_play_from(|id, start| with_app(move |app| app.play_item(&id, Some(start as f64))));
     ui.on_set_finished(|id, finished| with_app(move |app| app.set_finished(&id, finished)));
+    ui.on_read_item(on(|app, id: slint::SharedString| app.read_item(&id)));
 }
 
 fn connect_player(ui: &Ui<'_>) {

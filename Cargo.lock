@@ -61,6 +61,7 @@ version = "0.1.0"
 dependencies = [
  "abs-core",
  "abs-player",
+ "abs-reader-ipc",
  "anyhow",
  "image",
  "libmpv2",

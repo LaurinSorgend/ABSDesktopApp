@@ -16,6 +16,9 @@ export global Strings {
     public pure function playback-failed(message: string) -> string {
         @tr("Playback could not start: {}", message)
     }
+    public pure function reader-failed(message: string) -> string {
+        @tr("The book could not be opened: {}", message)
+    }
     public pure function player-error(message: string) -> string {
         @tr("Playback error: {}", message)
     }
@@ -30,6 +33,9 @@ export global Strings {
     }
     public pure function progress(percent: int, left: string) -> string {
         @tr("{} % · {} left", percent, left)
+    }
+    public pure function read-percent(percent: int) -> string {
+        @tr("{} % read", percent)
     }
     public pure function finished() -> string {
         @tr("Finished")
