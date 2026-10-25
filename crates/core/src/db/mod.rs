@@ -7,6 +7,7 @@ mod local_sessions;
 mod progress;
 mod queue;
 mod settings;
+mod works;
 
 use std::path::Path;
 use std::sync::LazyLock;
@@ -22,6 +23,7 @@ pub use local_sessions::{Decision, LocalSessionRow, LocalSessions};
 pub use progress::{BookmarkRow, Progress, ProgressRow};
 pub use queue::{PendingSync, Queue};
 pub use settings::Settings;
+pub use works::{ItemKey, NewWork, WorkMember, WorkRow, Works};
 
 static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
     Migrations::new(vec![
@@ -29,6 +31,7 @@ static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
         M::up(include_str!("sql/0002_downloads.sql")),
         M::up(include_str!("sql/0003_local_sessions.sql")),
         M::up(include_str!("sql/0004_account_enabled.sql")),
+        M::up(include_str!("sql/0005_works.sql")),
     ])
 });
 
@@ -117,6 +120,10 @@ impl<'a> Store<'a> {
 
     pub fn settings(&self) -> Settings<'a> {
         Settings::new(self.conn)
+    }
+
+    pub fn works(&self) -> Works<'a> {
+        Works::new(self.conn)
     }
 }
 
