@@ -1,4 +1,4 @@
-//! Times as the UI shows them.
+//! Times and text as the UI shows them.
 
 /// `1:02:03` or `2:03`.
 pub fn clock(seconds: f64) -> String {
@@ -29,6 +29,27 @@ pub fn speed(speed: f64) -> String {
     format!("{text}×")
 }
 
+/// The text on one line, cut at the last word that fits in `max_chars` and ended with `…`.
+pub fn excerpt(text: &str, max_chars: usize) -> String {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let mut out = String::new();
+    for word in &words {
+        let needed = out.chars().count() + usize::from(!out.is_empty()) + word.chars().count();
+        if needed > max_chars {
+            return if out.is_empty() {
+                word.chars().take(max_chars).chain(['…']).collect()
+            } else {
+                out + "…"
+            };
+        }
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(word);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -42,5 +63,20 @@ mod tests {
         assert_eq!(speed(1.0), "1×");
         assert_eq!(speed(1.25), "1.25×");
         assert_eq!(speed(1.5), "1.5×");
+    }
+
+    #[test]
+    fn cuts_excerpts_at_words() {
+        assert_eq!(
+            excerpt(
+                "Short
+
+text.",
+                20
+            ),
+            "Short text."
+        );
+        assert_eq!(excerpt("one two three four", 12), "one two…");
+        assert_eq!(excerpt("Supercalifragilistic", 5), "Super…");
     }
 }
