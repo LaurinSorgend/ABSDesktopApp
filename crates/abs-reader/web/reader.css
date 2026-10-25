@@ -162,7 +162,7 @@ foliate-view {
 #settings output {
   color: var(--muted);
 }
-body.fixed .reflow {
+body.fixed #settings .reflow {
   display: none;
 }
 

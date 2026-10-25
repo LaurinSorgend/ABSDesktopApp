@@ -9,7 +9,22 @@ const INDEX_HTML: &str = include_str!("../web/index.html");
 const READER_JS: &str = include_str!("../web/reader.js");
 const READER_CSS: &str = include_str!("../web/reader.css");
 const FOLIATE_PREFIX: &str = "/foliate/";
-const CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' blob:; \
+/// pdf.js image decoders that foliate-js does not vendor; see `web/pdfjs-wasm/README.md`.
+const PDFJS_WASM: [(&str, &[u8]); 3] = [
+    (
+        "/pdfjs-wasm/jbig2.wasm",
+        include_bytes!("../web/pdfjs-wasm/jbig2.wasm"),
+    ),
+    (
+        "/pdfjs-wasm/openjpeg.wasm",
+        include_bytes!("../web/pdfjs-wasm/openjpeg.wasm"),
+    ),
+    (
+        "/pdfjs-wasm/qcms_bg.wasm",
+        include_bytes!("../web/pdfjs-wasm/qcms_bg.wasm"),
+    ),
+];
+const CSP: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' blob:; \
     img-src 'self' blob: data:; font-src 'self' blob: data:; frame-src blob: 'self'; \
     worker-src 'self' blob:; connect-src 'self' blob: data:; media-src 'self' blob:; \
     object-src 'none'; base-uri 'none'; form-action 'none'";
@@ -65,6 +80,12 @@ impl Assets {
                 Some(path) => self.file(&path),
                 None => status(StatusCode::NOT_FOUND),
             },
+            _ if path.starts_with("/pdfjs-wasm/") => {
+                match PDFJS_WASM.iter().find(|(p, _)| *p == path) {
+                    Some((_, bytes)) => ok(bytes.to_vec(), "application/wasm"),
+                    None => status(StatusCode::NOT_FOUND),
+                }
+            }
             _ => match path.strip_prefix(FOLIATE_PREFIX).and_then(safe_relative) {
                 Some(relative) => self.file(&self.foliate_dir.join(relative)),
                 None => status(StatusCode::NOT_FOUND),
