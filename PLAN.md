@@ -255,8 +255,10 @@ Goal: a good single-view player on a data model that already supports many accou
 ## Phase 3: Ebook reader
 
 ### 3.1 Research step
-- [ ] Read `EpubReader.vue`, `PdfReader.vue` and `ComicReader.vue` in the ABS client to confirm what each writes to `ebookLocation` and `ebookProgress`.
-- [ ] Decide PDF rendering: native Slint view with pdfium-render, or PDF.js inside the reader. Record as an ADR.
+- [x] Read `EpubReader.vue`, `PdfReader.vue` and `ComicReader.vue` in the ABS client to confirm what each writes to `ebookLocation` and `ebookProgress`.
+  - EPUB (epub.js): `ebookLocation` is the start CFI of the visible page (a point, not a range), `ebookProgress` its fraction; only CFIs starting with `epubcfi` are read back. PDF and comics: the 1-based page number and `(page - 1) / pages`. MOBI saves nothing. Same on 2.26.3 and 2.37.2.
+- [x] Decide PDF rendering: native Slint view with pdfium-render, or PDF.js inside the reader. Record as an ADR.
+  - PDF.js inside the reader, and CBZ through foliate-js too (ADR 0004).
 
 ### 3.2 `abs-reader` binary
 - [ ] tao + wry window; custom protocol serves foliate-js assets and the book bytes from a file path given by the main app.
