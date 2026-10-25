@@ -302,40 +302,40 @@ Goal: a good single-view player on a data model that already supports many accou
 ## Phase 4: All accounts at once and library merging
 
 ### 4.1 Simultaneous accounts
-- [ ] Per-account supervisor task owning its refresh loop, socket and periodic sync.
-- [ ] Stagger startup refreshes (auth is rate limited to 40 requests per IP per 10 min by default).
-- [ ] Account enable/disable without deleting data.
+- [x] Per-account supervisor task owning its refresh loop, socket and periodic sync.
+- [x] Stagger startup refreshes (auth is rate limited to 40 requests per IP per 10 min by default).
+- [x] Account enable/disable without deleting data.
 
 ### 4.2 View modes
-- [ ] Per-account view (as in the MVP).
-- [ ] Filtered view: choose any set of accounts and libraries.
-- [ ] Merged view: one entry per work.
-- [ ] Remember the view per window/session.
+- [x] Per-account view (as in the MVP).
+- [x] Filtered view: choose any set of accounts and libraries.
+- [x] Merged view: one entry per work.
+- [x] Remember the view per window/session.
 
 ### 4.3 Work layer
-- [ ] Tables: `work(id, title, author, cover_source)`, `work_member(work_id, account_id, item_id, match_method, confidence)`, `work_override(account_id, item_id, action, target_work_id)`.
-- [ ] Normalisation helpers: Unicode NFKC, lowercase, strip punctuation and leading articles (use `titleIgnorePrefix`), primary author normalisation, ISBN-10 -> ISBN-13.
-- [ ] Matching cascade, in order:
+- [x] Tables: `work(id, title, author, cover_source)`, `work_member(work_id, account_id, item_id, match_method, confidence)`, `work_override(account_id, item_id, action, target_work_id)`.
+- [x] Normalisation helpers: Unicode NFKC, lowercase, strip punctuation and leading articles (use `titleIgnorePrefix`), primary author normalisation, ISBN-10 -> ISBN-13.
+- [x] Matching cascade, in order:
   1. same server and same item id under different users (exact),
   2. equal ASIN,
   3. equal ISBN-13,
   4. normalised title + primary author + duration within tolerance (start at 2 % or 5 min, whichever is larger).
-- [ ] Never match on title alone.
-- [ ] Re-run matching incrementally after each sync; overrides always win.
+- [x] Never match on title alone.
+- [x] Re-run matching incrementally after each sync; overrides always win.
 
 ### 4.4 Manual control
-- [ ] Merge two works, split a member out; store in `work_override`.
-- [ ] Work detail shows every member with account, library, narrator, duration, progress.
+- [x] Merge two works, split a member out; store in `work_override`.
+- [x] Work detail shows every member with account, library, narrator, duration, progress.
 
 ### 4.5 Playback source and progress
-- [ ] Pick the source: member with the most recent progress, else a local download, else the preferred account (setting per work and global).
-- [ ] Progress is written only to the account that played.
-- [ ] Optional setting: mirror progress via `PATCH /api/me/progress` to members with near-identical duration.
+- [x] Pick the source: member with the most recent progress, else a local download, else the preferred account (setting per work and global).
+- [x] Progress is written only to the account that played.
+- [x] Optional setting: mirror progress via `PATCH /api/me/progress` to members with near-identical duration.
 
 ### 4.6 Tests
-- [ ] Fixture: two ABS containers with overlapping libraries, including different narrators and an abridged edition.
-- [ ] Unit tests for every cascade step and the normalisation helpers.
-- [ ] Assert zero wrong merges on the fixture; log missed merges for tuning.
+- [x] Fixture: two ABS containers with overlapping libraries, including different narrators and an abridged edition.
+- [x] Unit tests for every cascade step and the normalisation helpers.
+- [x] Assert zero wrong merges on the fixture; log missed merges for tuning.
 
 **Exit criteria:** two servers with overlapping books show one entry per work, with no wrong merges on the test fixture.
 
