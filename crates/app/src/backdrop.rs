@@ -5,7 +5,8 @@ use slint::Color;
 
 use crate::AppWindow;
 
-/// What the frame should look like.
+/// What the frame should look like. Only Windows has a frame to change.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub struct Frame {
     pub mica: bool,
     pub dark: bool,
