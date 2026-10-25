@@ -25,7 +25,8 @@ component NavItem inherits Rectangle {
     callback clicked;
 
     min-height: 36px;
-    background: selected ? Theme.surface0 : touch.has-hover ? Theme.crust : transparent;
+    background: selected ? Theme.surface0 : touch.has-hover ? Theme.crust : Theme.crust.transparentize(1);
+    animate background { duration: Theme.quick; easing: ease-out; }
     accessible-role: button;
     accessible-label: text;
     accessible-item-selected: selected;
@@ -34,11 +35,15 @@ component NavItem inherits Rectangle {
     }
     Rectangle {
         x: 0;
+        y: (parent.height - self.height) / 2;
         width: 3px;
-        background: root.selected ? Theme.accent : transparent;
+        height: root.selected ? parent.height : 0;
+        background: Theme.accent;
+        animate height { duration: Theme.settle; easing: ease-out-expo; }
     }
     Text {
-        x: Theme.pad;
+        x: root.selected || touch.has-hover ? Theme.pad + 2px : Theme.pad;
+        animate x { duration: Theme.settle; easing: ease-out-expo; }
         width: parent.width - 2 * Theme.pad;
         height: parent.height;
         text: root.text;
@@ -57,7 +62,7 @@ component NavItem inherits Rectangle {
 }
 
 component Sidebar inherits Rectangle {
-    width: 220px;
+    width: 184px;
     background: Theme.mantle;
     VerticalLayout {
         padding-top: Theme.pad;
@@ -125,6 +130,28 @@ component Sidebar inherits Rectangle {
     }
 }
 
+/// Shows one page; a page that becomes current fades in and rises into place.
+component PageFrame inherits Rectangle {
+    in property <bool> shown;
+    visible: shown;
+
+    states [
+        current when root.shown: {
+            opacity: 1;
+            y: 0;
+            in {
+                animate opacity, y { duration: Theme.arrive; easing: ease-out-expo; }
+            }
+        }
+        away when !root.shown: {
+            opacity: 0;
+            y: Theme.rise;
+        }
+    ]
+
+    @children
+}
+
 component Pages inherits Rectangle {
     property <int> focus-request: Ui.focus-request;
     changed focus-request => {
@@ -135,29 +162,37 @@ component Pages inherits Rectangle {
         }
     }
 
-    HomePage {
-        visible: Ui.page == Page.home;
+    PageFrame {
+        shown: Ui.page == Page.home;
+        HomePage { }
     }
-    LibraryPage {
-        visible: Ui.page == Page.library;
+    PageFrame {
+        shown: Ui.page == Page.library;
+        LibraryPage { }
     }
-    GroupPage {
-        visible: Ui.page == Page.group;
+    PageFrame {
+        shown: Ui.page == Page.group;
+        GroupPage { }
     }
-    search := SearchPage {
-        visible: Ui.page == Page.search;
+    PageFrame {
+        shown: Ui.page == Page.search;
+        search := SearchPage { }
     }
-    DetailPage {
-        visible: Ui.page == Page.detail;
+    PageFrame {
+        shown: Ui.page == Page.detail;
+        DetailPage { }
     }
-    PlayerPage {
-        visible: Ui.page == Page.player;
+    PageFrame {
+        shown: Ui.page == Page.player;
+        PlayerPage { }
     }
-    SettingsPage {
-        visible: Ui.page == Page.settings;
+    PageFrame {
+        shown: Ui.page == Page.settings;
+        SettingsPage { }
     }
-    add := AddAccountPage {
-        visible: Ui.page == Page.add-account;
+    PageFrame {
+        shown: Ui.page == Page.add-account;
+        add := AddAccountPage { }
     }
 
     if Ui.can-go-back && Ui.page != Page.add-account: IconButton {

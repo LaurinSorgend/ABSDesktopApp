@@ -13,15 +13,16 @@ component AccentPicker inherits HorizontalLayout {
         width: 32px;
         height: 32px;
         background: swatch;
-        border-width: index == Ui.accent-index ? 3px : 1px;
-        border-color: index == Ui.accent-index ? Theme.text : Theme.overlay0;
+        border-width: index == Ui.accent-index ? 3px : touch.has-hover ? 2px : 1px;
+        border-color: index == Ui.accent-index || touch.has-hover ? Theme.text : Theme.overlay0;
+        animate border-width, border-color { duration: Theme.quick; easing: ease-out; }
         accessible-role: tab;
         accessible-label: Ui.accent-names[index];
         accessible-item-selected: index == Ui.accent-index;
         accessible-action-default => {
             Ui.set-setting("accent", index);
         }
-        TouchArea {
+        touch := TouchArea {
             mouse-cursor: pointer;
             clicked => {
                 Ui.set-setting("accent", index);
@@ -271,6 +272,12 @@ component Appearance inherits VerticalLayout {
         options: ["Latte", "Frappé", "Macchiato", "Mocha"];
         selected: Ui.dark-flavor;
         key: "dark_flavor";
+    }
+    Setting {
+        title: @tr("Animations");
+        options: [@tr("Off"), @tr("On")];
+        selected: Theme.motion ? 1 : 0;
+        key: "animations";
     }
     VerticalLayout {
         spacing: 4px;

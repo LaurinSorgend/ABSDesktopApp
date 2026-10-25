@@ -21,6 +21,7 @@ pub const THEME_MODE: &str = "theme_mode";
 pub const LIGHT_FLAVOR: &str = "light_flavor";
 pub const DARK_FLAVOR: &str = "dark_flavor";
 pub const ACCENT: &str = "accent";
+pub const ANIMATIONS: &str = "animations";
 /// Stored as minutes, which the engine reads.
 pub const CONFLICT: &str = CONFLICT_SETTING;
 
@@ -47,6 +48,7 @@ pub struct Choices {
     /// Percent.
     pub volume: f64,
     pub theme: ThemeChoice,
+    pub animations: bool,
 }
 
 impl Choices {
@@ -69,6 +71,7 @@ impl Choices {
             skip_forward: get(SKIP_FORWARD, 2, SKIP_FORWARD_SECONDS.len()),
             default_speed: get(DEFAULT_SPEED, 1, SPEEDS.len()),
             close_to_tray: settings.get_or(CLOSE_TO_TRAY, 0u8).unwrap_or(0) == 1,
+            animations: settings.get_or(ANIMATIONS, 1u8).unwrap_or(1) == 1,
             progress_bar: get(PROGRESS_BAR, 0, 3),
             theme: ThemeChoice {
                 mode: get(THEME_MODE, 0, 3),

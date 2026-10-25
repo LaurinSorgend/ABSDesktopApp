@@ -20,6 +20,7 @@ impl App {
         colors.set_light_colors(light);
         colors.set_dark_colors(dark);
         colors.set_mode(choice.mode as i32);
+        colors.set_motion(self.choices.animations);
         let shown = if colors.get_dark() {
             choice.dark
         } else {

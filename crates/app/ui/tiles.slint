@@ -40,6 +40,8 @@ export component Tile inherits Rectangle {
     in property <TileData> data;
     callback open(string);
 
+    property <bool> lifted: touch.has-hover || focus.has-focus;
+
     width: Theme.tile-width;
     height: Theme.tile-height;
     accessible-role: button;
@@ -52,12 +54,18 @@ export component Tile inherits Rectangle {
         spacing: 4px;
         Rectangle {
             height: root.width;
-            border-width: touch.has-hover || focus.has-focus ? 2px : 0;
-            border-color: Theme.accent;
+            clip: true;
             Cover {
                 source: root.data.cover;
                 has-image: root.data.has-cover;
                 title: root.data.title;
+                transform-scale: root.lifted ? 106% : 100%;
+                animate transform-scale { duration: Theme.arrive; easing: ease-out-expo; }
+            }
+            Rectangle {
+                border-width: 2px;
+                border-color: root.lifted ? Theme.accent : Theme.accent.transparentize(1);
+                animate border-color { duration: Theme.quick; easing: ease-out; }
             }
             if root.data.progress > 0 || root.data.finished: Rectangle {
                 y: parent.height - 4px;
@@ -65,6 +73,7 @@ export component Tile inherits Rectangle {
                 height: 4px;
                 width: parent.width * (root.data.finished ? 1 : root.data.progress);
                 background: root.data.finished ? Theme.green : Theme.accent;
+                animate width { duration: Theme.settle; easing: ease-out-expo; }
             }
             if root.data.downloaded: Rectangle {
                 x: parent.width - self.width - 6px;
@@ -84,7 +93,8 @@ export component Tile inherits Rectangle {
         }
         Text {
             text: root.data.title;
-            color: Theme.text;
+            color: root.lifted ? Theme.accent : Theme.text;
+            animate color { duration: Theme.quick; easing: ease-out; }
             font-size: Theme.text-sm;
             font-weight: 500;
             overflow: elide;

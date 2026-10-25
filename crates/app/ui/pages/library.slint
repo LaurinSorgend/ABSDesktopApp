@@ -35,7 +35,8 @@ component ItemToolbar inherits HorizontalLayout {
 component GroupList inherits ListView {
     for group in Ui.groups: Rectangle {
         height: 44px;
-        background: touch.has-hover ? Theme.surface0 : transparent;
+        background: touch.has-hover ? Theme.surface0 : Theme.surface0.transparentize(1);
+        animate background { duration: Theme.quick; easing: ease-out; }
         accessible-role: button;
         accessible-label: group.name;
         accessible-action-default => {
