@@ -83,6 +83,25 @@ impl<'a> Progress<'a> {
         Ok(changed > 0)
     }
 
+    /// Stores a reading position from this machine; the audio position stays.
+    pub fn set_ebook(
+        &self,
+        account_id: &str,
+        item_id: &str,
+        location: &str,
+        progress: f64,
+    ) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT INTO progress(account_id, item_id, position, progress, is_finished,
+                 ebook_location, ebook_progress, updated_at)
+             VALUES (?1, ?2, 0, 0, 0, ?3, ?4, ?5)
+             ON CONFLICT DO UPDATE SET ebook_location = excluded.ebook_location,
+                 ebook_progress = excluded.ebook_progress, updated_at = excluded.updated_at",
+            params![account_id, item_id, location, progress, super::now_ms()],
+        )?;
+        Ok(())
+    }
+
     pub fn get(&self, account_id: &str, item_id: &str) -> DbResult<Option<ProgressRow>> {
         let sql = format!("{SELECT_PROGRESS} WHERE account_id = ?1 AND item_id = ?2");
         Ok(self
@@ -202,6 +221,27 @@ mod tests {
             20.0
         );
         assert_eq!(progress.in_progress(&id, 10).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn reading_position_keeps_the_audio_position() {
+        let db = Db::open_in_memory().unwrap();
+        let id = account(&db);
+        let progress = db.store().progress();
+        progress.set_ebook(&id, "new", "3", 0.1).unwrap();
+        let row = progress.get(&id, "new").unwrap().unwrap();
+        assert_eq!(
+            (row.ebook_location.as_deref(), row.current_time),
+            (Some("3"), 0.0)
+        );
+        progress.upsert(&id, &at(30.0, 1_000)).unwrap();
+        progress
+            .set_ebook(&id, "item", "epubcfi(/6/2!/4)", 0.5)
+            .unwrap();
+        let row = progress.get(&id, "item").unwrap().unwrap();
+        assert_eq!(row.current_time, 30.0);
+        assert_eq!(row.ebook_location.as_deref(), Some("epubcfi(/6/2!/4)"));
+        assert_eq!(row.ebook_progress, Some(0.5));
     }
 
     #[test]

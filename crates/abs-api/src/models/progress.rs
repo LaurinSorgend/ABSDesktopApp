@@ -22,7 +22,7 @@ pub struct MediaProgress {
 }
 
 /// What `ebookLocation` holds, as the web reader writes it.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum EbookLocation {
     /// A point CFI, for EPUB.
