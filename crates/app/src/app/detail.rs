@@ -14,6 +14,9 @@ use crate::format;
 use crate::playback::view::chapter_row;
 use crate::{ChapterData, DetailData, Page, Strings};
 
+/// Enough for about five lines on the hover card.
+const PEEK_DESCRIPTION_CHARS: usize = 240;
+
 pub struct Detail {
     item_id: Option<String>,
     chapters: Rc<VecModel<ChapterData>>,
@@ -77,14 +80,9 @@ impl App {
         };
         let progress = store.progress().get(account_id, item_id).ok().flatten();
         self.ui(|ui, s| {
-            ui.set_peek(detail_data(
-                item_id,
-                &detail,
-                progress.as_ref(),
-                None,
-                true,
-                s,
-            ));
+            let mut data = detail_data(item_id, &detail, progress.as_ref(), None, true, s);
+            data.description = format::excerpt(&data.description, PEEK_DESCRIPTION_CHARS).into();
+            ui.set_peek(data);
         });
     }
 
