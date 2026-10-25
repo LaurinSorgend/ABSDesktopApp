@@ -83,6 +83,9 @@ pub fn local_start(db: &Mutex<Db>, account_id: &str, item_id: &str) -> Option<Pl
         return None;
     }
     let manifest = downloads::read_manifest(&row.dir).ok()?;
+    if manifest.tracks.is_empty() {
+        return None;
+    }
     let position = store
         .progress()
         .get(account_id, item_id)

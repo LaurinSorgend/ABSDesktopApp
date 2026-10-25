@@ -2,7 +2,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use abs_api::Raw;
-use abs_api::models::LibraryItem;
+use abs_api::models::{FileMetadata, LibraryItem};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
@@ -30,6 +30,9 @@ pub struct Manifest {
     pub duration: f64,
     pub tracks: Vec<ManifestTrack>,
     pub chapters: Vec<ManifestChapter>,
+    /// The ebook file, when the item has one.
+    #[serde(default)]
+    pub ebook: Option<ManifestEbook>,
     /// The expanded item as the server sent it.
     pub item: Box<RawValue>,
 }
@@ -40,6 +43,13 @@ pub struct ManifestTrack {
     pub file_name: String,
     pub start_offset: f64,
     pub duration: f64,
+}
+
+/// The downloaded ebook and its format (`epub`, `pdf`, `cbz`, ...).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ManifestEbook {
+    pub file_name: String,
+    pub format: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,26 +70,35 @@ pub fn plan(
     item: Raw<LibraryItem>,
 ) -> Result<(Vec<DownloadFile>, Manifest), DownloadError> {
     let (item, json) = item.into_parts();
-    if item.media.tracks.is_empty() {
-        return Err(DownloadError::NoAudio);
+    if item.media.tracks.is_empty() && item.media.ebook_file.is_none() {
+        return Err(DownloadError::NoFiles);
     }
     let mut files = Vec::new();
     let mut tracks = Vec::new();
     for track in &item.media.tracks {
         let meta = track.metadata.clone().unwrap_or_default();
-        let file_name = format!("{}{}", safe_name(&track.ino), extension(&meta.ext));
-        files.push(DownloadFile {
-            ino: track.ino.clone(),
-            file_name: file_name.clone(),
-            size: meta.size,
-            bytes_done: 0,
-        });
+        let file = download_file(&track.ino, &meta);
         tracks.push(ManifestTrack {
-            file_name,
+            file_name: file.file_name.clone(),
             start_offset: track.start_offset,
             duration: track.duration,
         });
+        files.push(file);
     }
+    let ebook = item.media.ebook_file.as_ref().map(|ebook| {
+        let file = download_file(&ebook.ino, &ebook.metadata);
+        let format = ebook.ebook_format.clone().unwrap_or_else(|| {
+            extension(&ebook.metadata.ext)
+                .trim_start_matches('.')
+                .to_owned()
+        });
+        let entry = ManifestEbook {
+            file_name: file.file_name.clone(),
+            format,
+        };
+        files.push(file);
+        entry
+    });
     let metadata = &item.media.metadata;
     let manifest = Manifest {
         version: MANIFEST_VERSION,
@@ -103,9 +122,19 @@ pub fn plan(
                 title: c.title.clone(),
             })
             .collect(),
+        ebook,
         item: json,
     };
     Ok((files, manifest))
+}
+
+fn download_file(ino: &str, meta: &FileMetadata) -> DownloadFile {
+    DownloadFile {
+        ino: ino.to_owned(),
+        file_name: format!("{}{}", safe_name(ino), extension(&meta.ext)),
+        size: meta.size,
+        bytes_done: 0,
+    }
 }
 
 /// Writes the manifest under a pending name; [`commit_manifest`] makes it final.
@@ -208,6 +237,28 @@ mod tests {
         assert_eq!(again.item.get(), manifest.item.get());
         std::fs::write(dir.path().join(&files[2].file_name), b"short").unwrap();
         assert!(!check(dir.path(), &files));
+    }
+
+    #[test]
+    fn plan_an_ebook_only_item() {
+        let json = r#"{"id":"li_1","media":{"metadata":{"title":"Alice"},"tracks":[],
+            "ebookFile":{"ino":"77","ebookFormat":"epub",
+            "metadata":{"filename":"alice.epub","ext":".epub","size":189249}}}}"#;
+        let (files, manifest) = plan("acc", serde_json::from_str(json).unwrap()).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(
+            (files[0].file_name.as_str(), files[0].size),
+            ("77.epub", 189249)
+        );
+        let ebook = manifest.ebook.unwrap();
+        assert_eq!(
+            (ebook.file_name.as_str(), ebook.format.as_str()),
+            ("77.epub", "epub")
+        );
+        assert!(manifest.tracks.is_empty());
+        let empty = r#"{"id":"li_2","media":{"tracks":[]}}"#;
+        let result = plan("acc", serde_json::from_str(empty).unwrap());
+        assert!(matches!(result, Err(DownloadError::NoFiles)));
     }
 
     #[test]
