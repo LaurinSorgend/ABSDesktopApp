@@ -1,95 +1,72 @@
 //! Ebook reader helper process: a tao window with a wry webview running foliate-js.
 //!
-//! `abs-reader <book file> [saved CFI]`. Prints one JSON message per line on stdout.
+//! The main app starts it without arguments and talks to it in JSON lines over stdin
+//! and stdout (`abs-reader-ipc`). For testing, `abs-reader <book file> [location]`
+//! opens a book directly.
 
 mod assets;
+mod ipc;
+mod reader;
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
-use tao::event::{Event, WindowEvent};
-use tao::event_loop::{ControlFlow, EventLoop};
-use tao::window::{Window, WindowBuilder};
-use wry::{WebView, WebViewBuilder};
+use abs_reader_ipc::{OpenBook, Settings};
+use anyhow::Result;
+use tao::event_loop::EventLoopBuilder;
 
 use assets::Assets;
-
-const PROTOCOL: &str = "abs";
+use ipc::UserEvent;
+use reader::Reader;
 
 fn main() -> Result<()> {
-    let mut args = std::env::args().skip(1);
-    let book = PathBuf::from(
-        args.next()
-            .context("usage: abs-reader <book file> [saved CFI]")?,
-    );
-    let location = args.next();
-    let format = book
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("epub")
-        .to_lowercase();
-    let assets = Assets::new(foliate_dir(), book.clone(), &format, location.as_deref());
-
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title(window_title(&book))
-        .build(&event_loop)?;
-    let _webview = build_webview(&window, assets)?;
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-        if let Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } = event
-        {
-            println!(r#"{{"type":"closed"}}"#);
-            *control_flow = ControlFlow::Exit;
-        }
-    });
+    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
+    let from_args = book_from_args();
+    let mut reader = Reader::new(&event_loop, Assets::new(foliate_dir()))?;
+    reader.exit_on_stdin_close = from_args.is_none();
+    if let Some(book) = from_args {
+        reader.open(book)?;
+    }
+    ipc::spawn_stdin_reader(event_loop.create_proxy());
+    event_loop.run(move |event, _, control_flow| reader.handle(event, control_flow));
 }
 
-fn build_webview(window: &Window, assets: Assets) -> Result<WebView> {
-    let builder = WebViewBuilder::new()
-        .with_custom_protocol(PROTOCOL.into(), move |_id, request| {
-            assets.respond(&request)
-        })
-        .with_ipc_handler(|request| println!("{}", request.body()))
-        .with_navigation_handler(|url| url.starts_with(&start_origin()) || url.starts_with("blob:"))
-        .with_devtools(cfg!(debug_assertions))
-        .with_url(format!("{}/index.html", start_origin()));
-    attach(builder, window)
+fn book_from_args() -> Option<OpenBook> {
+    let mut args = std::env::args_os().skip(1);
+    let path = PathBuf::from(args.next()?);
+    let location = args.next().map(|l| l.to_string_lossy().into_owned());
+    Some(OpenBook {
+        format: format_of(&path),
+        title: title_of(&path),
+        path,
+        location,
+        settings: Settings::default(),
+    })
 }
 
-#[cfg(not(target_os = "linux"))]
-fn attach(builder: WebViewBuilder, window: &Window) -> Result<WebView> {
-    Ok(builder.build(window)?)
-}
-
-#[cfg(target_os = "linux")]
-fn attach(builder: WebViewBuilder, window: &Window) -> Result<WebView> {
-    use tao::platform::unix::WindowExtUnix;
-    use wry::WebViewBuilderExtUnix;
-    let vbox = window.default_vbox().context("tao window has no GTK box")?;
-    Ok(builder.build_gtk(vbox)?)
-}
-
-/// Origin wry gives the custom protocol: WebView2 maps it to `http://<name>.localhost`.
-fn start_origin() -> String {
-    if cfg!(windows) {
-        format!("http://{PROTOCOL}.localhost")
-    } else {
-        format!("{PROTOCOL}://localhost")
+/// Where foliate-js is: `ABS_FOLIATE_DIR`, then `foliate-js` next to the executable,
+/// then the submodule in the source tree.
+fn foliate_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("ABS_FOLIATE_DIR") {
+        return dir.into();
+    }
+    let beside_exe = std::env::current_exe()
+        .ok()
+        .and_then(|exe| Some(exe.parent()?.join("foliate-js")));
+    match beside_exe {
+        Some(dir) if dir.is_dir() => dir,
+        _ => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/foliate-js"),
     }
 }
 
-fn foliate_dir() -> PathBuf {
-    std::env::var_os("ABS_FOLIATE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/foliate-js"))
+fn format_of(path: &Path) -> String {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("epub")
+        .to_lowercase()
 }
 
-fn window_title(book: &Path) -> String {
-    book.file_stem()
+fn title_of(path: &Path) -> String {
+    path.file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("Reader")
         .to_owned()

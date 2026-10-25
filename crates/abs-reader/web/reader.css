@@ -1,0 +1,173 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1d1d1d;
+  --muted: #6e6e6e;
+  --panel: #f2f2f2;
+  --active: rgba(0, 0, 0, .08);
+  --error: #b00020;
+}
+body[data-theme="sepia"] {
+  --bg: #f4ecd8;
+  --fg: #5b4636;
+  --muted: #8a7560;
+  --panel: #ebe0c6;
+  --active: rgba(91, 70, 54, .12);
+}
+body[data-theme="dark"] {
+  --bg: #232323;
+  --fg: #ececec;
+  --muted: #9a9a9a;
+  --panel: #2e2e2e;
+  --active: rgba(255, 255, 255, .1);
+  --error: #ff7b8a;
+  color-scheme: dark;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px system-ui, "Segoe UI", sans-serif;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 18px;
+}
+button:hover, button[aria-pressed="true"] {
+  background: var(--active);
+}
+
+#bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+#heading {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+#title, #chapter {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+#chapter, #position {
+  color: var(--muted);
+  font-size: 12px;
+}
+#book {
+  min-height: 0;
+}
+foliate-view {
+  display: block;
+  height: 100%;
+}
+#foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px;
+}
+
+.panel {
+  position: fixed;
+  top: 44px;
+  bottom: 0;
+  width: min(340px, 85vw);
+  overflow-y: auto;
+  background: var(--panel);
+  box-shadow: 0 0 16px rgba(0, 0, 0, .25);
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+.panel[hidden] {
+  display: none;
+}
+.panel.left { left: 0; }
+.panel.right { right: 0; }
+.panel-title {
+  font-weight: 600;
+  margin: 4px 0 8px;
+}
+
+#toc-view ol, #toc-view li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#toc-view a, #toc-view span {
+  display: block;
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: inherit;
+  text-decoration: none;
+}
+#toc-view a:hover, #toc-view [aria-current] {
+  background: var(--active);
+}
+#toc-view [aria-current] {
+  font-weight: 600;
+}
+#toc-view span {
+  color: var(--muted);
+}
+#toc-view svg {
+  margin-inline-start: -24px;
+  padding-inline: 5px 6px;
+  fill: currentColor;
+  opacity: .5;
+  transition: transform .2s ease;
+}
+#toc-view [aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+#toc-view [aria-expanded="false"] + [role="group"] {
+  display: none;
+}
+
+#settings fieldset {
+  border: 0;
+  margin: 0 0 12px;
+  padding: 0;
+}
+#settings legend {
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+#settings fieldset label {
+  margin-right: 12px;
+}
+#settings .range {
+  display: block;
+  margin-bottom: 12px;
+}
+#settings .range input {
+  display: block;
+  width: 100%;
+}
+#settings output {
+  color: var(--muted);
+}
+body.fixed .reflow {
+  display: none;
+}
+
+#error {
+  position: fixed;
+  inset: auto 16px 16px 16px;
+  color: var(--error);
+}

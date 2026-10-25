@@ -4,14 +4,56 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reader</title>
-<style>
-  html, body { margin: 0; height: 100%; background: #fafafa; }
-  foliate-view { display: block; height: 100%; }
-  #error { position: fixed; inset: auto 16px 16px 16px; color: #b00020; font: 14px sans-serif; }
-</style>
+<link rel="stylesheet" href="reader.css">
 </head>
-<body>
-<div id="error"></div>
+<body data-theme="light">
+<header id="bar">
+  <button id="toc-button" title="Contents (T)" aria-label="Contents">&#9776;</button>
+  <div id="heading">
+    <div id="title"></div>
+    <div id="chapter"></div>
+  </div>
+  <button id="settings-button" title="Settings (S)" aria-label="Settings">Aa</button>
+</header>
+<main id="book"></main>
+<footer id="foot">
+  <button id="prev" aria-label="Previous page">&#8249;</button>
+  <span id="position"></span>
+  <button id="next" aria-label="Next page">&#8250;</button>
+</footer>
+<aside id="toc-panel" class="panel left" hidden>
+  <div class="panel-title">Contents</div>
+  <div id="toc-view"></div>
+</aside>
+<aside id="settings-panel" class="panel right" hidden>
+  <div class="panel-title">Settings</div>
+  <form id="settings">
+    <fieldset class="reflow">
+      <legend>Layout</legend>
+      <label><input type="radio" name="flow" value="paginated"> Pages</label>
+      <label><input type="radio" name="flow" value="scrolled"> Scroll</label>
+    </fieldset>
+    <fieldset>
+      <legend>Theme</legend>
+      <label><input type="radio" name="theme" value="light"> Light</label>
+      <label><input type="radio" name="theme" value="sepia"> Sepia</label>
+      <label><input type="radio" name="theme" value="dark"> Dark</label>
+    </fieldset>
+    <fieldset class="reflow">
+      <legend>Font</legend>
+      <label><input type="radio" name="font" value="original"> Book</label>
+      <label><input type="radio" name="font" value="serif"> Serif</label>
+      <label><input type="radio" name="font" value="sans"> Sans</label>
+    </fieldset>
+    <label class="reflow range">Size <output for="fontSize"></output>
+      <input type="range" name="fontSize" min="50" max="300" step="10"></label>
+    <label class="reflow range">Line height <output for="lineHeight"></output>
+      <input type="range" name="lineHeight" min="100" max="250" step="10"></label>
+    <label class="reflow range">Margins <output for="margin"></output>
+      <input type="range" name="margin" min="0" max="20" step="1"></label>
+  </form>
+</aside>
+<div id="error" hidden></div>
 <script type="module" src="reader.js"></script>
 </body>
 </html>

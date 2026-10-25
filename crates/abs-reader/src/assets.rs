@@ -1,36 +1,53 @@
 use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
+use abs_reader_ipc::{OpenBook, Settings};
 use wry::http::{Request, Response, StatusCode, header};
 
 const INDEX_HTML: &str = include_str!("../web/index.html");
 const READER_JS: &str = include_str!("../web/reader.js");
+const READER_CSS: &str = include_str!("../web/reader.css");
 const FOLIATE_PREFIX: &str = "/foliate/";
 const CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' blob:; \
     img-src 'self' blob: data:; font-src 'self' blob: data:; frame-src blob: 'self'; \
-    connect-src 'self'; object-src 'none'; base-uri 'none'";
+    worker-src 'self' blob:; connect-src 'self' blob: data:; media-src 'self' blob:; \
+    object-src 'none'; base-uri 'none'; form-action 'none'";
 
-/// What the custom protocol serves: the reader page, foliate-js and one book.
+/// What the custom protocol serves: the reader page, foliate-js and the open book.
+/// Clones share the book, so the window can swap it.
+#[derive(Clone)]
 pub struct Assets {
     foliate_dir: PathBuf,
-    book_path: PathBuf,
-    meta_json: String,
+    book: Arc<Mutex<Option<OpenBook>>>,
 }
 
 impl Assets {
-    /// Serves `book_path` with the given format and saved location.
-    pub fn new(
-        foliate_dir: PathBuf,
-        book_path: PathBuf,
-        format: &str,
-        location: Option<&str>,
-    ) -> Self {
-        let meta_json = serde_json::json!({ "format": format, "location": location }).to_string();
+    pub fn new(foliate_dir: PathBuf) -> Self {
         Self {
             foliate_dir,
-            book_path,
-            meta_json,
+            book: Arc::default(),
         }
+    }
+
+    /// The book `/book` and `/meta.json` answer with from now on.
+    pub fn set_book(&self, book: OpenBook) {
+        *self.book.lock().unwrap_or_else(|p| p.into_inner()) = Some(book);
+    }
+
+    /// Keeps new settings with the book, so a reload of the page uses them.
+    pub fn set_settings(&self, settings: Settings) {
+        if let Some(book) = self.book.lock().unwrap_or_else(|p| p.into_inner()).as_mut() {
+            book.settings = settings;
+        }
+    }
+
+    fn with_book<R>(&self, f: impl FnOnce(&OpenBook) -> R) -> Option<R> {
+        self.book
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .as_ref()
+            .map(f)
     }
 
     /// Answers one custom protocol request.
@@ -39,8 +56,15 @@ impl Assets {
         match path {
             "/" | "/index.html" => html(INDEX_HTML),
             "/reader.js" => ok(READER_JS.as_bytes().to_vec(), "text/javascript"),
-            "/meta.json" => ok(self.meta_json.clone().into_bytes(), "application/json"),
-            "/book" => self.file(&self.book_path),
+            "/reader.css" => ok(READER_CSS.as_bytes().to_vec(), "text/css"),
+            "/meta.json" => match self.with_book(abs_reader_ipc::encode) {
+                Some(json) => ok(json.into_bytes(), "application/json"),
+                None => status(StatusCode::NOT_FOUND),
+            },
+            "/book" => match self.with_book(|b| b.path.clone()) {
+                Some(path) => self.file(&path),
+                None => status(StatusCode::NOT_FOUND),
+            },
             _ => match path.strip_prefix(FOLIATE_PREFIX).and_then(safe_relative) {
                 Some(relative) => self.file(&self.foliate_dir.join(relative)),
                 None => status(StatusCode::NOT_FOUND),
