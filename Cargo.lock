@@ -95,9 +95,8 @@ dependencies = [
 name = "abs-reader"
 version = "0.1.0"
 dependencies = [
+ "abs-reader-ipc",
  "anyhow",
- "serde",
- "serde_json",
  "tao",
  "wry",
 ]
