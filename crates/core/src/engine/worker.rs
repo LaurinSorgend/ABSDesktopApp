@@ -14,7 +14,9 @@ use super::offline;
 use super::playback::{self, PlaybackCommand};
 use super::requests;
 use super::works;
-use super::{Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, SYNC_INTERVAL_SETTING};
+use super::{
+    Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, REMOTE_CHECK_SETTING, SYNC_INTERVAL_SETTING,
+};
 use crate::account::{
     AccountError, Session, add_account, earlier_url_answers, lock, restore_account,
 };
@@ -159,6 +161,13 @@ fn handle(
             force_sync,
         }),
         Command::StopPlayback => forward(PlaybackCommand::Stop),
+        Command::SetRemoteCheck { seconds } => {
+            let _ = lock(&shared.db)
+                .store()
+                .settings()
+                .set(REMOTE_CHECK_SETTING, seconds);
+            forward(PlaybackCommand::RemoteCheck { seconds });
+        }
         Command::AddAccount {
             url,
             username,

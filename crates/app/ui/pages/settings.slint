@@ -277,6 +277,12 @@ export component SettingsPage inherits Rectangle {
                 selected: Ui.conflict-index;
                 key: "conflict_minutes";
             }
+            Setting {
+                title: @tr("While paused, look for progress from other devices every");
+                options: Ui.remote-check-options;
+                selected: Ui.remote-check-index;
+                key: "remote_check_seconds";
+            }
             if Ui.multi-account: SectionTitle {
                 text: @tr("Books on several accounts");
             }

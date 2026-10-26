@@ -166,6 +166,15 @@ pub fn fill_options(ui: &Ui<'_>, strings: &Strings<'_>) {
         .map(|m| strings.invoke_minutes(*m as i32))
         .collect();
     ui.set_conflict_options(model(conflict));
+    let remote_check = crate::settings::REMOTE_CHECK_SECONDS
+        .iter()
+        .map(|s| match *s {
+            0 => strings.invoke_sleep_off(),
+            s if s < 60 => strings.invoke_seconds(s as i32),
+            s => strings.invoke_minutes((s / 60) as i32),
+        })
+        .collect();
+    ui.set_remote_check_options(model(remote_check));
 }
 
 fn sleep_text(playback: &Playback, strings: &Strings<'_>) -> String {

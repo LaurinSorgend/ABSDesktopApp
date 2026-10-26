@@ -3,7 +3,9 @@
 use std::time::Duration;
 
 use abs_core::db::Store;
-use abs_core::engine::{COVER_CACHE_SETTING, DEFAULT_COVER_CACHE_MB};
+use abs_core::engine::{
+    COVER_CACHE_SETTING, DEFAULT_COVER_CACHE_MB, DEFAULT_REMOTE_CHECK_SECONDS, REMOTE_CHECK_SETTING,
+};
 use abs_core::offline::{CONFLICT_SETTING, DEFAULT_CONFLICT_MINUTES};
 use abs_player::controller::SleepChoice;
 
@@ -66,12 +68,15 @@ pub fn per_theme(key: &str, theme: &str) -> String {
 }
 /// Stored as minutes, which the engine reads.
 pub const CONFLICT: &str = CONFLICT_SETTING;
+/// Stored as seconds, which the engine reads; 0 is off.
+pub const REMOTE_CHECK: &str = REMOTE_CHECK_SETTING;
 
 pub const SKIP_BACK_SECONDS: [u64; 4] = [5, 10, 15, 30];
 pub const SKIP_FORWARD_SECONDS: [u64; 4] = [10, 15, 30, 60];
 pub const SPEEDS: [f64; 8] = [0.75, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5];
 pub const CACHE_MEGABYTES: [u64; 4] = [100, 250, 500, 1000];
 pub const CONFLICT_MINUTES: [u64; 4] = [1, 5, 15, 30];
+pub const REMOTE_CHECK_SECONDS: [u64; 5] = [0, 10, 30, 60, 300];
 /// Sleep timer minutes; the index after the last is "end of chapter", index 0 is off.
 pub const SLEEP_MINUTES: [u64; 5] = [10, 15, 30, 45, 60];
 
@@ -85,6 +90,8 @@ pub struct Choices {
     pub cover_cache: usize,
     /// Index into [`CONFLICT_MINUTES`].
     pub conflict: usize,
+    /// Index into [`REMOTE_CHECK_SECONDS`].
+    pub remote_check: usize,
     /// 0 book, 1 chapter, 2 both.
     pub progress_bar: usize,
     /// Percent.
@@ -108,6 +115,9 @@ impl Choices {
         let conflict_minutes = settings
             .get_or(CONFLICT, DEFAULT_CONFLICT_MINUTES)
             .unwrap_or(DEFAULT_CONFLICT_MINUTES);
+        let remote_check_seconds = settings
+            .get_or(REMOTE_CHECK, DEFAULT_REMOTE_CHECK_SECONDS)
+            .unwrap_or(DEFAULT_REMOTE_CHECK_SECONDS);
         Self {
             skip_back: get(SKIP_BACK, 1, SKIP_BACK_SECONDS.len()),
             skip_forward: get(SKIP_FORWARD, 2, SKIP_FORWARD_SECONDS.len()),
@@ -128,6 +138,10 @@ impl Choices {
                 .iter()
                 .position(|m| *m >= conflict_minutes)
                 .unwrap_or(CONFLICT_MINUTES.len() - 1),
+            remote_check: REMOTE_CHECK_SECONDS
+                .iter()
+                .position(|s| *s >= remote_check_seconds)
+                .unwrap_or(REMOTE_CHECK_SECONDS.len() - 1),
         }
     }
 

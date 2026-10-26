@@ -9,8 +9,9 @@ use super::App;
 use crate::paths::dir_size;
 use crate::settings::{
     ACCENT, CACHE_MEGABYTES, CLOSE_TO_TRAY, CONFLICT, CONFLICT_MINUTES, COVER_CACHE, Choices,
-    DARK_PALETTE, DEFAULT_SPEED, FONT, LIGHT_PALETTE, MONO_FONT, PROGRESS_BAR, SKIP_BACK,
-    SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS, THEME, THEME_INDEX_KEYS,
+    DARK_PALETTE, DEFAULT_SPEED, FONT, LIGHT_PALETTE, MONO_FONT, PROGRESS_BAR, REMOTE_CHECK,
+    REMOTE_CHECK_SECONDS, SKIP_BACK, SKIP_BACK_SECONDS, SKIP_FORWARD, SKIP_FORWARD_SECONDS, THEME,
+    THEME_INDEX_KEYS,
 };
 use crate::tray::{Labels, Tray};
 
@@ -32,6 +33,7 @@ impl App {
             ui.set_close_to_tray(choices.close_to_tray);
             ui.set_cache_index(choices.cover_cache as i32);
             ui.set_conflict_index(choices.conflict as i32);
+            ui.set_remote_check_index(choices.remote_check as i32);
             ui.set_progress_mode(choices.progress_bar as i32);
         });
         self.update_tray();
@@ -72,6 +74,11 @@ impl App {
                 self.engine.send(Command::SetCoverCacheSize { megabytes });
                 Ok(())
             }
+            REMOTE_CHECK => {
+                let seconds = REMOTE_CHECK_SECONDS[index.min(REMOTE_CHECK_SECONDS.len() - 1)];
+                self.engine.send(Command::SetRemoteCheck { seconds });
+                Ok(())
+            }
             CONFLICT => settings.set(key, CONFLICT_MINUTES[index.min(CONFLICT_MINUTES.len() - 1)]),
             PREFERRED_ACCOUNT_SETTING => {
                 match index.checked_sub(1).and_then(|i| self.accounts.get(i)) {
@@ -84,6 +91,8 @@ impl App {
         };
         if key == COVER_CACHE {
             self.choices.cover_cache = index;
+        } else if key == REMOTE_CHECK {
+            self.choices.remote_check = index.min(REMOTE_CHECK_SECONDS.len() - 1);
         } else {
             self.reload_choices();
         }
@@ -97,10 +106,11 @@ impl App {
         self.refresh_source_settings();
     }
 
-    /// Reads the settings again; the cover cache size stays as the engine has it.
+    /// Reads the settings again; the values the engine stores stay as the app has them.
     pub(super) fn reload_choices(&mut self) {
         self.choices = Choices {
             cover_cache: self.choices.cover_cache,
+            remote_check: self.choices.remote_check,
             ..Choices::load(&self.db.store())
         };
     }

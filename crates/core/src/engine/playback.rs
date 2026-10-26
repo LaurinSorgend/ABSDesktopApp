@@ -10,13 +10,11 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
 use super::worker::{Shared, lock_map, sessions};
-use super::{Event, offline};
+use super::{DEFAULT_REMOTE_CHECK_SECONDS, Event, REMOTE_CHECK_SETTING, offline};
 use crate::account::{AccountError, Session, lock};
 use crate::playback::{self, ActivePlayback, ListenTracker, LocalPlayback, PlayStart};
 
-/// How often a paused session asks the server whether another device moved on.
-const REMOTE_CHECK: Duration = Duration::from_secs(30);
-/// Longest wait for that answer, since commands queue up behind it.
+/// Longest wait for the answer to a remote progress check, since commands queue up behind it.
 const REMOTE_CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Playback commands, forwarded from [`super::Command`].
@@ -32,6 +30,10 @@ pub(super) enum PlaybackCommand {
         force_sync: bool,
     },
     Stop,
+    /// New interval for remote progress checks; 0 turns them off.
+    RemoteCheck {
+        seconds: u64,
+    },
 }
 
 /// The item in the player and how its listening is recorded.
@@ -113,52 +115,91 @@ pub(super) async fn run(
     shared: Arc<Shared>,
     mut commands: mpsc::UnboundedReceiver<PlaybackCommand>,
 ) {
-    let mut active: Option<Active> = None;
-    let mut sent_token: Option<String> = None;
-    let mut remote_check = tokio::time::interval(REMOTE_CHECK);
-    remote_check.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut state = State {
+        active: None,
+        sent_token: None,
+        remote_check: stored_remote_check(&shared),
+    };
+    let mut last_check = Instant::now();
     loop {
+        let next_check = state.remote_check.map(|every| last_check + every);
         tokio::select! {
             command = commands.recv() => match command {
-                Some(command) => handle(&shared, &mut active, &mut sent_token, command).await,
+                Some(command) => state.handle(&shared, command).await,
                 None => break,
             },
-            _ = remote_check.tick() => check_remote(&shared, active.as_mut()).await,
-            () = shared.progress_moved.notified() => check_remote(&shared, active.as_mut()).await,
-        }
-    }
-    close(&shared, active.take()).await;
-}
-
-async fn handle(
-    shared: &Arc<Shared>,
-    active: &mut Option<Active>,
-    sent_token: &mut Option<String>,
-    command: PlaybackCommand,
-) {
-    match command {
-        PlaybackCommand::Start {
-            account_id,
-            item_id,
-        } => {
-            close(shared, active.take()).await;
-            *active = start(shared, &account_id, &item_id).await;
-            *sent_token = active.as_ref().and_then(Active::stream_token);
-        }
-        PlaybackCommand::Report {
-            position,
-            playing,
-            force_sync,
-        } => {
-            if let Some(active) = active.as_mut() {
-                let synced = report(shared, active, position, playing, force_sync).await;
-                if synced && (force_sync || !playing) {
-                    spawn_mirror(shared, &active.start, position);
+            () = sleep_until(next_check) => {
+                last_check = Instant::now();
+                check_remote(&shared, state.active.as_mut()).await;
+            }
+            () = shared.progress_moved.notified() => {
+                if state.remote_check.is_some() {
+                    check_remote(&shared, state.active.as_mut()).await;
                 }
-                send_new_headers(shared, active, sent_token);
             }
         }
-        PlaybackCommand::Stop => close(shared, active.take()).await,
+    }
+    close(&shared, state.active.take()).await;
+}
+
+/// What the playback task keeps between commands.
+struct State {
+    active: Option<Active>,
+    sent_token: Option<String>,
+    /// `None` when remote progress checks are off.
+    remote_check: Option<Duration>,
+}
+
+impl State {
+    async fn handle(&mut self, shared: &Arc<Shared>, command: PlaybackCommand) {
+        match command {
+            PlaybackCommand::Start {
+                account_id,
+                item_id,
+            } => {
+                close(shared, self.active.take()).await;
+                self.active = start(shared, &account_id, &item_id).await;
+                self.sent_token = self.active.as_ref().and_then(Active::stream_token);
+            }
+            PlaybackCommand::Report {
+                position,
+                playing,
+                force_sync,
+            } => {
+                if let Some(active) = self.active.as_mut() {
+                    let synced = report(shared, active, position, playing, force_sync).await;
+                    if synced && (force_sync || !playing) {
+                        spawn_mirror(shared, &active.start, position);
+                    }
+                    send_new_headers(shared, active, &mut self.sent_token);
+                }
+            }
+            PlaybackCommand::Stop => close(shared, self.active.take()).await,
+            PlaybackCommand::RemoteCheck { seconds } => {
+                self.remote_check = remote_check_interval(seconds);
+            }
+        }
+    }
+}
+
+fn stored_remote_check(shared: &Shared) -> Option<Duration> {
+    let seconds = lock(&shared.db)
+        .store()
+        .settings()
+        .get_or(REMOTE_CHECK_SETTING, DEFAULT_REMOTE_CHECK_SECONDS)
+        .unwrap_or(DEFAULT_REMOTE_CHECK_SECONDS);
+    remote_check_interval(seconds)
+}
+
+fn remote_check_interval(seconds: u64) -> Option<Duration> {
+    (seconds > 0).then(|| Duration::from_secs(seconds))
+}
+
+/// Waits until `at`, or forever when it is `None`.
+async fn sleep_until(at: Option<Instant>) {
+    match at {
+        Some(at) => tokio::time::sleep_until(at.into()).await,
+        None => std::future::pending().await,
     }
 }
 

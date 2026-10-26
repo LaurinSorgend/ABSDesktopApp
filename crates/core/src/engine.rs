@@ -35,6 +35,12 @@ pub const COVER_CACHE_SETTING: &str = "cover_cache_mb";
 /// Default cover cache cap in megabytes.
 pub const DEFAULT_COVER_CACHE_MB: u64 = crate::cover_cache::DEFAULT_CAPACITY / (1024 * 1024);
 
+/// Setting key for how often a paused session looks for progress from other devices,
+/// in seconds; 0 turns it off.
+pub const REMOTE_CHECK_SETTING: &str = "remote_check_seconds";
+/// Default for [`REMOTE_CHECK_SETTING`].
+pub const DEFAULT_REMOTE_CHECK_SECONDS: u64 = 30;
+
 /// Requests from the UI.
 #[derive(Debug, Clone)]
 pub enum Command {
@@ -65,6 +71,11 @@ pub enum Command {
     },
     /// Close the session, as on stop.
     StopPlayback,
+    /// How often a paused session looks for progress from other devices; 0 turns it
+    /// off. Also stored as a setting.
+    SetRemoteCheck {
+        seconds: u64,
+    },
     /// A cover from the cache or the server; answered with `CoverLoaded`.
     LoadCover {
         account_id: String,
