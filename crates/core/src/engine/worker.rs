@@ -62,6 +62,8 @@ pub(super) struct Shared {
     pub(super) conflicts_shown: Mutex<HashSet<(String, String)>>,
     /// Set when the works need matching again.
     pub(super) works_dirty: Notify,
+    /// Set when a realtime event changed someone's progress.
+    pub(super) progress_moved: Notify,
     credentials: Credentials,
     http: Client,
     pub(super) emit: Emit,
@@ -88,6 +90,7 @@ pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit
         running_local: Mutex::default(),
         conflicts_shown: Mutex::default(),
         works_dirty: Notify::new(),
+        progress_moved: Notify::new(),
         credentials: parts.credentials,
         http,
         emit,
@@ -309,8 +312,10 @@ async fn live(shared: Arc<Shared>, session: Arc<Session>) {
             Err(_) => (None, Followup::SyncCatalog),
         };
         if let Some(event) = event {
-            if matches!(event, Event::CatalogChanged { .. }) {
-                works::request(&shared);
+            match event {
+                Event::CatalogChanged { .. } => works::request(&shared),
+                Event::ProgressChanged { .. } => shared.progress_moved.notify_one(),
+                _ => {}
             }
             (shared.emit)(event);
         }

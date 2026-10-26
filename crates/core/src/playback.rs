@@ -33,6 +33,9 @@ pub const SUPPORTED_MIME_TYPES: &[&str] = &[
     "audio/x-aiff",
 ];
 
+/// Smallest difference to the server's position that counts as another device moving on.
+const MIN_REMOTE_MOVE: f64 = 1.0;
+
 /// One track to hand to the player.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackSource {
@@ -65,6 +68,8 @@ pub struct ActivePlayback {
     pub item_id: String,
     pub server_session_id: String,
     pub tracker: ListenTracker,
+    /// Server time of the last position this session sent or took over.
+    synced_at: i64,
 }
 
 /// Starts a session for `item_id` and returns it with the data for the player.
@@ -78,6 +83,7 @@ pub async fn start(
         .await?;
     let start = play_start(&session, item_id, &server)?;
     let active = ActivePlayback {
+        synced_at: server_now(&session),
         session,
         item_id: item_id.to_owned(),
         server_session_id: server.id,
@@ -92,8 +98,9 @@ impl ActivePlayback {
     pub async fn sync(&mut self, db: &Mutex<Db>) -> Result<(), AccountError> {
         let sync = self.tracker.take_sync(Instant::now());
         let result = self.send(&sync).await;
-        if result.is_err() {
-            self.tracker.restore(&sync);
+        match result {
+            Ok(()) => self.synced_at = server_now(&self.session),
+            Err(_) => self.tracker.restore(&sync),
         }
         store_local(db, &self.session.account.id, &self.item_id, &sync)?;
         result
@@ -109,6 +116,24 @@ impl ActivePlayback {
             self.tracker.restore(&sync);
         }
         result
+    }
+
+    /// Where another device left the item, when it moved there after this session's
+    /// last sync. The tracker takes the new position.
+    pub async fn remote_position(&mut self) -> Result<Option<f64>, AccountError> {
+        let progress = self.session.client.item_progress(&self.item_id).await?;
+        let Some((position, last_update)) =
+            progress.and_then(|p| Some((p.current_time?, p.last_update)))
+        else {
+            return Ok(None);
+        };
+        let moved = (position - self.tracker.position()).abs() >= MIN_REMOTE_MOVE;
+        if last_update <= self.synced_at || !moved {
+            return Ok(None);
+        }
+        self.synced_at = last_update;
+        self.tracker.set_position(position);
+        Ok(Some(position))
     }
 
     async fn send_close(&mut self, sync: &SessionSync) -> Result<(), AccountError> {
@@ -148,6 +173,10 @@ impl ActivePlayback {
         self.server_session_id = server.id;
         Ok(())
     }
+}
+
+fn server_now(session: &Session) -> i64 {
+    crate::offline::server_time(now_ms(), session.client.clock_offset_ms())
 }
 
 /// How this app names itself to the server.

@@ -271,6 +271,12 @@ pub enum Event {
     PlaybackFailed {
         message: String,
     },
+    /// Another device moved the paused item in the player; seek there.
+    RemoteProgress {
+        account_id: String,
+        item_id: String,
+        position: f64,
+    },
     /// New HTTP headers for the player after a token refresh.
     PlaybackHeaders {
         headers: Vec<String>,

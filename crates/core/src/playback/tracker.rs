@@ -69,6 +69,15 @@ impl ListenTracker {
     pub fn position(&self) -> f64 {
         self.position
     }
+
+    /// Takes a position the player was moved to from outside, as from another device.
+    pub fn set_position(&mut self, position: f64) {
+        self.position = position;
+    }
+
+    pub fn is_playing(&self) -> bool {
+        self.playing_since.is_some()
+    }
 }
 
 #[cfg(test)]

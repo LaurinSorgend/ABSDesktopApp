@@ -216,6 +216,9 @@ impl App {
         match event {
             Event::PlaybackStarted(start) => self.playback_started(*start),
             Event::PlaybackFailed { message } => self.playback_failed(&message),
+            Event::RemoteProgress {
+                item_id, position, ..
+            } => self.remote_progress(&item_id, position),
             Event::PlaybackHeaders { headers } => {
                 if let Some(playback) = &self.playback {
                     playback.set_headers(&headers);

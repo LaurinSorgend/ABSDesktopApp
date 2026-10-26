@@ -92,6 +92,31 @@ async fn start_sync_and_close() {
 }
 
 #[tokio::test]
+async fn paused_session_sees_another_device_move_on() {
+    for server in ["http://localhost:13378", LATEST] {
+        let (db, session, item_id) = setup(server).await;
+        let (mut active, start) = playback::start(session.clone(), &item_id).await.unwrap();
+        listen(&mut active, 300.0);
+        active.tracker.report(Instant::now(), 300.0, false);
+        active.sync(&db).await.unwrap();
+        let own = active.remote_position().await.unwrap();
+        assert_eq!(own, None, "its own sync is not another device ({server})");
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        session
+            .client
+            .set_progress(&item_id, 1234.0, start.duration)
+            .await
+            .unwrap();
+        let moved = active.remote_position().await.unwrap();
+        assert_eq!(moved, Some(1234.0), "{server}");
+        assert_eq!(active.tracker.position(), 1234.0);
+        assert_eq!(active.remote_position().await.unwrap(), None, "taken once");
+        active.close(&db).await.unwrap();
+    }
+}
+
+#[tokio::test]
 async fn sync_after_server_restart_starts_a_new_session() {
     let Ok(container) = std::env::var("ABS_TEST_RESTART_CONTAINER") else {
         return;

@@ -80,6 +80,18 @@ impl App {
         self.show_error(text.unwrap_or_default().into());
     }
 
+    /// Another device moved on in the paused item; continue from there.
+    pub(super) fn remote_progress(&mut self, item_id: &str, position: f64) {
+        let Some(playback) = &mut self.playback else {
+            return;
+        };
+        let is_now = playback.now().is_some_and(|n| n.item_id == item_id);
+        if is_now && !playback.is_playing() {
+            playback.seek_to(position);
+            self.update_player_view();
+        }
+    }
+
     pub fn player_event(&mut self, event: PlayerEvent) {
         let Some(playback) = &mut self.playback else {
             return;

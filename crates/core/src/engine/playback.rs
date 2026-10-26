@@ -5,7 +5,7 @@
 //! while playing, listening is recorded as a local session for later.
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
 
@@ -13,6 +13,11 @@ use super::worker::{Shared, lock_map, sessions};
 use super::{Event, offline};
 use crate::account::{AccountError, Session, lock};
 use crate::playback::{self, ActivePlayback, ListenTracker, LocalPlayback, PlayStart};
+
+/// How often a paused session asks the server whether another device moved on.
+const REMOTE_CHECK: Duration = Duration::from_secs(30);
+/// Longest wait for that answer, since commands queue up behind it.
+const REMOTE_CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Playback commands, forwarded from [`super::Command`].
 #[derive(Debug)]
@@ -110,33 +115,73 @@ pub(super) async fn run(
 ) {
     let mut active: Option<Active> = None;
     let mut sent_token: Option<String> = None;
-    while let Some(command) = commands.recv().await {
-        match command {
-            PlaybackCommand::Start {
-                account_id,
-                item_id,
-            } => {
-                close(&shared, active.take()).await;
-                active = start(&shared, &account_id, &item_id).await;
-                sent_token = active.as_ref().and_then(Active::stream_token);
-            }
-            PlaybackCommand::Report {
-                position,
-                playing,
-                force_sync,
-            } => {
-                if let Some(active) = active.as_mut() {
-                    let synced = report(&shared, active, position, playing, force_sync).await;
-                    if synced && (force_sync || !playing) {
-                        spawn_mirror(&shared, &active.start, position);
-                    }
-                    send_new_headers(&shared, active, &mut sent_token);
-                }
-            }
-            PlaybackCommand::Stop => close(&shared, active.take()).await,
+    let mut remote_check = tokio::time::interval(REMOTE_CHECK);
+    remote_check.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tokio::select! {
+            command = commands.recv() => match command {
+                Some(command) => handle(&shared, &mut active, &mut sent_token, command).await,
+                None => break,
+            },
+            _ = remote_check.tick() => check_remote(&shared, active.as_mut()).await,
+            () = shared.progress_moved.notified() => check_remote(&shared, active.as_mut()).await,
         }
     }
     close(&shared, active.take()).await;
+}
+
+async fn handle(
+    shared: &Arc<Shared>,
+    active: &mut Option<Active>,
+    sent_token: &mut Option<String>,
+    command: PlaybackCommand,
+) {
+    match command {
+        PlaybackCommand::Start {
+            account_id,
+            item_id,
+        } => {
+            close(shared, active.take()).await;
+            *active = start(shared, &account_id, &item_id).await;
+            *sent_token = active.as_ref().and_then(Active::stream_token);
+        }
+        PlaybackCommand::Report {
+            position,
+            playing,
+            force_sync,
+        } => {
+            if let Some(active) = active.as_mut() {
+                let synced = report(shared, active, position, playing, force_sync).await;
+                if synced && (force_sync || !playing) {
+                    spawn_mirror(shared, &active.start, position);
+                }
+                send_new_headers(shared, active, sent_token);
+            }
+        }
+        PlaybackCommand::Stop => close(shared, active.take()).await,
+    }
+}
+
+/// Tells the app when another device moved the paused item. Errors are left to the
+/// engine's ping, which notices a server that is gone.
+async fn check_remote(shared: &Shared, active: Option<&mut Active>) {
+    let Some(active) = active else {
+        return;
+    };
+    let Mode::Server(playback) = &mut active.mode else {
+        return;
+    };
+    if playback.tracker.is_playing() {
+        return;
+    }
+    let answer = tokio::time::timeout(REMOTE_CHECK_TIMEOUT, playback.remote_position()).await;
+    if let Ok(Ok(Some(position))) = answer {
+        (shared.emit)(Event::RemoteProgress {
+            account_id: active.start.account_id.clone(),
+            item_id: active.start.item_id.clone(),
+            position,
+        });
+    }
 }
 
 async fn start(shared: &Shared, account_id: &str, item_id: &str) -> Option<Active> {
