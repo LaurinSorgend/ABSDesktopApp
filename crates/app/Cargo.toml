@@ -17,7 +17,13 @@ rfd = "0.17.2"
 serde_json = "1.0.154"
 slint = { version = "1.18", features = ["raw-window-handle-06"] }
 
+[features]
+## Updates through Velopack. Only the Windows installer and its portable zip turn this on;
+## package-manager builds update through their own channel.
+self-update = ["dep:velopack"]
+
 [target.'cfg(windows)'.dependencies]
+velopack = { version = "1.2.161", optional = true }
 tray-icon = { version = "0.25.1", default-features = false }
 windows-sys = { version = "0.61", features = ["Win32_Graphics_Dwm"] }
 

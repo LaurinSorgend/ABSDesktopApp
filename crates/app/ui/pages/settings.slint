@@ -298,6 +298,35 @@ export component SettingsPage inherits Rectangle {
                 selected: Ui.mirror-progress ? 1 : 0;
                 key: "mirror_progress";
             }
+            if Ui.can-update: SectionTitle {
+                text: @tr("Updates");
+            }
+            if Ui.can-update: Setting {
+                title: @tr("Look for updates when the app starts");
+                options: [@tr("Off"), @tr("On")];
+                selected: Ui.update-check ? 1 : 0;
+                key: "update_check";
+            }
+            if Ui.can-update: HorizontalLayout {
+                spacing: Theme.gap;
+                Label {
+                    text: Ui.update-status;
+                    vertical-alignment: center;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                }
+                Button {
+                    text: Ui.update-ready ? @tr("Restart now") : @tr("Look for updates");
+                    enabled: !Ui.update-busy;
+                    clicked => {
+                        if Ui.update-ready {
+                            Ui.apply-update();
+                        } else {
+                            Ui.check-updates();
+                        }
+                    }
+                }
+            }
             Appearance { }
             SectionTitle {
                 text: @tr("Storage");

@@ -12,6 +12,7 @@ mod preferences;
 mod reading;
 mod theme_files;
 mod themes;
+mod updates;
 mod views;
 mod work;
 mod works;

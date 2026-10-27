@@ -17,6 +17,7 @@ mod settings;
 mod system;
 mod theme;
 mod tray;
+mod updates;
 
 use std::path::Path;
 use std::rc::Rc;
@@ -37,6 +38,7 @@ use playback::Playback;
 slint::include_modules!();
 
 fn main() -> anyhow::Result<()> {
+    updates::startup();
     let window = AppWindow::new()?;
     let data_dir = paths::data_dir();
     std::fs::create_dir_all(&data_dir).context("create the data folder")?;
@@ -59,6 +61,7 @@ fn main() -> anyhow::Result<()> {
         },
     ));
     callbacks::connect(&window);
+    with_app(|app| app.init_updates());
     let _tick = start_tick();
     let _system = system::attach(&window);
 

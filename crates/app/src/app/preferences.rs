@@ -14,6 +14,7 @@ use crate::settings::{
     THEME_INDEX_KEYS,
 };
 use crate::tray::{Labels, Tray};
+use crate::updates::AUTO_CHECK;
 
 impl App {
     /// Pushes the settings to the player and the settings page.
@@ -87,6 +88,10 @@ impl App {
                 }
             }
             MIRROR_PROGRESS_SETTING => settings.set(key, index == 1),
+            AUTO_CHECK => {
+                self.set_update_check(index == 1);
+                Ok(())
+            }
             _ => Ok(()),
         };
         if key == COVER_CACHE {

@@ -127,6 +127,18 @@ export global Strings {
     public pure function log-in-again-title() -> string {
         @tr("Log in again")
     }
+    public pure function update-checking() -> string {
+        @tr("Looking for updates…")
+    }
+    public pure function update-none() -> string {
+        @tr("This is the newest version.")
+    }
+    public pure function update-ready(version: string) -> string {
+        @tr("Version {} is downloaded. It is installed when the app restarts.", version)
+    }
+    public pure function update-failed(message: string) -> string {
+        @tr("Could not look for updates: {}", message)
+    }
     public pure function invalid-api-key() -> string {
         @tr("The server did not accept this API key.")
     }

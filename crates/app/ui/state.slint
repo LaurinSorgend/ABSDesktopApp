@@ -275,6 +275,14 @@ export global Ui {
     in property <[string]> preferred-account-options;
     in property <int> preferred-account-index;
     in property <bool> mirror-progress;
+    /// Installer builds only: the updates section.
+    in property <bool> can-update;
+    in property <bool> update-check;
+    in property <bool> update-busy;
+    in property <bool> update-ready;
+    in property <string> update-status;
+    callback check-updates();
+    callback apply-update();
     callback relogin(string);
     callback add-another-account();
 

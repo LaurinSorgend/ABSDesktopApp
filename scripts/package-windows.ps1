@@ -2,19 +2,24 @@
 .SYNOPSIS
 Builds the release exes and packs them with libmpv, foliate-js and the license files into dist/abs-desktop-<version>-windows-x64.zip.
 
+.DESCRIPTION
+The zip has no self-update; winget and Scoop install it. With -SelfUpdate the build has the
+self-update feature and the folder is left unzipped for scripts/package-velopack.ps1.
+
 .NOTES
 Needs libmpv in vendor/libmpv/x64 (scripts/fetch-libmpv.ps1) and cargo-about (cargo install cargo-about --features cli).
 #>
-param([string]$Version = "dev")
+param([string]$Version = "dev", [switch]$SelfUpdate)
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$name = "abs-desktop-$Version-windows-x64"
+$name = if ($SelfUpdate) { "abs-desktop-$Version-windows-x64-velopack" } else { "abs-desktop-$Version-windows-x64" }
 $stage = Join-Path $root "dist\$name"
 $licenses = Join-Path $stage "licenses"
 
 # A new value makes the build fetch the latest themes.
 $env:ABS_THEMES_FETCH = Get-Date -Format o
-cargo build --release --locked -p abs-desktop -p abs-reader
+$features = if ($SelfUpdate) { @("--features", "abs-desktop/self-update") } else { @() }
+cargo build --release --locked -p abs-desktop -p abs-reader @features
 if ($LASTEXITCODE) { throw "cargo build failed" }
 
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
@@ -32,6 +37,10 @@ cargo about generate --locked --workspace -c (Join-Path $root "packaging\about.t
     (Join-Path $root "packaging\about.hbs") -o (Join-Path $stage "THIRD-PARTY-LICENSES.html")
 if ($LASTEXITCODE) { throw "cargo about failed" }
 
+if ($SelfUpdate) {
+    Write-Host "staged $stage"
+    return
+}
 $zip = Join-Path $root "dist\$name.zip"
 Compress-Archive -Force -Path $stage -DestinationPath $zip
 Write-Host "packed $zip"

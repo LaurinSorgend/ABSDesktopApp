@@ -143,6 +143,8 @@ fn connect_accounts(ui: &Ui<'_>) {
     ui.on_add_account(|url, username, password| {
         with_app(move |app| app.add_account(url.into(), username.into(), password.into()))
     });
+    ui.on_check_updates(|| with_app(|app| app.check_updates()));
+    ui.on_apply_update(|| with_app(|app| app.apply_update()));
     ui.on_add_account_with_key(|url, key| {
         with_app(move |app| app.add_account_with_key(url.into(), key.into()))
     });
