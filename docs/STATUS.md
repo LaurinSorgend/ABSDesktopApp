@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-10-25.
+Last updated 2026-10-27.
 
 ## Phase 0: done on Windows, Linux open
 
@@ -189,3 +189,7 @@ Implemented, not yet tried by hand.
 - Mini player: frameless, 440 x 184 by default, dragged by its top strip (`WindowMoveArea`). Cover, a display with the time in the number font and accent, title, chapter and time left, the book bar with chapter markers, compact transport, volume and speed (a button that steps through the speeds, since a list does not fit the window). A pin keeps it on top (setting `mini_on_top`); its position and size are kept in `mini_geometry`, also when the app quits in it. Going back restores the main window's place, size and maximized state.
 - Full screen: the playing cover blurred (the copy the Glass style already uses) under a gradient of the theme's base color, so text keeps the theme's colors. Large cover with the theme's cover radius and shadow, chapter, title in the heading weight, author, the book bar with chapter markers (and the chapter bar when the progress setting asks for it), speed and sleep timer, a 64 px play button and volume.
 - F11 toggles full screen, Esc leaves it; the player keys work in all three views. The player bar, the player page and the player panel have buttons for both views; in a narrow window the bar drops volume to make room for them.
+
+## Phase 5
+
+- 5.1: OIDC moved to the cross-cutting section "Single sign-on" in `PLAN.md`, because ABS rejects allowed redirect URIs with a port. Instead the add-account page has "Password" and "API key"; `Command::AddAccountWithKey`, `account::add_account_with_key`, migration 0006 (`account.api_key`). Restoring an API key account calls `login_api_key` with the stored key. Before 2.37.0 such accounts start no socket. `contract_accounts::api_key_account_survives_restart` covers both servers. The page has not been looked at by hand yet.

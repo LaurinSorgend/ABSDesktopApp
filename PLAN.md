@@ -341,12 +341,12 @@ Goal: a good single-view player on a data model that already supports many accou
 
 ---
 
-## Phase 5: SSO and distribution
+## Phase 5: API key login and distribution
 
-### 5.1 OIDC login
-- [ ] PKCE S256; loopback listener on `127.0.0.1` with a fixed port; open the system browser.
-- [ ] Same cookie jar for `/auth/openid` and `/auth/openid/callback` (else `400 No session`).
-- [ ] Clear error when the redirect URI isn't on the server's `authOpenIDMobileRedirectURIs` list; admin instructions in the docs.
+### 5.1 API key login
+- [x] The add-account page logs in with a server address and an API key as well as with a password, for servers that allow only single sign-on. The key is kept in the keyring like a refresh token; the account row has `api_key` (migration 0006).
+- [x] API keys authenticate the socket only from 2.37.0, so older servers get no realtime for such accounts and rely on the periodic sync.
+- OIDC login moved to the cross-cutting section "Single sign-on".
 
 ### 5.2 Windows
 - [ ] Installer and delta updates with Velopack (or cargo-packager NSIS/MSI); compare both briefly, record an ADR.
@@ -365,7 +365,7 @@ Goal: a good single-view player on a data model that already supports many accou
 
 ### 5.4 Update policy
 - [ ] Cargo feature `self-update`, enabled only for the Windows installer and portable builds.
-- [ ] Package-manager builds (winget, Flatpak, deb, AUR) never self-update.
+- [ ] Package-manager builds (winget, Flatpak, deb, AUR, scoop) never self-update.
 
 ### 5.5 Docs and release
 - [ ] README with screenshots, install instructions per channel, minimum server version.
@@ -409,6 +409,17 @@ Found running the app under WSL (Ubuntu 24.04, WSLg), where audio and the reader
 - [ ] In both VMs: MPRIS shows title, author, cover and position in the desktop's media widget, and play/pause, seek and next/previous work from it (closes the Phase 0 MPRIS item).
 - [ ] In both VMs: fractional scaling at 125 % and 150 %, keyring storage of the login (GNOME Keyring, KWallet through Secret Service), and the reader window on Wayland (closes the Phase 0 reader and scaling items).
 - [ ] In both VMs: measure memory as PSS from `/proc/<pid>/smaps_rollup` for idle, browsing, playing and the reader, and add the numbers to `docs/decisions/0002-stack.md`.
+
+### Single sign-on
+
+Moved out of Phase 5; API key login (5.1) covers SSO-only servers until then. Not scheduled yet.
+
+- The plan was a loopback listener on `127.0.0.1` with a fixed port. ABS 2.26.3 and 2.37.2 validate `authOpenIDMobileRedirectURIs` entries with `^\w+://[\w.-]+(/[\w./-]*)*$`, which allows no port, so `http://127.0.0.1:<port>/callback` can't be added (`PATCH /api/auth-settings` answers `updated: false`). A loopback only works when the admin allows `*`.
+- [ ] Own URI scheme `absdesktop://oauth` (passes the validator): registry entry under `HKCU\Software\Classes` from the installer, `x-scheme-handler` in the `.desktop` file and the Flatpak. A single-instance hand-off passes the URL from the second launch to the running app.
+- [ ] Use the loopback instead when the server's list is `*`.
+- [ ] PKCE S256; the app's own cookie-jar client sends `/auth/openid` (read the 302 `Location`, open it in the system browser) and `/auth/openid/callback` with `code_verifier` (another jar gives `400 No session`). The callback answers like `/login`, refresh token included.
+- [ ] Clear error for `400 Invalid redirect_uri`; admin instructions in the docs.
+- [ ] Contract test with a mock IdP (`ghcr.io/navikt/mock-oauth2-server`) in the compose file. ABS builds the issuer from its settings without discovery, so the authorization URL can point at `localhost` and the token, userinfo and JWKS URLs at the container name.
 
 ### Slim LGPL libmpv
 
