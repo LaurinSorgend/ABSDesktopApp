@@ -5,11 +5,13 @@ Builds the self-updating Windows release with Velopack: Setup.exe, Portable.zip 
 .NOTES
 Needs everything scripts/package-windows.ps1 needs, plus vpk (dotnet tool install -g vpk --version 1.2.161).
 The vpk version should match the velopack crate in crates/app/Cargo.toml.
-With -Repository it first downloads the newest published release so vpk can build a delta update.
+With -Repository it first downloads the newest published release so vpk can build a delta update;
+-Token is needed while the repository is private.
 #>
 param(
     [string]$Version = "0.0.0-dev",
-    [string]$Repository = ""
+    [string]$Repository = "",
+    [string]$Token = ""
 )
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -22,7 +24,8 @@ $stage = Join-Path $root "dist\abs-desktop-$semver-windows-x64-velopack"
 Remove-Item -Recurse -Force $output -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $output | Out-Null
 if ($Repository) {
-    vpk download github --repoUrl $Repository --outputDir $output
+    $auth = if ($Token) { @("--token", $Token) } else { @() }
+    vpk download github --repoUrl $Repository --outputDir $output @auth
     if ($LASTEXITCODE) { Write-Warning "no earlier release to build a delta from" }
 }
 
