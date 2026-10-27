@@ -31,12 +31,12 @@ Every [release](https://github.com/LaurinSorgend/ABSDesktopApp/releases) has the
 | Windows | `abs-desktop-<version>-windows-x64.zip`, the package for winget and Scoop | Through the package manager |
 | Linux | `abs-desktop-<version>-x86_64.AppImage` | Download the new version |
 | Linux | `abs-desktop_<version>_amd64.deb` (Debian, Ubuntu) | Download the new version |
-| Linux | `PKGBUILD` for Arch Linux | Through your AUR helper, once the package is on the AUR |
 
-Scoop can install straight from the manifest attached to a release:
+With Scoop, add the [bucket](https://github.com/LaurinSorgend/scoop-bucket) once and install from it. `scoop update` then picks up new releases:
 
 ```
-scoop install https://github.com/LaurinSorgend/ABSDesktopApp/releases/download/v<version>/abs-desktop.json
+scoop bucket add laurin https://github.com/LaurinSorgend/scoop-bucket
+scoop install laurin/abs-desktop
 ```
 
 winget and the AUR are planned. Flathub will follow.

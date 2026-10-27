@@ -63,9 +63,9 @@ The last line runs the contract tests against both Docker servers, and the playe
 | `scripts/package-linux.sh <v>` | AppImage (needs linuxdeploy) |
 | `scripts/package-deb.sh <v>` | `.deb` (needs dpkg-dev) |
 | `scripts/package-source.sh <v>` | Source tarball with foliate-js and the themes (needs `ABS_THEMES_DIR`) |
-| `python scripts/render-manifests.py <v> dist` | PKGBUILD, Scoop and winget manifests with the hashes of the files in `dist` |
+| `python scripts/render-manifests.py <v> dist` | PKGBUILD, Scoop and winget manifests in `dist/manifests`, with the hashes of the files in `dist` |
 
-The scripts that build the app need cargo-about (`cargo install cargo-about --features cli`). Pushing a `v*` tag runs all of them in `.github/workflows/release.yml` and leaves a draft release.
+The scripts that build the app need cargo-about (`cargo install cargo-about --features cli`). Pushing a `v*` tag runs all of them in `.github/workflows/release.yml` and leaves a draft release. The manifests are not part of the release; the run keeps them as the `manifests` artifact. The [Scoop bucket](https://github.com/LaurinSorgend/scoop-bucket) updates itself from new releases.
 
 To try an update without a release, pack two versions with `vpk pack`, start the older portable build with `ABS_UPDATE_FEED` set to the newer one's output folder, and restart it after it reports the download.
 

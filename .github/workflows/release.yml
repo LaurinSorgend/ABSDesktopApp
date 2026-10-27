@@ -135,11 +135,15 @@ jobs:
           path: velopack
       - name: Fill in the AUR, Scoop and winget manifests
         run: python3 scripts/render-manifests.py "$GITHUB_REF_NAME" dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manifests
+          path: dist/manifests
       - name: Create the draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.* dist/manifests/*/* --repo "$GITHUB_REPOSITORY" --draft --title "$GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" dist/*.* --repo "$GITHUB_REPOSITORY" --draft --title "$GITHUB_REF_NAME" --generate-notes
       - name: Add the installer and update packages
         run: |
           dotnet tool install -g vpk --version 1.2.161

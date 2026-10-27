@@ -11,7 +11,7 @@ Kept by hand. Each release lists what changed for people using the app.
 - Windows installer (`AbsDesktop-win-Setup.exe`) and a portable zip that update themselves. Settings has an Updates section; a downloaded update is installed when the app restarts.
 - The plain Windows zip stays for winget and Scoop and never updates itself.
 - New Linux package: `.deb` for Ubuntu 24.04 and later and Debian 13.
-- Each release has a source tarball that builds without git, plus a PKGBUILD for Arch Linux and manifests for Scoop and winget.
+- Each release has a source tarball that builds without git. A Scoop bucket installs the Windows zip.
 
 ## 0.1.0 (2026-10-25)
 
