@@ -1,0 +1,39 @@
+# Maintainer: Laurin Sorgend <laurin@sorgend.eu>
+pkgname=abs-desktop
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Desktop client for Audiobookshelf"
+arch=('x86_64')
+url="https://github.com/LaurinSorgend/ABSDesktopApp"
+license=('GPL-3.0-or-later')
+depends=('mpv' 'webkit2gtk-4.1' 'gtk3' 'libxkbcommon-x11' 'fontconfig' 'hicolor-icon-theme')
+makedepends=('cargo')
+source=("$url/releases/download/v$pkgver/abs-desktop-$pkgver-source.tar.gz")
+sha256sums=('@SOURCE_SHA256@')
+
+prepare() {
+    cd "abs-desktop-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "abs-desktop-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    export ABS_THEMES_DIR="$srcdir/abs-desktop-$pkgver/abs-desktop-themes"
+    cargo build --frozen --release -p abs-desktop -p abs-reader
+}
+
+package() {
+    cd "abs-desktop-$pkgver"
+    local lib="$pkgdir/usr/lib/abs-desktop"
+    install -Dm755 -t "$lib" target/release/abs-desktop target/release/abs-reader
+    ./scripts/copy-foliate.sh "$lib/foliate-js"
+    install -dm755 "$pkgdir/usr/bin"
+    ln -s /usr/lib/abs-desktop/abs-desktop "$pkgdir/usr/bin/abs-desktop"
+    install -Dm644 packaging/linux/abs-desktop.desktop "$pkgdir/usr/share/applications/abs-desktop.desktop"
+    install -Dm644 packaging/icons/abs-desktop.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/abs-desktop.png"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" packaging/licenses/* crates/app/ui/fonts/licenses/*
+}

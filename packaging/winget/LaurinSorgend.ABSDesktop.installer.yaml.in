@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+PackageIdentifier: LaurinSorgend.ABSDesktop
+PackageVersion: @VERSION@
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: abs-desktop-@VERSION@-windows-x64\abs-desktop.exe
+    PortableCommandAlias: abs-desktop
+ArchiveBinariesDependOnPath: true
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/LaurinSorgend/ABSDesktopApp/releases/download/v@VERSION@/abs-desktop-@VERSION@-windows-x64.zip
+    InstallerSha256: @ZIP_SHA256@
+ManifestType: installer
+ManifestVersion: 1.10.0

@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+PackageIdentifier: LaurinSorgend.ABSDesktop
+PackageVersion: @VERSION@
+PackageLocale: en-US
+Publisher: Laurin Sorgend
+PublisherUrl: https://github.com/LaurinSorgend
+PackageName: ABS Desktop
+PackageUrl: https://github.com/LaurinSorgend/ABSDesktopApp
+License: GPL-3.0-or-later
+LicenseUrl: https://github.com/LaurinSorgend/ABSDesktopApp/blob/main/LICENSE
+ShortDescription: Desktop client for Audiobookshelf
+Description: Streams and downloads audiobooks from one or more Audiobookshelf servers, keeps progress in sync and reads ebooks, PDFs and comics.
+Tags:
+  - audiobooks
+  - audiobookshelf
+  - ebooks
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0
