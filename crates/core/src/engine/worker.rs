@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use abs_api::Realtime;
 use abs_api::reqwest::Client;
+use abs_api::{AbsClient, Feature, Realtime};
 use tokio::sync::{Notify, Semaphore, mpsc};
 use tokio::task::JoinHandle;
 
@@ -18,7 +18,8 @@ use super::{
     Command, DEFAULT_SYNC_INTERVAL_MINUTES, Event, REMOTE_CHECK_SETTING, SYNC_INTERVAL_SETTING,
 };
 use crate::account::{
-    AccountError, Session, add_account, earlier_url_answers, lock, restore_account,
+    AccountError, Session, add_account, add_account_with_key, earlier_url_answers, lock,
+    restore_account,
 };
 use crate::cover_cache::CoverCache;
 use crate::credentials::Credentials;
@@ -175,6 +176,9 @@ fn handle(
         } => {
             tokio::spawn(add(shared.clone(), url, username, password));
         }
+        Command::AddAccountWithKey { url, api_key } => {
+            tokio::spawn(add_with_key(shared.clone(), url, api_key));
+        }
         Command::RemoveAccount { account_id } => {
             tokio::spawn(remove(shared.clone(), account_id));
         }
@@ -216,11 +220,27 @@ async fn add(shared: Arc<Shared>, url: String, username: String, password: Strin
         &password,
     )
     .await;
+    added(&shared, result).await;
+}
+
+async fn add_with_key(shared: Arc<Shared>, url: String, api_key: String) {
+    let result = add_account_with_key(
+        &shared.db,
+        &shared.credentials,
+        shared.http.clone(),
+        &url,
+        &api_key,
+    )
+    .await;
+    added(&shared, result).await;
+}
+
+async fn added(shared: &Arc<Shared>, result: Result<Session, AccountError>) {
     match result {
         Ok(session) => {
             let account = session.account.clone();
             (shared.emit)(Event::AccountAdded(account.clone()));
-            connected(&shared, session).await;
+            connected(shared, session).await;
         }
         Err(e) => (shared.emit)(Event::AddAccountFailed {
             needs_login: e.needs_login(),
@@ -302,12 +322,20 @@ async fn connected(shared: &Arc<Shared>, session: Session) {
     (shared.emit)(Event::AccountConnected {
         account_id: account_id.clone(),
     });
-    let task = tokio::spawn(live(shared.clone(), session.clone()));
-    if let Some(old) = lock_map(&shared.live).insert(account_id, task) {
-        old.abort();
+    if has_realtime(&session.client) {
+        let task = tokio::spawn(live(shared.clone(), session.clone()));
+        if let Some(old) = lock_map(&shared.live).insert(account_id, task) {
+            old.abort();
+        }
     }
     downloads::schedule(shared);
     sync(shared.clone(), session).await;
+}
+
+/// False for API keys on servers whose socket does not accept them; those accounts
+/// rely on the periodic sync instead.
+fn has_realtime(client: &AbsClient) -> bool {
+    !client.uses_api_key() || client.supports(Feature::ApiKeySocket)
 }
 
 /// Applies realtime events of one account until its socket gives up.

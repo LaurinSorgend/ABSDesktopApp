@@ -187,7 +187,10 @@ impl App {
         match event {
             Event::AccountsLoaded(accounts) => self.accounts_loaded(accounts),
             Event::AccountAdded(account) => self.account_added(account),
-            Event::AddAccountFailed { message, .. } => self.add_failed(message),
+            Event::AddAccountFailed {
+                message,
+                needs_login,
+            } => self.add_failed(message, needs_login),
             Event::AccountConnected { account_id } => self.set_conn(account_id, Conn::Connected),
             Event::AccountRemoved { account_id } => self.account_removed(&account_id),
             Event::AccountUpdated(account) => self.account_updated(account),

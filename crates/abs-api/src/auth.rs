@@ -175,6 +175,11 @@ impl AbsClient {
         self.auth_state().changes.subscribe()
     }
 
+    /// True when the client authenticates with an API key.
+    pub fn uses_api_key(&self) -> bool {
+        matches!(self.auth_state().credential, Some(Credential::ApiKey(_)))
+    }
+
     /// True while the client holds a credential.
     pub fn is_logged_in(&self) -> bool {
         self.auth_state().credential.is_some()

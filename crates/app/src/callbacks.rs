@@ -143,6 +143,9 @@ fn connect_accounts(ui: &Ui<'_>) {
     ui.on_add_account(|url, username, password| {
         with_app(move |app| app.add_account(url.into(), username.into(), password.into()))
     });
+    ui.on_add_account_with_key(|url, key| {
+        with_app(move |app| app.add_account_with_key(url.into(), key.into()))
+    });
     ui.on_use_account(on(|app, id: slint::SharedString| app.activate(&id)));
     ui.on_remove_account(on(|app, id: slint::SharedString| app.remove_account(&id)));
     ui.on_set_account_enabled(|id, enabled| {

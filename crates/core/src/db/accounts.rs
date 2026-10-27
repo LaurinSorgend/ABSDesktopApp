@@ -15,6 +15,8 @@ pub struct Account {
     pub created_at: i64,
     /// A disabled account keeps its data but does not connect, sync or download.
     pub enabled: bool,
+    /// Logs in with an API key from the keyring instead of a refresh token.
+    pub api_key: bool,
 }
 
 /// Data for [`Accounts::add_account`].
@@ -105,6 +107,7 @@ impl<'a> Accounts<'a> {
             device_id: Uuid::new_v4().to_string(),
             created_at: now_ms(),
             enabled: true,
+            api_key: false,
         };
         self.conn.execute(
             "INSERT INTO account(id, server_id, user_id, username, device_id, created_at)
@@ -143,6 +146,15 @@ impl<'a> Accounts<'a> {
         Ok(changed > 0)
     }
 
+    /// Records whether the account logs in with an API key.
+    pub fn set_api_key(&self, id: &str, api_key: bool) -> DbResult<()> {
+        self.conn.execute(
+            "UPDATE account SET api_key = ?2 WHERE id = ?1",
+            params![id, api_key],
+        )?;
+        Ok(())
+    }
+
     /// Removes an account and everything stored for it.
     pub fn remove_account(&self, id: &str) -> DbResult<()> {
         self.conn
@@ -159,7 +171,7 @@ impl<'a> Accounts<'a> {
 }
 
 const SELECT_ACCOUNT: &str =
-    "SELECT id, server_id, user_id, username, device_id, created_at, enabled FROM account";
+    "SELECT id, server_id, user_id, username, device_id, created_at, enabled, api_key FROM account";
 
 fn account_row(row: &Row<'_>) -> rusqlite::Result<Account> {
     Ok(Account {
@@ -170,6 +182,7 @@ fn account_row(row: &Row<'_>) -> rusqlite::Result<Account> {
         device_id: row.get(4)?,
         created_at: row.get(5)?,
         enabled: row.get(6)?,
+        api_key: row.get(7)?,
     })
 }
 

@@ -2,7 +2,7 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
 import { AccountData, DownloadData } from "../data.slint";
-import { Button, Card, Dropdown, Heading, Label, TextField } from "../widgets.slint";
+import { Button, Card, Dropdown, Heading, Label, Segmented, TextField } from "../widgets.slint";
 import { Appearance, DropdownSetting, Setting, SectionTitle, SettingsLayout } from "appearance.slint";
 
 component AccountRow inherits Card {
@@ -314,8 +314,21 @@ export component SettingsPage inherits Rectangle {
 }
 
 export component AddAccountPage inherits Rectangle {
+    property <bool> with-key: Ui.add-method == 1;
+    property <bool> complete: Ui.add-url != "" && (with-key ? Ui.add-key != "" : Ui.add-username != "");
+
     public function focus-input() {
         url.focus-input();
+    }
+    function submit() {
+        if !root.complete || Ui.add-busy {
+            return;
+        }
+        if root.with-key {
+            Ui.add-account-with-key(Ui.add-url, Ui.add-key);
+        } else {
+            Ui.add-account(Ui.add-url, Ui.add-username, Ui.add-password);
+        }
     }
     VerticalLayout {
         alignment: center;
@@ -342,28 +355,71 @@ export component AddAccountPage inherits Rectangle {
                     placeholder: "https://abs.example.com";
                     text <=> Ui.add-url;
                     accepted => {
-                        user.focus-input();
+                        if root.with-key {
+                            key.focus-input();
+                        } else {
+                            user.focus-input();
+                        }
                     }
                 }
-                Label {
-                    text: @tr("Username");
-                }
-                user := TextField {
-                    label: @tr("Username");
-                    text <=> Ui.add-username;
-                    accepted => {
-                        pass.focus-input();
+                HorizontalLayout {
+                    alignment: start;
+                    Segmented {
+                        label: @tr("Log in with");
+                        options: [@tr("Password"), @tr("API key")];
+                        selected: Ui.add-method;
+                        select(index) => {
+                            Ui.add-method = index;
+                        }
                     }
                 }
-                Label {
-                    text: @tr("Password");
-                }
-                pass := TextField {
-                    label: @tr("Password");
-                    password: true;
-                    text <=> Ui.add-password;
-                    accepted => {
-                        Ui.add-account(Ui.add-url, Ui.add-username, Ui.add-password);
+                VerticalLayout {
+                    VerticalLayout {
+                        visible: !root.with-key;
+                        height: root.with-key ? 0px : self.preferred-height;
+                        spacing: Theme.pad;
+                        Label {
+                            text: @tr("Username");
+                        }
+                        user := TextField {
+                            label: @tr("Username");
+                            text <=> Ui.add-username;
+                            accepted => {
+                                pass.focus-input();
+                            }
+                        }
+                        Label {
+                            text: @tr("Password");
+                        }
+                        pass := TextField {
+                            label: @tr("Password");
+                            password: true;
+                            text <=> Ui.add-password;
+                            accepted => {
+                                root.submit();
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        visible: root.with-key;
+                        height: root.with-key ? self.preferred-height : 0px;
+                        spacing: Theme.pad;
+                        Label {
+                            text: @tr("API key");
+                        }
+                        key := TextField {
+                            label: @tr("API key");
+                            password: true;
+                            text <=> Ui.add-key;
+                            accepted => {
+                                root.submit();
+                            }
+                        }
+                        Label {
+                            text: @tr("For servers that only allow single sign-on. An admin creates the key under Settings, API Keys, for your user.");
+                            font-size: Theme.text-sm;
+                            wrap: word-wrap;
+                        }
                     }
                 }
                 if Ui.add-error != "": Text {
@@ -383,9 +439,9 @@ export component AddAccountPage inherits Rectangle {
                     Button {
                         text: Ui.add-busy ? @tr("Connecting…") : @tr("Log in");
                         primary: true;
-                        enabled: !Ui.add-busy && Ui.add-url != "" && Ui.add-username != "";
+                        enabled: !Ui.add-busy && root.complete;
                         clicked => {
-                            Ui.add-account(Ui.add-url, Ui.add-username, Ui.add-password);
+                            root.submit();
                         }
                     }
                 }

@@ -8,6 +8,8 @@ pub enum Feature {
     RefreshTokens,
     /// `GET /api/me/progress`. Older servers send progress in the login payload.
     MeProgress,
+    /// API keys authenticate the realtime socket.
+    ApiKeySocket,
 }
 
 impl Feature {
@@ -16,6 +18,7 @@ impl Feature {
         match self {
             Self::RefreshTokens => ServerVersion::new(2, 26, 0),
             Self::MeProgress => ServerVersion::new(2, 36, 0),
+            Self::ApiKeySocket => ServerVersion::new(2, 37, 0),
         }
     }
 }

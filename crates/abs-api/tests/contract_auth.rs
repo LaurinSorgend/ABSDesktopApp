@@ -96,6 +96,7 @@ async fn api_key_login() {
         let login = client.login_api_key(&key).await.unwrap();
         assert_eq!(login.user.username, "admin");
         assert!(client.refresh_due_at().is_none());
+        assert!(client.uses_api_key());
         assert!(stored.all().is_empty());
         let (other, _) = common::client(&server).await;
         let err = other.login_api_key("not-a-key").await.unwrap_err();

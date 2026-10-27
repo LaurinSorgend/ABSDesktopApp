@@ -61,6 +61,33 @@ pub async fn add_account(
 ) -> Result<Session, AccountError> {
     let client = AbsClient::connect(http, url).await?;
     let login = client.login(username, password).await?;
+    let token = client.refresh_token().ok_or(AccountError::LoginRequired)?;
+    register(db, credentials, client, login, &token, false)
+}
+
+/// Like [`add_account`], but logs in with an API key, which is saved instead of a
+/// refresh token. For servers that only allow single sign-on.
+pub async fn add_account_with_key(
+    db: &Mutex<Db>,
+    credentials: &Credentials,
+    http: Client,
+    url: &str,
+    api_key: &str,
+) -> Result<Session, AccountError> {
+    let client = AbsClient::connect(http, url).await?;
+    let login = client.login_api_key(api_key).await?;
+    register(db, credentials, client, login, api_key, true)
+}
+
+/// Writes the server, URL and account rows for a logged-in client and saves its secret.
+fn register(
+    db: &Mutex<Db>,
+    credentials: &Credentials,
+    client: AbsClient,
+    login: LoginResponse,
+    secret: &str,
+    api_key: bool,
+) -> Result<Session, AccountError> {
     let base = client.base_url().as_str().to_owned();
     let account = lock(db).write(|store| {
         let accounts = store.accounts();
@@ -68,23 +95,25 @@ pub async fn add_account(
             Some(id) => id,
             None => accounts.add_server(&server_name(&client), &[&base])?,
         };
-        match accounts.find(&server, &login.user.id)? {
+        let account = match accounts.find(&server, &login.user.id)? {
             Some(existing) => {
                 accounts.set_enabled(&existing.id, true)?;
-                Ok(Account {
-                    enabled: true,
-                    ..existing
-                })
+                existing
             }
             None => accounts.add_account(&NewAccount {
                 server_id: &server,
                 user_id: &login.user.id,
                 username: &login.user.username,
-            }),
-        }
+            })?,
+        };
+        accounts.set_api_key(&account.id, api_key)?;
+        Ok(Account {
+            enabled: true,
+            api_key,
+            ..account
+        })
     })?;
-    let token = client.refresh_token().ok_or(AccountError::LoginRequired)?;
-    credentials.save(&account.id, &token)?;
+    credentials.save(&account.id, secret)?;
     let client = Arc::new(client.with_token_sink(credentials.sink(&account.id)));
     Ok(Session {
         account,
@@ -93,7 +122,7 @@ pub async fn add_account(
     })
 }
 
-/// Reconnects a stored account: first reachable URL, then the stored refresh token.
+/// Reconnects a stored account: first reachable URL, then the stored refresh token or API key.
 pub async fn restore_account(
     db: &Mutex<Db>,
     credentials: &Credentials,
@@ -105,11 +134,15 @@ pub async fn restore_account(
         .accounts()
         .server_urls(&account.server_id)?;
     let client = connect_any(http, &urls).await?;
-    let token = credentials
+    let secret = credentials
         .load(&account.id)?
         .ok_or(AccountError::LoginRequired)?;
     let client = client.with_token_sink(credentials.sink(&account.id));
-    let login = client.restore_session(&token).await?;
+    let login = if account.api_key {
+        client.login_api_key(&secret).await?
+    } else {
+        client.restore_session(&secret).await?
+    };
     Ok(Session {
         account,
         client: Arc::new(client),

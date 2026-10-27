@@ -207,11 +207,15 @@ export global Ui {
     in-out property <string> add-url;
     in-out property <string> add-username;
     in-out property <string> add-password;
+    /// 0: username and password, 1: API key.
+    in-out property <int> add-method;
+    in-out property <string> add-key;
     in property <bool> add-busy;
     in property <string> add-error;
     in property <bool> add-can-cancel;
     in property <string> add-title;
     callback add-account(string, string, string);
+    callback add-account-with-key(string, string);
 
     // Settings
     in property <int> skip-back-index;

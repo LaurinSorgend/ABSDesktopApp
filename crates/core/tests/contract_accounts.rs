@@ -8,8 +8,10 @@ use std::sync::mpsc::Receiver;
 
 use common::{start, wait_for};
 
+use abs_api::{AbsClient, http_client};
 use abs_core::credentials::Credentials;
 use abs_core::engine::{Command, Engine, Event};
+use serde_json::{Value, json};
 
 const OLDEST: &str = "http://localhost:13378";
 const LATEST: &str = "http://localhost:13379";
@@ -54,6 +56,68 @@ fn two_servers_at_once_and_disable() {
         _ => None,
     });
     engine.shutdown();
+}
+
+#[test]
+fn api_key_account_survives_restart() {
+    for url in [OLDEST, LATEST] {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("app.db");
+        let credentials = Credentials::memory();
+        let api_key = listener_api_key(url);
+
+        let (engine, events) = start(&db_path, &credentials);
+        engine.send(Command::AddAccountWithKey {
+            url: url.into(),
+            api_key,
+        });
+        let account = wait_for(&events, |e| match e {
+            Event::AccountAdded(account) => Some(account.clone()),
+            _ => None,
+        });
+        assert!(account.api_key, "{url}");
+        assert_eq!(account.username, "listener");
+        engine.shutdown();
+
+        let (engine, events) = start(&db_path, &credentials);
+        let connected = connected_until_synced(&events, &account.id);
+        assert!(connected.contains(&account.id), "{url}");
+        engine.shutdown();
+    }
+}
+
+/// A new API key for `listener`, created by the admin.
+fn listener_api_key(url: &str) -> String {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let listener = AbsClient::connect(http_client().unwrap(), url)
+            .await
+            .unwrap();
+        let user_id = listener
+            .login("listener", "listener-pass")
+            .await
+            .unwrap()
+            .user
+            .id;
+        let admin = AbsClient::connect(http_client().unwrap(), url)
+            .await
+            .unwrap();
+        admin.login("admin", "admin-pass").await.unwrap();
+        let name = format!("core-contract-{}", std::process::id());
+        let body = json!({ "name": name, "isActive": true, "userId": user_id });
+        let response: Value = http_client()
+            .unwrap()
+            .post(admin.url("api/api-keys").unwrap())
+            .bearer_auth(admin.access_token().unwrap())
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        response["apiKey"]["apiKey"].as_str().unwrap().to_owned()
+    })
 }
 
 fn add(engine: &Engine, events: &Receiver<Event>, url: &str) -> String {

@@ -49,6 +49,11 @@ pub enum Command {
         username: String,
         password: String,
     },
+    /// Like `AddAccount`, with an API key instead of username and password.
+    AddAccountWithKey {
+        url: String,
+        api_key: String,
+    },
     RemoveAccount {
         account_id: String,
     },

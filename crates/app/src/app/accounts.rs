@@ -79,10 +79,15 @@ impl App {
         });
     }
 
-    pub(super) fn add_failed(&mut self, message: String) {
-        self.ui(|ui, _| {
+    pub(super) fn add_failed(&mut self, message: String, needs_login: bool) {
+        self.ui(|ui, strings| {
+            let message = if needs_login && ui.get_add_method() == 1 {
+                strings.invoke_invalid_api_key()
+            } else {
+                message.into()
+            };
             ui.set_add_busy(false);
-            ui.set_add_error(message.into());
+            ui.set_add_error(message);
         });
     }
 
@@ -151,6 +156,18 @@ impl App {
         });
     }
 
+    /// From the UI: log in with an API key.
+    pub fn add_account_with_key(&mut self, url: String, api_key: String) {
+        self.ui(|ui, _| {
+            ui.set_add_busy(true);
+            ui.set_add_error("".into());
+        });
+        self.engine.send(Command::AddAccountWithKey {
+            url: url.trim().to_owned(),
+            api_key: api_key.trim().to_owned(),
+        });
+    }
+
     /// The add-account page, prefilled for an account whose login expired.
     pub fn relogin(&mut self, account_id: &str) {
         let Some(account) = self.accounts.iter().find(|a| a.id == account_id) else {
@@ -158,12 +175,15 @@ impl App {
         };
         let url = self.server_url(account).unwrap_or_default();
         let username = account.username.clone();
+        let method = i32::from(account.api_key);
         self.relogin = Some(account_id.to_owned());
         self.ui(|ui, strings| {
             ui.set_add_title(strings.invoke_log_in_again_title());
             ui.set_add_url(url.into());
             ui.set_add_username(username.into());
             ui.set_add_password("".into());
+            ui.set_add_key("".into());
+            ui.set_add_method(method);
             ui.set_add_error("".into());
             ui.set_add_can_cancel(true);
         });
@@ -178,6 +198,8 @@ impl App {
             ui.set_add_url("".into());
             ui.set_add_username("".into());
             ui.set_add_password("".into());
+            ui.set_add_key("".into());
+            ui.set_add_method(0);
             ui.set_add_error("".into());
             ui.set_add_can_cancel(can_cancel);
         });
