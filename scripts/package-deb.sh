@@ -48,7 +48,7 @@ Section: sound
 Priority: optional
 Homepage: https://github.com/LaurinSorgend/ABSDesktopApp
 Description: Desktop client for Audiobookshelf
- Streams and downloads audiobooks and podcasts from one or more
+ Streams and downloads audiobooks from one or more
  Audiobookshelf servers, keeps progress in sync and reads ebooks,
  PDFs and comics.
 CONTROL
