@@ -106,13 +106,17 @@ fn fetch_themes() -> PathBuf {
     cache
 }
 
+/// Runs git without prompts, so a missing SSH key or host key fails instead of hanging the build.
 fn git(dir: &Path, args: &[&str]) -> Result<(), String> {
-    let output = Command::new("git")
+    let mut command = Command::new("git");
+    command
         .args(args)
         .current_dir(dir)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .output()
-        .map_err(|e| format!("git: {e}"))?;
+        .env("GIT_TERMINAL_PROMPT", "0");
+    if std::env::var_os("GIT_SSH_COMMAND").is_none() {
+        command.env("GIT_SSH_COMMAND", "ssh -o BatchMode=yes");
+    }
+    let output = command.output().map_err(|e| format!("git: {e}"))?;
     if output.status.success() {
         Ok(())
     } else {
