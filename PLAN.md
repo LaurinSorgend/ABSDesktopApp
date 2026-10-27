@@ -349,13 +349,13 @@ Goal: a good single-view player on a data model that already supports many accou
 - OIDC login moved to the cross-cutting section "Single sign-on".
 
 ### 5.2 Windows
-- [ ] Installer and delta updates with Velopack (or cargo-packager NSIS/MSI); compare both briefly, record an ADR.
+- [x] Installer and delta updates with Velopack (or cargo-packager NSIS/MSI); compare both briefly, record an ADR (0005: Velopack).
 - [ ] Code signing through SignPath Foundation (needs a public repo and CI builds); apply early, approval takes time.
-- [ ] Updates hosted on GitHub Releases.
-- [ ] winget manifest; portable zip stays available.
+- [x] Updates hosted on GitHub Releases.
+- [x] winget manifest; portable zip stays available. Scoop manifest too; both use the zip without updater, rendered per release by `scripts/render-manifests.py`.
 
 ### 5.3 Linux
-- [ ] AppImage (keep from Phase 1), `.deb`, AUR PKGBUILD.
+- [x] AppImage (keep from Phase 1), `.deb`, AUR PKGBUILD. The PKGBUILD builds from a source tarball with foliate-js and the themes (`scripts/package-source.sh`), since the themes repository is private.
 - [ ] Flathub:
   - hand-write the manifest (Flathub's requirements page bans AI-generated or AI-assisted manifests; re-read it before submitting),
   - vendored crates via `flatpak-cargo-generator`, no network during build,
@@ -364,13 +364,13 @@ Goal: a good single-view player on a data model that already supports many accou
   - validated AppStream metainfo with screenshots.
 
 ### 5.4 Update policy
-- [ ] Cargo feature `self-update`, enabled only for the Windows installer and portable builds.
-- [ ] Package-manager builds (winget, Flatpak, deb, AUR, scoop) never self-update.
+- [x] Cargo feature `self-update`, enabled only for the Windows installer and portable builds.
+- [x] Package-manager builds (winget, Flatpak, deb, AUR, scoop) never self-update.
 
 ### 5.5 Docs and release
-- [ ] README with screenshots, install instructions per channel, minimum server version.
-- [ ] CONTRIBUTING with the dev setup (Docker ABS, fixtures, libmpv on Windows).
-- [ ] Changelog generated from commits or kept by hand.
+- [ ] README with screenshots, install instructions per channel, minimum server version. Written without screenshots; they need real libraries.
+- [x] CONTRIBUTING with the dev setup (Docker ABS, fixtures, libmpv on Windows).
+- [x] Changelog generated from commits or kept by hand (by hand).
 
 **Exit criteria:** installs and updates cleanly through each channel, with no two updaters competing.
 
