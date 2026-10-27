@@ -143,4 +143,4 @@ jobs:
       - name: Add the installer and update packages
         run: |
           dotnet tool install -g vpk --version 1.2.161
-          vpk upload github --outputDir velopack --repoUrl "https://github.com/$GITHUB_REPOSITORY" --token "${{ github.token }}" --merge --tag "$GITHUB_REF_NAME" --releaseName "$GITHUB_REF_NAME"
+          vpk upload github --channel win --outputDir velopack --repoUrl "https://github.com/$GITHUB_REPOSITORY" --token "${{ github.token }}" --merge --tag "$GITHUB_REF_NAME" --releaseName "$GITHUB_REF_NAME"
