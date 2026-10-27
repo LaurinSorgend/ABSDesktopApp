@@ -29,18 +29,27 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-about
         run: cargo install cargo-about --locked --features cli
+      - name: Install vpk
+        run: dotnet tool install -g vpk --version 1.2.161
       - name: Install libmpv
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: ./scripts/fetch-libmpv.ps1
-      - name: Package
+      - name: Package the zip for winget and Scoop
         shell: pwsh
-        run: ./scripts/package-windows.ps1 -Version $env:GITHUB_REF_NAME
+        run: ./scripts/package-windows.ps1 -Version $env:GITHUB_REF_NAME.TrimStart("v")
+      - name: Package the installer
+        shell: pwsh
+        run: ./scripts/package-velopack.ps1 -Version $env:GITHUB_REF_NAME -Repository "https://github.com/$env:GITHUB_REPOSITORY"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: dist/*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: velopack
+          path: dist/velopack/*
 
   linux:
     runs-on: ubuntu-22.04
@@ -57,29 +66,52 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install system libraries
-        run: sudo apt-get update && sudo apt-get install -y libmpv-dev libwebkit2gtk-4.1-dev libgtk-3-dev libfontconfig1-dev libxkbcommon-dev libfuse2
+        run: sudo apt-get update && sudo apt-get install -y libmpv-dev libwebkit2gtk-4.1-dev libgtk-3-dev libfontconfig1-dev libxkbcommon-dev libfuse2 dpkg-dev
       - name: Install cargo-about
         run: cargo install cargo-about --locked --features cli
       - name: Install linuxdeploy
         run: |
           sudo curl -fsSL -o /usr/local/bin/linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           sudo chmod +x /usr/local/bin/linuxdeploy
-      - name: Package
-        run: ./scripts/package-linux.sh "$GITHUB_REF_NAME"
+      - name: Package the AppImage
+        run: ./scripts/package-linux.sh "${GITHUB_REF_NAME#v}"
+      - name: Package the .deb
+        run: ./scripts/package-deb.sh "$GITHUB_REF_NAME"
+      - name: Pack the source
+        run: ./scripts/package-source.sh "$GITHUB_REF_NAME"
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: dist/*.AppImage
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*-source.tar.gz
 
   publish:
     needs: [windows, linux]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
+          name: windows
           path: dist
-          merge-multiple: true
-      - name: Create release
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: velopack
+          path: velopack
+      - name: Fill in the AUR, Scoop and winget manifests
+        run: python3 scripts/render-manifests.py "$GITHUB_REF_NAME" dist
+      - name: Create the draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --draft --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.* dist/manifests/*/* --repo "$GITHUB_REPOSITORY" --draft --title "$GITHUB_REF_NAME" --generate-notes
+      - name: Add the installer and update packages
+        run: |
+          dotnet tool install -g vpk --version 1.2.161
+          vpk upload github --outputDir velopack --repoUrl "https://github.com/$GITHUB_REPOSITORY" --token "${{ github.token }}" --merge --tag "$GITHUB_REF_NAME" --releaseName "$GITHUB_REF_NAME"
