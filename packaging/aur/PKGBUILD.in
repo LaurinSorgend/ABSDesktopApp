@@ -8,6 +8,8 @@ url="https://github.com/LaurinSorgend/ABSDesktopApp"
 license=('GPL-3.0-or-later')
 depends=('mpv' 'webkit2gtk-4.1' 'gtk3' 'libxkbcommon-x11' 'fontconfig' 'hicolor-icon-theme')
 makedepends=('cargo')
+# makepkg's LTO flags turn the bundled SQLite into bitcode the Rust link can't use.
+options=('!lto')
 source=("$url/releases/download/v$pkgver/abs-desktop-$pkgver-source.tar.gz")
 sha256sums=('@SOURCE_SHA256@')
 
