@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use abs_api::models::EbookLocation;
+use abs_api::reqwest::StatusCode;
 
 use super::worker::{Shared, clock_offset, sessions, went_offline};
 use super::{Command, Event};
@@ -126,7 +127,20 @@ fn store(shared: &Shared, account_id: &str, position: &PendingPosition) -> Optio
     store.queue().push(account_id, QUEUE_KIND, &payload).ok()
 }
 
-/// Sends a queued position and removes it, unless the server could not be reached.
+/// True when the server answered that it will not take this position, so sending it
+/// again is pointless. An expired login or a failing server can still take it later.
+fn refused(error: &AccountError) -> bool {
+    let AccountError::Api(error) = error else {
+        return false;
+    };
+    error.status().is_some_and(|status| {
+        status.is_client_error()
+            && status != StatusCode::REQUEST_TIMEOUT
+            && status != StatusCode::TOO_MANY_REQUESTS
+    })
+}
+
+/// Sends a queued position and removes it, unless the server may still take it later.
 async fn send_queued(shared: Arc<Shared>, account_id: String, position: PendingPosition, id: i64) {
     let Some(session) = sessions(&shared, Some(&account_id)).into_iter().next() else {
         return;
@@ -135,7 +149,9 @@ async fn send_queued(shared: Arc<Shared>, account_id: String, position: PendingP
     match result {
         Err(e) if e.is_network() => went_offline(&shared, &account_id, &e),
         Err(e) => {
-            let _ = lock(&shared.db).store().queue().remove(id);
+            if refused(&e) {
+                let _ = lock(&shared.db).store().queue().remove(id);
+            }
             (shared.emit)(Event::RequestFailed {
                 account_id,
                 message: e.to_string(),
@@ -155,8 +171,9 @@ async fn send(session: &Session, position: &PendingPosition) -> Result<(), Accou
     Ok(())
 }
 
-/// Sends the newest queued position of each item. Stops at a network error, so the
-/// rest waits for the next flush; positions the server refuses are dropped.
+/// Sends the newest queued position of each item. Stops at the first failure, so the
+/// rest waits for the next flush; only positions the server refuses are dropped.
+/// A network error is returned, since it means the server is gone.
 pub(super) async fn flush_queue(shared: &Shared, session: &Session) -> Result<(), AccountError> {
     let account_id = &session.account.id;
     let entries = lock(&shared.db)
@@ -178,6 +195,7 @@ pub(super) async fn flush_queue(shared: &Shared, session: &Session) -> Result<()
     for (position, ids) in latest.into_values() {
         match send(session, &position).await {
             Err(e) if e.is_network() => return Err(e),
+            Err(e) if !refused(&e) => return Ok(()),
             _ => {
                 let db = lock(&shared.db);
                 ids.iter().for_each(|id| {
@@ -187,4 +205,27 @@ pub(super) async fn flush_queue(shared: &Shared, session: &Session) -> Result<()
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server_error(status: StatusCode) -> AccountError {
+        AccountError::Api(abs_api::Error::Server {
+            status,
+            body: String::new(),
+        })
+    }
+
+    #[test]
+    fn only_a_definite_answer_drops_a_position() {
+        assert!(refused(&server_error(StatusCode::NOT_FOUND)));
+        assert!(refused(&server_error(StatusCode::BAD_REQUEST)));
+        assert!(!refused(&server_error(StatusCode::BAD_GATEWAY)));
+        assert!(!refused(&server_error(StatusCode::INTERNAL_SERVER_ERROR)));
+        assert!(!refused(&server_error(StatusCode::TOO_MANY_REQUESTS)));
+        assert!(!refused(&AccountError::Api(abs_api::Error::LoginRequired)));
+        assert!(!refused(&AccountError::LoginRequired));
+    }
 }
