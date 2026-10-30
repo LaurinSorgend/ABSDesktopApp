@@ -19,7 +19,7 @@ use super::{
 };
 use crate::account::{
     AccountError, Session, add_account, add_account_with_key, earlier_url_answers, lock,
-    restore_account,
+    reconnect_account, restore_account,
 };
 use crate::cover_cache::CoverCache;
 use crate::credentials::Credentials;
@@ -71,6 +71,9 @@ pub(super) struct Shared {
     http: Client,
     pub(super) emit: Emit,
     conns: Mutex<HashMap<String, Conn>>,
+    /// The latest client of each account, also while it is offline. Reconnecting shares its
+    /// tokens with the sessions that still hold it.
+    clients: Mutex<HashMap<String, Arc<AbsClient>>>,
     syncing: Mutex<HashSet<String>>,
     last_sync: Mutex<HashMap<String, Instant>>,
     live: Mutex<HashMap<String, JoinHandle<()>>>,
@@ -98,6 +101,7 @@ pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit
         http,
         emit,
         conns: Mutex::default(),
+        clients: Mutex::default(),
         syncing: Mutex::default(),
         last_sync: Mutex::default(),
         live: Mutex::default(),
@@ -280,14 +284,16 @@ async fn connect(shared: Arc<Shared>, account: Account) {
         set_conn(&shared, &account_id, Conn::Disabled);
         return;
     }
-    match restore_account(
-        &shared.db,
-        &shared.credentials,
-        shared.http.clone(),
-        account,
-    )
-    .await
-    {
+    let previous = lock_map(&shared.clients)
+        .get(&account_id)
+        .filter(|client| client.is_logged_in())
+        .cloned();
+    let http = shared.http.clone();
+    let result = match previous {
+        Some(previous) => reconnect_account(&shared.db, http, &previous, account).await,
+        None => restore_account(&shared.db, &shared.credentials, http, account).await,
+    };
+    match result {
         Ok(session) => connected(&shared, session).await,
         Err(e) => report_connect_error(&shared, account_id, &e),
     }
@@ -318,6 +324,7 @@ async fn connected(shared: &Arc<Shared>, session: Session) {
         set_conn(shared, &account_id, Conn::Disabled);
         return;
     }
+    lock_map(&shared.clients).insert(account_id.clone(), session.client.clone());
     set_conn(shared, &account_id, Conn::Connected(session.clone()));
     (shared.emit)(Event::AccountConnected {
         account_id: account_id.clone(),
@@ -395,6 +402,7 @@ async fn remove(shared: Arc<Shared>, account_id: String) {
     }
     downloads::forget_account(&shared, &account_id).await;
     crate::ebooks::forget_account(&shared.cache_root, &account_id);
+    lock_map(&shared.clients).remove(&account_id);
     let conn = lock_map(&shared.conns).remove(&account_id);
     if let Some(Conn::Connected(session)) = conn {
         let _ = session.client.logout().await;

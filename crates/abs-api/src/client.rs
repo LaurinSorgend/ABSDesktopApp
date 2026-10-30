@@ -85,6 +85,14 @@ impl AbsClient {
         self
     }
 
+    /// Shares the login of `other`: both clients use and refresh the same tokens.
+    pub fn with_auth_of(mut self, other: &Self) -> Self {
+        self.auth = other.auth.clone();
+        self.refresh_lock = other.refresh_lock.clone();
+        self.sink = other.sink.clone();
+        self
+    }
+
     /// The server URL, always ending in `/`.
     pub fn base_url(&self) -> &Url {
         &self.base

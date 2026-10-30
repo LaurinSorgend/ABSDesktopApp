@@ -150,6 +150,27 @@ pub async fn restore_account(
     })
 }
 
+/// Connects an account again that has a client from earlier in this run. The new client
+/// shares that client's tokens, so sessions still using the old one keep working.
+pub async fn reconnect_account(
+    db: &Mutex<Db>,
+    http: Client,
+    previous: &AbsClient,
+    account: Account,
+) -> Result<Session, AccountError> {
+    let urls = lock(db)
+        .store()
+        .accounts()
+        .server_urls(&account.server_id)?;
+    let client = connect_any(http, &urls).await?.with_auth_of(previous);
+    let login = client.authorize().await?;
+    Ok(Session {
+        account,
+        client: Arc::new(client),
+        login,
+    })
+}
+
 /// True when a URL listed before `current` answers, as when the home network is back.
 pub async fn earlier_url_answers(http: &Client, urls: &[String], current: &str) -> bool {
     let same = |url: &str| url.trim_end_matches('/') == current.trim_end_matches('/');
