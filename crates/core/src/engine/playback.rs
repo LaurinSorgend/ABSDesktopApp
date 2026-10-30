@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
 
-use super::worker::{Shared, clock_offset, lock_map, sessions};
+use super::worker::{Shared, clock_offset, lock_map, sessions, went_offline};
 use super::{DEFAULT_REMOTE_CHECK_SECONDS, Event, REMOTE_CHECK_SETTING, offline};
 use crate::account::{AccountError, Session, lock};
 use crate::playback::{self, ActivePlayback, ListenTracker, LocalPlayback, PlayStart};
@@ -101,7 +101,7 @@ impl Active {
         if !e.is_network() {
             return result;
         }
-        super::worker::went_offline(shared, &self.start.account_id, e);
+        went_offline(shared, &self.start.account_id, e);
         let offset = playback.session.client.clock_offset_ms();
         let mut local = LocalPlayback::resume(&self.start, playback.tracker.clone(), offset);
         set_running_local(shared, Some(local.session_id()));
@@ -230,7 +230,7 @@ async fn start(shared: &Shared, account_id: &str, item_id: &str) -> Option<Activ
     let local = playback::local_start(&shared.db, account_id, item_id);
     let session = sessions(shared, Some(account_id)).into_iter().next();
     let result = match (session, local) {
-        (Some(session), local) => start_server(session, item_id, local).await,
+        (Some(session), local) => start_connected(shared, session, item_id, local).await,
         (None, Some(local)) => Ok(start_local(shared, local)),
         (None, None) => {
             (shared.emit)(Event::PlaybackFailed {
@@ -250,6 +250,25 @@ async fn start(shared: &Shared, account_id: &str, item_id: &str) -> Option<Activ
             });
             None
         }
+    }
+}
+
+/// A server session, or the downloaded files when the server gives none.
+async fn start_connected(
+    shared: &Shared,
+    session: Arc<Session>,
+    item_id: &str,
+    local: Option<PlayStart>,
+) -> Result<Active, AccountError> {
+    let account_id = session.account.id.clone();
+    match (start_server(session, item_id, local.clone()).await, local) {
+        (Err(e), Some(local)) => {
+            if e.is_network() {
+                went_offline(shared, &account_id, &e);
+            }
+            Ok(start_local(shared, local))
+        }
+        (result, _) => result,
     }
 }
 
