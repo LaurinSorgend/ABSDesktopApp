@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use abs_api::http_client;
 use abs_core::account::{Session, add_account};
 use abs_core::credentials::Credentials;
-use abs_core::db::{Db, ItemQuery};
+use abs_core::db::{Db, ItemQuery, ProgressRow};
 use abs_core::playback::{self, ActivePlayback};
 use abs_core::sync::sync_catalog;
 
@@ -89,6 +89,46 @@ async fn start_sync_and_close() {
         assert_eq!(local.unwrap().current_time, 444.0);
         active.close(&db).await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn audio_sync_keeps_the_reading_position_and_finished_flag() {
+    let (db, session, item_id) = setup(LATEST).await;
+    let account_id = session.account.id.clone();
+    {
+        let db = db.lock().unwrap();
+        let progress = db.store().progress();
+        progress
+            .upsert(
+                &account_id,
+                &ProgressRow {
+                    item_id: item_id.clone(),
+                    current_time: 10.0,
+                    progress: 0.1,
+                    is_finished: true,
+                    ebook_location: Some("epubcfi(/6/8!/4)".into()),
+                    ebook_progress: Some(0.6),
+                    updated_at: 1,
+                },
+            )
+            .unwrap();
+    }
+    let (mut active, _) = playback::start(session.clone(), &item_id).await.unwrap();
+    listen(&mut active, 222.0);
+    active.sync(&db).await.unwrap();
+    let row = db
+        .lock()
+        .unwrap()
+        .store()
+        .progress()
+        .get(&account_id, &item_id)
+        .unwrap()
+        .unwrap();
+    active.close(&db).await.unwrap();
+    assert_eq!(row.current_time, 222.0);
+    assert_eq!(row.ebook_location.as_deref(), Some("epubcfi(/6/8!/4)"));
+    assert_eq!(row.ebook_progress, Some(0.6));
+    assert!(row.is_finished);
 }
 
 #[tokio::test]

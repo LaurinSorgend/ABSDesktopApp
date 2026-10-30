@@ -10,7 +10,7 @@ use abs_api::models::{Chapter, DeviceInfo, PlayRequest, PlaybackSession, Session
 use abs_api::reqwest::StatusCode;
 
 use crate::account::{AccountError, Session, lock};
-use crate::db::{Db, ProgressRow, now_ms};
+use crate::db::{Db, now_ms};
 pub use local::{LocalPlayback, local_start};
 pub use tracker::{ListenTracker, SYNC_INTERVAL};
 
@@ -236,26 +236,25 @@ fn play_start(
     })
 }
 
-/// Keeps local progress current so the UI does not wait for the server.
+/// Keeps local progress current so the UI does not wait for the server. Only the audio
+/// position changes.
 fn store_local(
     db: &Mutex<Db>,
     account_id: &str,
     item_id: &str,
     sync: &SessionSync,
 ) -> Result<(), AccountError> {
-    let row = ProgressRow {
-        item_id: item_id.to_owned(),
-        current_time: sync.current_time,
-        progress: if sync.duration > 0.0 {
-            sync.current_time / sync.duration
-        } else {
-            0.0
-        },
-        is_finished: false,
-        ebook_location: None,
-        ebook_progress: None,
-        updated_at: now_ms(),
+    let progress = if sync.duration > 0.0 {
+        sync.current_time / sync.duration
+    } else {
+        0.0
     };
-    lock(db).store().progress().upsert(account_id, &row)?;
+    lock(db).store().progress().set_position(
+        account_id,
+        item_id,
+        sync.current_time,
+        progress,
+        now_ms(),
+    )?;
     Ok(())
 }

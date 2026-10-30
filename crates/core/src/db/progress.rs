@@ -83,6 +83,27 @@ impl<'a> Progress<'a> {
         Ok(changed > 0)
     }
 
+    /// Stores an audio position from this machine; the reading position and the finished
+    /// flag stay.
+    pub fn set_position(
+        &self,
+        account_id: &str,
+        item_id: &str,
+        position: f64,
+        progress: f64,
+        updated_at: i64,
+    ) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT INTO progress(account_id, item_id, position, progress, is_finished,
+                 ebook_location, ebook_progress, updated_at)
+             VALUES (?1, ?2, ?3, ?4, 0, NULL, NULL, ?5)
+             ON CONFLICT DO UPDATE SET position = excluded.position,
+                 progress = excluded.progress, updated_at = excluded.updated_at",
+            params![account_id, item_id, position, progress, updated_at],
+        )?;
+        Ok(())
+    }
+
     /// Stores a reading position from this machine; the audio position stays.
     pub fn set_ebook(
         &self,
@@ -241,6 +262,30 @@ mod tests {
         let row = progress.get(&id, "item").unwrap().unwrap();
         assert_eq!(row.current_time, 30.0);
         assert_eq!(row.ebook_location.as_deref(), Some("epubcfi(/6/2!/4)"));
+        assert_eq!(row.ebook_progress, Some(0.5));
+    }
+
+    #[test]
+    fn audio_position_keeps_the_reading_position_and_finished_flag() {
+        let db = Db::open_in_memory().unwrap();
+        let id = account(&db);
+        let progress = db.store().progress();
+        progress.set_position(&id, "new", 12.0, 0.1, 500).unwrap();
+        let row = progress.get(&id, "new").unwrap().unwrap();
+        assert_eq!((row.current_time, row.is_finished), (12.0, false));
+        let read = ProgressRow {
+            is_finished: true,
+            ebook_location: Some("3".into()),
+            ebook_progress: Some(0.5),
+            ..at(30.0, 1_000)
+        };
+        progress.upsert(&id, &read).unwrap();
+        progress.set_position(&id, "item", 40.0, 0.4, 900).unwrap();
+        let row = progress.get(&id, "item").unwrap().unwrap();
+        assert_eq!(row.current_time, 40.0);
+        assert_eq!(row.updated_at, 900, "a local write always counts");
+        assert!(row.is_finished);
+        assert_eq!(row.ebook_location.as_deref(), Some("3"));
         assert_eq!(row.ebook_progress, Some(0.5));
     }
 
