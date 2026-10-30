@@ -30,6 +30,10 @@ pub async fn fetch_file(
     tokio::fs::create_dir_all(dir).await?;
     let part = dir.join(format!("{}.part", file.file_name));
     let mut offset = part_length(&part, file.size).await?;
+    if offset > 0 && offset == file.size {
+        progress(file.size);
+        return finish(&part, &target, file).await;
+    }
     let response = client.download_file(item_id, &file.ino, offset).await?;
     if response.status() != StatusCode::PARTIAL_CONTENT {
         offset = 0;
