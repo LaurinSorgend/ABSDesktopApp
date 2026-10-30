@@ -102,7 +102,7 @@ impl ActivePlayback {
             Ok(()) => self.synced_at = server_now(&self.session),
             Err(_) => self.tracker.restore(&sync),
         }
-        store_local(db, &self.session.account.id, &self.item_id, &sync)?;
+        self.store_local(db, &sync)?;
         result
     }
 
@@ -110,7 +110,7 @@ impl ActivePlayback {
     /// unsent listening time stays in the tracker.
     pub async fn close(&mut self, db: &Mutex<Db>) -> Result<(), AccountError> {
         let sync = self.tracker.take_sync(Instant::now());
-        store_local(db, &self.session.account.id, &self.item_id, &sync)?;
+        self.store_local(db, &sync)?;
         let result = self.send_close(&sync).await;
         if result.is_err() {
             self.tracker.restore(&sync);
@@ -134,6 +134,11 @@ impl ActivePlayback {
         self.synced_at = last_update;
         self.tracker.set_position(position);
         Ok(Some(position))
+    }
+
+    fn store_local(&self, db: &Mutex<Db>, sync: &SessionSync) -> Result<(), AccountError> {
+        let offset = self.session.client.clock_offset_ms();
+        store_local(db, &self.session.account.id, &self.item_id, sync, offset)
     }
 
     async fn send_close(&mut self, sync: &SessionSync) -> Result<(), AccountError> {
@@ -237,12 +242,13 @@ fn play_start(
 }
 
 /// Keeps local progress current so the UI does not wait for the server. Only the audio
-/// position changes.
+/// position changes, stamped on the server's clock so that it compares with `lastUpdate`.
 fn store_local(
     db: &Mutex<Db>,
     account_id: &str,
     item_id: &str,
     sync: &SessionSync,
+    clock_offset: Option<i64>,
 ) -> Result<(), AccountError> {
     let progress = if sync.duration > 0.0 {
         sync.current_time / sync.duration
@@ -254,7 +260,44 @@ fn store_local(
         item_id,
         sync.current_time,
         progress,
-        now_ms(),
+        crate::offline::server_time(now_ms(), clock_offset),
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_position_is_stamped_on_the_server_clock() {
+        let db = Mutex::new(Db::open_in_memory().unwrap());
+        let account_id = {
+            let db = lock(&db);
+            let accounts = db.store().accounts();
+            let server = accounts.add_server("Test", &[]).unwrap();
+            let new = crate::db::NewAccount {
+                server_id: &server,
+                user_id: "u1",
+                username: "listener",
+            };
+            accounts.add_account(&new).unwrap().id
+        };
+        let sync = SessionSync {
+            current_time: 50.0,
+            time_listened: 1.0,
+            duration: 100.0,
+        };
+        let three_minutes_fast = Some(-180_000);
+        let before = now_ms();
+        store_local(&db, &account_id, "item", &sync, three_minutes_fast).unwrap();
+        let row = lock(&db)
+            .store()
+            .progress()
+            .get(&account_id, "item")
+            .unwrap()
+            .unwrap();
+        assert_eq!(row.progress, 0.5);
+        assert!(row.updated_at <= before - 170_000, "{}", row.updated_at);
+    }
 }

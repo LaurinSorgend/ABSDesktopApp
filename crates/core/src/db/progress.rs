@@ -60,7 +60,20 @@ impl<'a> Progress<'a> {
 
     /// Stores progress if it is newer than the stored row. Returns true when it was written.
     pub fn upsert(&self, account_id: &str, row: &ProgressRow) -> DbResult<bool> {
-        let changed = self.conn.execute(
+        self.write(
+            account_id,
+            row,
+            "WHERE excluded.updated_at > progress.updated_at",
+        )
+    }
+
+    /// Stores progress whatever the stored row says, as when the user chose the server's.
+    pub fn replace(&self, account_id: &str, row: &ProgressRow) -> DbResult<()> {
+        self.write(account_id, row, "").map(drop)
+    }
+
+    fn write(&self, account_id: &str, row: &ProgressRow, condition: &str) -> DbResult<bool> {
+        let sql = format!(
             "INSERT INTO progress(account_id, item_id, position, progress, is_finished,
                  ebook_location, ebook_progress, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
@@ -68,7 +81,10 @@ impl<'a> Progress<'a> {
                  progress = excluded.progress, is_finished = excluded.is_finished,
                  ebook_location = excluded.ebook_location,
                  ebook_progress = excluded.ebook_progress, updated_at = excluded.updated_at
-             WHERE excluded.updated_at > progress.updated_at",
+             {condition}"
+        );
+        let changed = self.conn.execute(
+            &sql,
             params![
                 account_id,
                 row.item_id,
@@ -84,7 +100,7 @@ impl<'a> Progress<'a> {
     }
 
     /// Stores an audio position from this machine; the reading position and the finished
-    /// flag stay.
+    /// flag stay. `updated_at` is on the server's clock.
     pub fn set_position(
         &self,
         account_id: &str,
@@ -105,12 +121,14 @@ impl<'a> Progress<'a> {
     }
 
     /// Stores a reading position from this machine; the audio position stays.
+    /// `updated_at` is on the server's clock.
     pub fn set_ebook(
         &self,
         account_id: &str,
         item_id: &str,
         location: &str,
         progress: f64,
+        updated_at: i64,
     ) -> DbResult<()> {
         self.conn.execute(
             "INSERT INTO progress(account_id, item_id, position, progress, is_finished,
@@ -118,7 +136,7 @@ impl<'a> Progress<'a> {
              VALUES (?1, ?2, 0, 0, 0, ?3, ?4, ?5)
              ON CONFLICT DO UPDATE SET ebook_location = excluded.ebook_location,
                  ebook_progress = excluded.ebook_progress, updated_at = excluded.updated_at",
-            params![account_id, item_id, location, progress, super::now_ms()],
+            params![account_id, item_id, location, progress, updated_at],
         )?;
         Ok(())
     }
@@ -249,7 +267,7 @@ mod tests {
         let db = Db::open_in_memory().unwrap();
         let id = account(&db);
         let progress = db.store().progress();
-        progress.set_ebook(&id, "new", "3", 0.1).unwrap();
+        progress.set_ebook(&id, "new", "3", 0.1, 500).unwrap();
         let row = progress.get(&id, "new").unwrap().unwrap();
         assert_eq!(
             (row.ebook_location.as_deref(), row.current_time),
@@ -257,7 +275,7 @@ mod tests {
         );
         progress.upsert(&id, &at(30.0, 1_000)).unwrap();
         progress
-            .set_ebook(&id, "item", "epubcfi(/6/2!/4)", 0.5)
+            .set_ebook(&id, "item", "epubcfi(/6/2!/4)", 0.5, 2_000)
             .unwrap();
         let row = progress.get(&id, "item").unwrap().unwrap();
         assert_eq!(row.current_time, 30.0);
@@ -287,6 +305,17 @@ mod tests {
         assert!(row.is_finished);
         assert_eq!(row.ebook_location.as_deref(), Some("3"));
         assert_eq!(row.ebook_progress, Some(0.5));
+    }
+
+    #[test]
+    fn replace_overwrites_a_newer_row() {
+        let db = Db::open_in_memory().unwrap();
+        let id = account(&db);
+        let progress = db.store().progress();
+        progress.upsert(&id, &at(10.0, 2_000)).unwrap();
+        progress.replace(&id, &at(5.0, 1_000)).unwrap();
+        let row = progress.get(&id, "item").unwrap().unwrap();
+        assert_eq!((row.current_time, row.updated_at), (5.0, 1_000));
     }
 
     #[test]

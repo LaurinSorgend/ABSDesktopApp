@@ -65,6 +65,64 @@ fn offline_listening_reaches_the_server_and_conflicts_ask_first() {
         (position - 902.0).abs() < 3.0,
         "kept the local position, server has {position}"
     );
+
+    go_offline(&setup);
+    listen_with_phone_in_between(&setup, &runtime, 1300.0, 5000.0);
+    go_online(&setup);
+    wait_for(&setup.events, |e| {
+        matches!(e, Event::ProgressConflict(_)).then_some(())
+    });
+    setup.engine.send(Command::ResolveConflict {
+        account_id: setup.account_id.clone(),
+        item_id: setup.item_id.clone(),
+        keep_local: false,
+    });
+    let local = wait_local_position(&setup, 5000.0);
+    assert!(
+        (local - 5000.0).abs() < 1.0,
+        "took the server position, local row has {local}"
+    );
+}
+
+/// A local session during which a phone moves the server position, so the local row's
+/// last write is newer than the phone's.
+fn listen_with_phone_in_between(
+    setup: &Setup,
+    runtime: &tokio::runtime::Runtime,
+    from: f64,
+    phone: f64,
+) {
+    setup.engine.send(Command::StartPlayback {
+        account_id: setup.account_id.clone(),
+        item_id: setup.item_id.clone(),
+    });
+    wait_for(&setup.events, |e| {
+        matches!(e, Event::PlaybackStarted(_)).then_some(())
+    });
+    report(setup, from, false);
+    std::thread::sleep(Duration::from_secs(2));
+    runtime.block_on(listen_on_phone(&setup.server, &setup.item_id, phone));
+    std::thread::sleep(Duration::from_secs(2));
+    report(setup, from + 4.0, true);
+    wait_for(&setup.events, |e| {
+        matches!(e, Event::ProgressChanged { .. }).then_some(())
+    });
+    setup.engine.send(Command::StopPlayback);
+}
+
+/// The local position once it is near `target`, or the last one after 15 s.
+fn wait_local_position(setup: &Setup, target: f64) -> f64 {
+    let mut position = 0.0;
+    for _ in 0..60 {
+        let db = Db::open(&setup.db_path).unwrap();
+        let row = db.store().progress().get(&setup.account_id, &setup.item_id);
+        position = row.unwrap().map_or(0.0, |p| p.current_time);
+        if (position - target).abs() < 1.0 {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(250));
+    }
+    position
 }
 
 /// A fresh engine with the traveller account and the multi-file book downloaded.

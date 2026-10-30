@@ -7,9 +7,10 @@ use std::sync::Arc;
 
 use abs_api::models::EbookLocation;
 
-use super::worker::{Shared, sessions, went_offline};
+use super::worker::{Shared, clock_offset, sessions, went_offline};
 use super::{Command, Event};
 use crate::account::{AccountError, Session, lock};
+use crate::db::now_ms;
 use crate::ebooks::{self, EbookError, EbookOpen, PendingPosition, QUEUE_KIND};
 
 /// Queue entries sent per flush.
@@ -112,11 +113,16 @@ fn store(shared: &Shared, account_id: &str, position: &PendingPosition) -> Optio
         EbookLocation::Page(page) => page.to_string(),
     };
     let payload = serde_json::to_string(position).ok()?;
+    let updated_at = crate::offline::server_time(now_ms(), clock_offset(shared, account_id));
     let db = lock(&shared.db);
     let store = db.store();
-    let _ = store
-        .progress()
-        .set_ebook(account_id, &position.item_id, &stored, position.progress);
+    let _ = store.progress().set_ebook(
+        account_id,
+        &position.item_id,
+        &stored,
+        position.progress,
+        updated_at,
+    );
     store.queue().push(account_id, QUEUE_KIND, &payload).ok()
 }
 

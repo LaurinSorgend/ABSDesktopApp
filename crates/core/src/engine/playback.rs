@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
 
-use super::worker::{Shared, lock_map, sessions};
+use super::worker::{Shared, clock_offset, lock_map, sessions};
 use super::{DEFAULT_REMOTE_CHECK_SECONDS, Event, REMOTE_CHECK_SETTING, offline};
 use crate::account::{AccountError, Session, lock};
 use crate::playback::{self, ActivePlayback, ListenTracker, LocalPlayback, PlayStart};
@@ -102,7 +102,8 @@ impl Active {
             return result;
         }
         super::worker::went_offline(shared, &self.start.account_id, e);
-        let mut local = LocalPlayback::resume(&self.start, playback.tracker.clone());
+        let offset = playback.session.client.clock_offset_ms();
+        let mut local = LocalPlayback::resume(&self.start, playback.tracker.clone(), offset);
         set_running_local(shared, Some(local.session_id()));
         let stored = local.sync(&shared.db);
         self.mode = Mode::Local(local);
@@ -253,7 +254,7 @@ async fn start(shared: &Shared, account_id: &str, item_id: &str) -> Option<Activ
 }
 
 fn start_local(shared: &Shared, start: PlayStart) -> Active {
-    let local = LocalPlayback::new(&start);
+    let local = LocalPlayback::new(&start, clock_offset(shared, &start.account_id));
     set_running_local(shared, Some(local.session_id()));
     Active {
         start,

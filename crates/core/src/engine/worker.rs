@@ -641,6 +641,12 @@ pub(super) fn sessions(shared: &Shared, account_id: Option<&str>) -> Vec<Arc<Ses
         .collect()
 }
 
+/// Server time minus local time, as last seen for the account.
+pub(super) fn clock_offset(shared: &Shared, account_id: &str) -> Option<i64> {
+    let clients = lock_map(&shared.clients);
+    clients.get(account_id)?.clock_offset_ms()
+}
+
 fn set_conn(shared: &Shared, account_id: &str, conn: Conn) {
     lock_map(&shared.conns).insert(account_id.to_owned(), conn);
 }

@@ -7,10 +7,10 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use abs_api::models::{LocalSession, LocalSessions};
+use abs_api::models::{LocalSession, LocalSessions, MediaProgress};
 
 use crate::account::{AccountError, Session, lock};
-use crate::db::{Db, Decision, LocalSessionRow, now_ms};
+use crate::db::{Db, Decision, LocalSessionRow, ProgressRow, now_ms};
 use crate::playback::device_info;
 
 /// Setting key for the conflict threshold in minutes.
@@ -80,17 +80,27 @@ pub async fn flush(
         .collect();
     let mut report = FlushReport::default();
     let mut ready = Vec::new();
+    let mut taken = Vec::new();
     for (item_id, item_rows) in by_item(rows) {
-        let server = server_progress(session, &item_id).await?;
+        let progress = session.client.item_progress(&item_id).await?;
+        let server = progress.as_ref().map(server_progress);
         match prepare(session, &item_rows, server, threshold) {
             Some(sessions) => {
                 ready.extend(item_rows.iter().map(|r| r.id.clone()).zip(sessions));
                 report.sent.push(item_id);
+                let decision = item_rows.last().and_then(|r| r.decision);
+                if decision == Some(Decision::TakeServer) {
+                    taken.extend(progress.as_ref().map(ProgressRow::from_api));
+                }
             }
             None => report.conflicts.push(conflict(&item_rows, server)),
         }
     }
     send(session, db, ready).await?;
+    let db = lock(db);
+    for row in &taken {
+        db.store().progress().replace(&session.account.id, row)?;
+    }
     Ok(report)
 }
 
@@ -102,15 +112,11 @@ fn by_item(rows: Vec<LocalSessionRow>) -> Vec<(String, Vec<LocalSessionRow>)> {
     items.into_iter().collect()
 }
 
-async fn server_progress(
-    session: &Session,
-    item_id: &str,
-) -> Result<Option<ServerProgress>, AccountError> {
-    let progress = session.client.item_progress(item_id).await?;
-    Ok(progress.map(|p| ServerProgress {
-        position: p.current_time.unwrap_or_default(),
-        last_update: p.last_update,
-    }))
+fn server_progress(progress: &MediaProgress) -> ServerProgress {
+    ServerProgress {
+        position: progress.current_time.unwrap_or_default(),
+        last_update: progress.last_update,
+    }
 }
 
 /// The sessions to send for one item, or `None` while it waits for the user.

@@ -16,17 +16,19 @@ use crate::downloads::{self, Manifest};
 pub struct LocalPlayback {
     pub tracker: ListenTracker,
     record: LocalSessionRow,
+    /// Server time minus local time, as last seen.
+    clock_offset: Option<i64>,
 }
 
 impl LocalPlayback {
     /// A new local session for an item about to play from `start.start_time`.
-    pub fn new(start: &PlayStart) -> Self {
+    pub fn new(start: &PlayStart, clock_offset: Option<i64>) -> Self {
         let tracker = ListenTracker::new(Instant::now(), start.start_time, start.duration);
-        Self::resume(start, tracker)
+        Self::resume(start, tracker, clock_offset)
     }
 
     /// Takes over the tracker of a server session that lost its server.
-    pub fn resume(start: &PlayStart, tracker: ListenTracker) -> Self {
+    pub fn resume(start: &PlayStart, tracker: ListenTracker, clock_offset: Option<i64>) -> Self {
         let now = now_ms();
         let record = LocalSessionRow {
             id: format!("play_local_{}", uuid::Uuid::new_v4()),
@@ -43,7 +45,11 @@ impl LocalPlayback {
             updated_at: now,
             decision: None,
         };
-        Self { tracker, record }
+        Self {
+            tracker,
+            record,
+            clock_offset,
+        }
     }
 
     pub fn account_id(&self) -> &str {
@@ -62,7 +68,13 @@ impl LocalPlayback {
     /// Stores the position, and the session once something was listened to.
     pub fn sync(&mut self, db: &Mutex<Db>) -> Result<(), AccountError> {
         let sync = self.tracker.take_sync(Instant::now());
-        store_local(db, &self.record.account_id, &self.record.item_id, &sync)?;
+        store_local(
+            db,
+            &self.record.account_id,
+            &self.record.item_id,
+            &sync,
+            self.clock_offset,
+        )?;
         self.record.position = sync.current_time;
         self.record.time_listening += sync.time_listened;
         self.record.updated_at = now_ms();
