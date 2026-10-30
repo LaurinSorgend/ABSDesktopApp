@@ -1,12 +1,13 @@
 //! Login, token refresh and logout.
 
+use std::sync::Mutex;
 use std::time::SystemTime;
 
 use reqwest::StatusCode;
 use serde_json::{Value, json};
-use tokio::sync::watch;
+use tokio::sync::{OwnedMutexGuard, watch};
 
-use crate::client::{AbsClient, check, decode};
+use crate::client::{AbsClient, check, decode, lock_auth};
 use crate::error::{Error, Result, SinkError};
 use crate::jwt::Lifetime;
 use crate::models::LoginResponse;
@@ -106,7 +107,7 @@ impl AbsClient {
             return Err(Error::InvalidCredentials);
         }
         let body: Value = decode(check(response).await?).await?;
-        self.install_session(&body)?;
+        install_session(&self.auth, self.sink.as_ref(), &body)?;
         parse_login(body)
     }
 
@@ -125,8 +126,8 @@ impl AbsClient {
 
     /// Starts from a stored refresh token, as after an app restart.
     pub async fn restore_session(&self, refresh_token: &str) -> Result<LoginResponse> {
-        let body = self.refresh_request(refresh_token).await?;
-        self.install_session(&body)?;
+        let single_flight = self.refresh_lock.clone().lock_owned().await;
+        let body = self.rotate(refresh_token.to_owned(), single_flight).await?;
         parse_login(body)
     }
 
@@ -223,7 +224,7 @@ impl AbsClient {
 
     /// Refreshes the tokens unless another caller already did since `seen_generation`.
     pub(crate) async fn refresh(&self, seen_generation: u64) -> Result<()> {
-        let _single_flight = self.refresh_lock().lock().await;
+        let single_flight = self.refresh_lock.clone().lock_owned().await;
         let refresh = {
             let state = self.auth_state();
             if state.generation != seen_generation {
@@ -234,40 +235,54 @@ impl AbsClient {
                 _ => return Err(Error::LoginRequired),
             }
         };
-        let body = self.refresh_request(&refresh).await?;
-        self.install_session(&body)
+        self.rotate(refresh, single_flight).await.map(drop)
     }
 
-    async fn refresh_request(&self, refresh_token: &str) -> Result<Value> {
-        let response = self
-            .http()
-            .post(self.url("auth/refresh")?)
-            .header("x-refresh-token", refresh_token)
-            .send()
-            .await?;
-        if matches!(
-            response.status(),
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
-        ) {
-            self.auth_state().set(None);
-            return Err(Error::LoginRequired);
+    /// Exchanges the refresh token and stores the answer. It runs in its own task, because
+    /// the server may already have rotated the token when the caller gets cancelled.
+    async fn rotate(&self, token: String, single_flight: OwnedMutexGuard<()>) -> Result<Value> {
+        let url = self.url("auth/refresh")?;
+        let http = self.http().clone();
+        let auth = self.auth.clone();
+        let sink = self.sink.clone();
+        let task = tokio::spawn(async move {
+            let _single_flight = single_flight;
+            let response = http
+                .post(url)
+                .header("x-refresh-token", token)
+                .send()
+                .await?;
+            if matches!(
+                response.status(),
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
+            ) {
+                lock_auth(&auth).set(None);
+                return Err(Error::LoginRequired);
+            }
+            let body: Value = decode(check(response).await?).await?;
+            install_session(&auth, sink.as_ref(), &body)?;
+            Ok(body)
+        });
+        match task.await {
+            Ok(result) => result,
+            Err(e) if e.is_panic() => std::panic::resume_unwind(e.into_panic()),
+            Err(_) => Err(Error::LoginRequired),
         }
-        decode(check(response).await?).await
     }
+}
 
-    /// Stores the refresh token from a login or refresh body, then switches to the new tokens.
-    ///
-    /// The new tokens are used even when storing fails, because the server may
-    /// already have invalidated the old refresh token. The store error is still returned.
-    fn install_session(&self, body: &Value) -> Result<()> {
-        let credential = session_credential(body)?;
-        let Credential::Session { refresh, .. } = &credential else {
-            unreachable!("session_credential returns sessions")
-        };
-        let stored = self.sink().store_refresh_token(refresh);
-        self.auth_state().set(Some(credential));
-        stored.map_err(Error::TokenStore)
-    }
+/// Stores the refresh token from a login or refresh body, then switches to the new tokens.
+///
+/// The new tokens are used even when storing fails, because the server may
+/// already have invalidated the old refresh token. The store error is still returned.
+fn install_session(auth: &Mutex<AuthState>, sink: &dyn TokenSink, body: &Value) -> Result<()> {
+    let credential = session_credential(body)?;
+    let Credential::Session { refresh, .. } = &credential else {
+        unreachable!("session_credential returns sessions")
+    };
+    let stored = sink.store_refresh_token(refresh);
+    lock_auth(auth).set(Some(credential));
+    stored.map_err(Error::TokenStore)
 }
 
 fn session_credential(body: &Value) -> Result<Credential> {

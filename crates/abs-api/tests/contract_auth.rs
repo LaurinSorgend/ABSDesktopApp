@@ -51,6 +51,18 @@ async fn refresh_stores_each_new_token() {
     }
 }
 
+#[tokio::test]
+async fn cancelled_refresh_still_keeps_the_new_token() {
+    for server in common::servers() {
+        let (client, stored) = common::listener(&server).await;
+        let cancelled = tokio::time::timeout(Duration::from_millis(1), client.refresh_now());
+        assert!(cancelled.await.is_err(), "{server}: refresh was too fast");
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        assert_eq!(stored.all().len(), 2, "{server}: the new token was stored");
+        assert_eq!(client.refresh_token(), Some(stored.last()), "{server}");
+    }
+}
+
 /// Set `ABS_TEST_PAUSE_CONTAINER=abs-test-abs-latest-1` and
 /// `ABS_TEST_SERVERS=http://localhost:13379` and run this test alone, since it pauses the server.
 #[tokio::test]

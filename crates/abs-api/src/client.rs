@@ -1,4 +1,4 @@
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use reqwest::{Client, RequestBuilder, Response, StatusCode, Url};
@@ -24,9 +24,9 @@ pub struct AbsClient {
     base: Url,
     status: Status,
     version: ServerVersion,
-    auth: Mutex<AuthState>,
-    refresh_lock: tokio::sync::Mutex<()>,
-    sink: Box<dyn TokenSink>,
+    pub(crate) auth: Arc<Mutex<AuthState>>,
+    pub(crate) refresh_lock: Arc<tokio::sync::Mutex<()>>,
+    pub(crate) sink: Arc<dyn TokenSink>,
     clock: Clock,
 }
 
@@ -61,9 +61,9 @@ impl AbsClient {
             base,
             status,
             version,
-            auth: Mutex::default(),
-            refresh_lock: tokio::sync::Mutex::new(()),
-            sink: Box::new(()),
+            auth: Arc::default(),
+            refresh_lock: Arc::new(tokio::sync::Mutex::new(())),
+            sink: Arc::new(()),
             clock,
         })
     }
@@ -81,7 +81,7 @@ impl AbsClient {
 
     /// Sets where new refresh tokens are stored.
     pub fn with_token_sink(mut self, sink: impl TokenSink + 'static) -> Self {
-        self.sink = Box::new(sink);
+        self.sink = Arc::new(sink);
         self
     }
 
@@ -152,18 +152,12 @@ impl AbsClient {
     }
 
     pub(crate) fn auth_state(&self) -> MutexGuard<'_, AuthState> {
-        self.auth
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        lock_auth(&self.auth)
     }
+}
 
-    pub(crate) fn refresh_lock(&self) -> &tokio::sync::Mutex<()> {
-        &self.refresh_lock
-    }
-
-    pub(crate) fn sink(&self) -> &dyn TokenSink {
-        self.sink.as_ref()
-    }
+pub(crate) fn lock_auth(auth: &Mutex<AuthState>) -> MutexGuard<'_, AuthState> {
+    auth.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn base_url(server_url: &str) -> Result<Url> {
