@@ -2,6 +2,18 @@
 
 Kept by hand. Each release lists what changed for people using the app.
 
+## 0.2.1 (2026-10-30)
+
+- A damaged download can be repaired. The missing files are fetched again at start instead of the download ending as failed, and a file that was fully fetched but not yet renamed no longer fails it.
+- Playing audio no longer erases the saved reading position of the same book or marks a finished book as unfinished.
+- Reading positions saved while the server answers with an error or the login has expired are kept and sent later. Only a position the server refuses is dropped.
+- A downloaded book plays from its files when the server cannot start a session.
+- Starting another book no longer lets the previous book's position reach the new one.
+- Fewer unexpected logins: a token refresh that gets interrupted keeps the new token, and reconnecting no longer breaks a running playback or download.
+- A server that stops answering no longer blocks the player or a download. Requests give up after 60 seconds.
+- Progress made on other devices is no longer ignored when this computer's clock runs fast. Choosing the other device's position in a conflict now also updates this computer.
+- The play button is centered in the full screen player.
+
 ## 0.2.0 (2026-10-27)
 
 - Mini player in a small window that can stay on top, and a full screen player with the blurred cover behind it. F11 toggles full screen.

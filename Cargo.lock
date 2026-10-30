@@ -20,7 +20,7 @@ checksum = "366ffbaa4442f4684d91e2cd7c5ea7c4ed8add41959a31447066e279e432b618"
 
 [[package]]
 name = "abs-api"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "abs-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "abs-api",
  "fs4",
@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "abs-desktop"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "abs-core",
  "abs-player",
@@ -83,7 +83,7 @@ dependencies = [
 
 [[package]]
 name = "abs-player"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "abs-api",
  "anyhow",
@@ -98,7 +98,7 @@ dependencies = [
 
 [[package]]
 name = "abs-reader"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "abs-reader-ipc",
  "anyhow",
@@ -108,7 +108,7 @@ dependencies = [
 
 [[package]]
 name = "abs-reader-ipc"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "serde_json",
