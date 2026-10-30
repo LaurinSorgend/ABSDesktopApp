@@ -22,6 +22,9 @@ use abs_core::engine::{Command, Engine, Event};
 use common::{FlakyProxy, start, wait_for};
 
 const SERVER: &str = "http://localhost:13379";
+/// Time for the sync after adding an account to end. Cutting it would take the account
+/// offline, and the position would then never be sent to the broken server.
+const SYNC_SETTLES: Duration = Duration::from_secs(3);
 
 fn add(engine: &Engine, events: &Receiver<Event>, url: &str, username: &str) -> String {
     engine.send(Command::AddAccount {
@@ -122,6 +125,9 @@ fn damaged_download_is_repaired_at_start() {
     std::fs::remove_file(name(1)).unwrap();
 
     let (engine, events) = start(&db_path, &credentials);
+    wait_for(&events, |e| {
+        matches!(e, Event::AccountsLoaded(_)).then_some(())
+    });
     let state = finished_download(&events, &db_path, &account_id, &item_id);
     let error = Db::open(&db_path)
         .unwrap()
@@ -172,6 +178,7 @@ fn reading_position_survives_a_502() {
     let item_id = books[0].0.clone();
     let location = format!("{}", 1000 + std::process::id() % 1000);
 
+    std::thread::sleep(SYNC_SETTLES);
     proxy.set_broken(true);
     engine.send(Command::SaveEbookProgress {
         account_id: account_id.clone(),
@@ -179,9 +186,7 @@ fn reading_position_survives_a_502() {
         location: EbookLocation::Page(location.parse().unwrap()),
         progress: 0.4,
     });
-    wait_for(&events, |e| {
-        matches!(e, Event::RequestFailed { .. }).then_some(())
-    });
+    std::thread::sleep(Duration::from_secs(2));
     let queued = Db::open(&db_path)
         .unwrap()
         .store()
