@@ -12,6 +12,8 @@ use crate::version::{Feature, ServerVersion};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const PING_TIMEOUT: Duration = Duration::from_secs(10);
+/// Longest silence on an open connection before a request fails as a network error.
+const READ_TIMEOUT: Duration = Duration::from_secs(60);
 const USER_AGENT: &str = concat!("abs-desktop/", env!("CARGO_PKG_VERSION"));
 
 /// HTTP client for one account on one Audiobookshelf server.
@@ -33,6 +35,7 @@ pub fn http_client() -> Result<Client> {
     Ok(Client::builder()
         .user_agent(USER_AGENT)
         .connect_timeout(CONNECT_TIMEOUT)
+        .read_timeout(READ_TIMEOUT)
         .build()?)
 }
 

@@ -3,6 +3,8 @@
 
 mod common;
 
+use std::time::Duration;
+
 use abs_api::{Error, Feature, ServerVersion};
 use futures::future::join_all;
 use serde_json::{Value, json};
@@ -47,6 +49,26 @@ async fn refresh_stores_each_new_token() {
         println!("{server}: refresh token rotated: {rotated}");
         client.me().await.unwrap();
     }
+}
+
+/// Set `ABS_TEST_PAUSE_CONTAINER=abs-test-abs-latest-1` and
+/// `ABS_TEST_SERVERS=http://localhost:13379` and run this test alone, since it pauses the server.
+#[tokio::test]
+async fn stalled_server_times_out() {
+    let Ok(container) = std::env::var("ABS_TEST_PAUSE_CONTAINER") else {
+        return;
+    };
+    let (client, _) = common::listener(&common::servers()[0]).await;
+    docker(&["pause", &container]);
+    let answer = tokio::time::timeout(Duration::from_secs(90), client.me()).await;
+    docker(&["unpause", &container]);
+    let result = answer.expect("the request gave up by itself");
+    assert!(matches!(result, Err(Error::Network(_))), "{result:?}");
+}
+
+fn docker(args: &[&str]) {
+    let status = std::process::Command::new("docker").args(args).status();
+    assert!(status.unwrap().success());
 }
 
 #[tokio::test]
