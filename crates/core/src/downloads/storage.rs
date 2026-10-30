@@ -144,9 +144,15 @@ pub fn write_manifest(dir: &Path, manifest: &Manifest) -> io::Result<()> {
     std::fs::write(dir.join(PENDING_FILE), text)
 }
 
-/// Marks the download complete by giving the manifest its final name.
+/// Marks the download complete by giving the manifest its final name. A repaired
+/// download has its final manifest already.
 pub fn commit_manifest(dir: &Path) -> io::Result<()> {
-    std::fs::rename(dir.join(PENDING_FILE), dir.join(MANIFEST_FILE))
+    match std::fs::rename(dir.join(PENDING_FILE), dir.join(MANIFEST_FILE)) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound && dir.join(MANIFEST_FILE).is_file() => {
+            Ok(())
+        }
+        result => result,
+    }
 }
 
 pub fn read_manifest(dir: &Path) -> io::Result<Manifest> {
@@ -233,6 +239,7 @@ mod tests {
         assert!(!check(dir.path(), &files));
         commit_manifest(dir.path()).unwrap();
         assert!(check(dir.path(), &files));
+        commit_manifest(dir.path()).unwrap();
         let again = read_manifest(dir.path()).unwrap();
         assert_eq!(again.item.get(), manifest.item.get());
         std::fs::write(dir.path().join(&files[2].file_name), b"short").unwrap();
