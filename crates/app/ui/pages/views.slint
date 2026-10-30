@@ -142,6 +142,7 @@ export component FullScreenPlayer inherits Rectangle {
                 play-size: 64px;
             }
             HorizontalLayout {
+                width: (parent.width - transport.preferred-width) / 2 - Theme.pad;
                 alignment: end;
                 Volume { }
             }
