@@ -85,6 +85,7 @@ fn mirrored_progress_reaches_the_other_server() {
         matches!(e, Event::PlaybackStarted(_)).then_some(())
     });
     engine.send(Command::ReportPlayback {
+        item_id: items[&accounts[0]].clone(),
         position,
         playing: false,
         force_sync: true,

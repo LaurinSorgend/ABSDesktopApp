@@ -131,6 +131,7 @@ fn playback_session_through_the_engine() {
     assert!(!started.tracks.is_empty());
     for (position, force_sync) in [(700.0, false), (701.0, false), (702.0, true)] {
         engine.send(Command::ReportPlayback {
+            item_id: item_id.clone(),
             position,
             playing: true,
             force_sync,
@@ -141,6 +142,7 @@ fn playback_session_through_the_engine() {
         _ => None,
     });
     engine.send(Command::ReportPlayback {
+        item_id: item_id.clone(),
         position: 703.0,
         playing: true,
         force_sync: false,

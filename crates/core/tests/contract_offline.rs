@@ -209,6 +209,7 @@ fn listen(setup: &Setup, from: f64) {
 
 fn report(setup: &Setup, position: f64, force_sync: bool) {
     setup.engine.send(Command::ReportPlayback {
+        item_id: setup.item_id.clone(),
         position,
         playing: true,
         force_sync,

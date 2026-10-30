@@ -68,8 +68,10 @@ pub enum Command {
         item_id: String,
     },
     /// The player's state, about once a second and right after pause, seek or
-    /// chapter change (`force_sync`).
+    /// chapter change (`force_sync`). Reports of any other item than the active one are
+    /// ignored, as they can arrive while the next item starts.
     ReportPlayback {
+        item_id: String,
         position: f64,
         playing: bool,
         force_sync: bool,

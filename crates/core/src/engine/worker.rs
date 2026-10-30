@@ -157,10 +157,12 @@ fn handle(
             item_id,
         }),
         Command::ReportPlayback {
+            item_id,
             position,
             playing,
             force_sync,
         } => forward(PlaybackCommand::Report {
+            item_id,
             position,
             playing,
             force_sync,

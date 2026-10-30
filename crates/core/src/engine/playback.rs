@@ -25,6 +25,7 @@ pub(super) enum PlaybackCommand {
         item_id: String,
     },
     Report {
+        item_id: String,
         position: f64,
         playing: bool,
         force_sync: bool,
@@ -163,11 +164,13 @@ impl State {
                 self.sent_token = self.active.as_ref().and_then(Active::stream_token);
             }
             PlaybackCommand::Report {
+                item_id,
                 position,
                 playing,
                 force_sync,
             } => {
-                if let Some(active) = self.active.as_mut() {
+                let active = self.active.as_mut();
+                if let Some(active) = active.filter(|a| a.start.item_id == item_id) {
                     let synced = report(shared, active, position, playing, force_sync).await;
                     if synced && (force_sync || !playing) {
                         spawn_mirror(shared, &active.start, position);

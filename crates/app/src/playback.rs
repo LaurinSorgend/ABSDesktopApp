@@ -208,11 +208,12 @@ impl Playback {
 
     /// Sends the position to the engine, which syncs the server session when due.
     pub fn report(&mut self, force_sync: bool) {
-        if self.now.is_none() {
+        let Some(now) = &self.now else {
             return;
-        }
+        };
         self.last_report = Instant::now();
         self.engine.send(Command::ReportPlayback {
+            item_id: now.item_id.clone(),
             position: self.position,
             playing: self.playing,
             force_sync,
