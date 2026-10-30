@@ -115,6 +115,8 @@ pub enum ItemSort {
     Author,
     AddedAt,
     Duration,
+    /// When the download was queued; items without a download have no value.
+    DownloadedAt,
 }
 
 impl ItemSort {
@@ -124,6 +126,7 @@ impl ItemSort {
             Self::Author => "item.author COLLATE NOCASE",
             Self::AddedAt => "item.added_at",
             Self::Duration => "item.duration",
+            Self::DownloadedAt => "dl.created_at",
         };
         let direction = if desc { "DESC" } else { "ASC" };
         format!("{column} {direction}, item.title_sort COLLATE NOCASE, item.remote_id")

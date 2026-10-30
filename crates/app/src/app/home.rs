@@ -1,8 +1,8 @@
-//! Home: continue listening and recently added from local data, then the server's shelves.
+//! Home: continue listening, downloaded and recently added from local data, then the server's shelves.
 
 use std::rc::Rc;
 
-use abs_core::db::{ItemQuery, ItemSort, ItemSummary};
+use abs_core::db::{ItemQuery, ItemSort, ItemSummary, ProgressFilter};
 use abs_core::engine::{Command, Shelf};
 use slint::{Image, Model, ModelRc, VecModel};
 
@@ -14,6 +14,7 @@ use crate::{ShelfData, TileData};
 const SHELF_SIZE: u64 = 12;
 /// Server shelves the local ones already cover.
 const LOCAL_SHELF_IDS: [&str; 2] = ["continue-listening", "recently-added"];
+const DOWNLOADED_SHELF_ID: &str = "downloaded";
 
 pub struct Home {
     shelves: Rc<VecModel<ShelfData>>,
@@ -128,19 +129,14 @@ impl App {
             .into_iter()
             .map(|p| p.item_id)
             .collect();
-        let recent = self.library_id().map(|library_id| {
-            let query = ItemQuery {
-                sort: ItemSort::AddedAt,
-                desc: true,
-                ..ItemQuery::new(&library_id)
-            };
-            store
-                .catalog()
-                .items_page(account_id, &query, 0, SHELF_SIZE)
-                .unwrap_or_default()
-        });
-        let (continue_label, recent_label) = self
-            .ui(|_, s| (s.invoke_continue_listening(), s.invoke_recently_added()))
+        let (continue_label, downloaded_label, recent_label) = self
+            .ui(|_, s| {
+                (
+                    s.invoke_continue_listening(),
+                    s.invoke_downloaded_shelf(),
+                    s.invoke_recently_added(),
+                )
+            })
             .unwrap_or_default();
         vec![
             (
@@ -149,11 +145,43 @@ impl App {
                 self.items_by_ids(&started),
             ),
             (
+                DOWNLOADED_SHELF_ID.to_owned(),
+                downloaded_label.into(),
+                self.newest_in_library(
+                    account_id,
+                    ItemSort::DownloadedAt,
+                    ProgressFilter::Downloaded,
+                ),
+            ),
+            (
                 LOCAL_SHELF_IDS[1].to_owned(),
                 recent_label.into(),
-                recent.unwrap_or_default(),
+                self.newest_in_library(account_id, ItemSort::AddedAt, ProgressFilter::All),
             ),
         ]
+    }
+
+    /// The first items of the current library, newest first by `sort`.
+    fn newest_in_library(
+        &self,
+        account_id: &str,
+        sort: ItemSort,
+        filter: ProgressFilter,
+    ) -> Vec<ItemSummary> {
+        let Some(library_id) = self.library_id() else {
+            return Vec::new();
+        };
+        let query = ItemQuery {
+            sort,
+            desc: true,
+            filter,
+            ..ItemQuery::new(&library_id)
+        };
+        self.db
+            .store()
+            .catalog()
+            .items_page(account_id, &query, 0, SHELF_SIZE)
+            .unwrap_or_default()
     }
 
     pub(super) fn items_by_ids(&self, ids: &[String]) -> Vec<ItemSummary> {

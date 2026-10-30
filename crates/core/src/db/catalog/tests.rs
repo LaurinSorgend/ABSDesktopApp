@@ -163,6 +163,58 @@ fn filters_by_progress_and_keeps_id_order() {
 }
 
 #[test]
+fn downloads_sort_by_when_they_were_queued() {
+    let (db, account, library) = seeded();
+    let store = db.store();
+    let catalog = store.catalog();
+    let all = catalog
+        .items_page(&account, &ItemQuery::new(&library), 0, 10)
+        .unwrap();
+    for item in &all {
+        let new = crate::db::NewDownload {
+            account_id: &account,
+            item_id: &item.remote_id,
+            title: "t",
+            dir: std::path::Path::new("d"),
+            files: &[],
+        };
+        store.downloads().insert(&new).unwrap();
+        store
+            .downloads()
+            .set_state(
+                &account,
+                &item.remote_id,
+                crate::db::DownloadState::Done,
+                None,
+            )
+            .unwrap();
+    }
+    let set_queued_at = |item: &ItemSummary, at: i64| {
+        db.conn
+            .execute(
+                "UPDATE download SET created_at = ?1 WHERE item_id = ?2",
+                params![at, item.remote_id],
+            )
+            .unwrap();
+    };
+    set_queued_at(&all[0], 1);
+    set_queued_at(&all[1], 2);
+    let newest_first = ItemQuery {
+        sort: ItemSort::DownloadedAt,
+        desc: true,
+        filter: ProgressFilter::Downloaded,
+        ..ItemQuery::new(&library)
+    };
+    let page = catalog.items_page(&account, &newest_first, 0, 10).unwrap();
+    assert_eq!(page[0].remote_id, all[1].remote_id);
+    assert_eq!(page[1].remote_id, all[0].remote_id);
+
+    set_queued_at(&all[0], 3);
+    let page = catalog.items_page(&account, &newest_first, 0, 10).unwrap();
+    assert_eq!(page[0].remote_id, all[0].remote_id);
+}
+
+#[test]
 fn search_matches_prefixes_and_survives_updates() {
     let (db, account, library) = seeded();
     let catalog = db.store().catalog();
