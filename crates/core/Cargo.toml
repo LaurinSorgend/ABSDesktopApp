@@ -20,7 +20,7 @@ serde_json = { version = "1.0.154", features = ["raw_value"] }
 thiserror = "2.0.21"
 unicode-normalization = "0.1.24"
 tokio = { version = "1.54.1", features = ["rt", "sync", "time", "macros", "fs", "io-util"] }
-uuid = { version = "1.26.1", features = ["v4"] }
+uuid = { version = "1.26.1", features = ["v4", "v5"] }
 lofty = "0.25.5"
 mp4ameta = "0.13.0"
 id3 = "1.17.2"

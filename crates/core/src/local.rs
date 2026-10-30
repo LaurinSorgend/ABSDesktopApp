@@ -1,18 +1,21 @@
 //! Books in folders on this computer, recognised by the rules of the ABS scanner.
 
+mod book;
 mod group;
 mod metadata;
 mod names;
 mod order;
 mod probe;
+mod scan;
 
 pub use group::{BookGroup, FileKind, group_files, kind_of};
 pub use metadata::{
     BookMetadata, OpfMetadata, SeriesEntry, epub_cover, parse_opf, read_epub, read_text_file,
 };
 pub use names::{FolderData, folder_data, parse_names, title_ignore_prefix};
-pub use order::{AudioFacts, chapters, smart_order};
+pub use order::{AudioFacts, chapters, natural, smart_order};
 pub use probe::{AudioProbe, AudioTags, album_of, embedded_cover, probe};
+pub use scan::{ScanReport, folder_name, scan_folder};
 
 #[cfg(all(test, feature = "integration"))]
 mod fixture_tests {

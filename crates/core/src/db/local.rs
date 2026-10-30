@@ -124,13 +124,17 @@ impl<'a> Local<'a> {
         Ok(())
     }
 
-    /// Stores a book and its tracks. Its item must exist.
+    /// Stores a book and replaces its tracks. Its item must exist.
     pub fn save_book(
         &self,
         account_id: &str,
         book: &LocalBook,
         tracks: &[LocalTrack],
     ) -> DbResult<()> {
+        self.conn.execute(
+            "DELETE FROM local_track WHERE account_id = ?1 AND item_id = ?2",
+            [account_id, &book.item_id],
+        )?;
         self.conn.execute(
             "INSERT OR REPLACE INTO local_book(account_id, item_id, dir, ebook_path, cover_path,
                  signature, fingerprint)
