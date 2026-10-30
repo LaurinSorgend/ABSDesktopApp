@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-10-27.
+Last updated 2026-10-30.
 
 ## Phase 0: done on Windows, Linux open
 
@@ -15,8 +15,8 @@ Open before Phase 0 exit criteria are met:
 
 ## Facts Phase 1 builds on
 
-- Auth routes are at the server root: `POST /login` with `x-return-tokens: true` returns `user.accessToken` and `user.refreshToken`; `POST /auth/refresh` with `x-refresh-token`. 2.37.2 rotates the refresh token on refresh, 2.26.3 returns the same one. Store whatever comes back.
-- File downloads honour `Range` (206 with `Content-Range`) on 2.26.3 and 2.37.2.
+- Auth routes are at the server root: `POST /login` with `x-return-tokens: true` returns `user.accessToken` and `user.refreshToken`; `POST /auth/refresh` with `x-refresh-token`. 2.37.2 rotates the refresh token on refresh, 2.26.3 returns the same one. Store whatever comes back. 2.37.2 still accepts the old token for 10 minutes (`REFRESH_TOKEN_GRACE_PERIOD`) and answers with the already rotated one; after that it answers 401.
+- File downloads honour `Range` (206 with `Content-Range`) on 2.26.3 and 2.37.2. A range starting at the end of the file answers 500, not 416, so a complete `.part` file is renamed without a request.
 - `POST /api/items/:id/play` with `deviceInfo`, `mediaPlayer`, `supportedMimeTypes` returns `audioTracks` with relative `contentUrl`, `startOffset`, `duration`.
 - libmpv needs `demuxer-max-bytes`/`demuxer-max-back-bytes` capped and `media-controls=no`. Track switches emit `END_FILE` reason `STOP` (2), not an error.
 - Access tokens live 12 h on 2.26.3 and 1 h on 2.37.2; read `exp`, never assume. 2.26.3 tokens have no `jti`, so two logins of one user in the same second get identical tokens, and logging out one ends both.
@@ -137,7 +137,7 @@ Phase 3 is done on Windows: Laurin tried EPUB, PDF and CBZ in the reader by hand
 - The reader page has a top bar (contents, title, chapter, settings), the TOC from foliate's `ui/tree.js`, a settings panel (pages/scroll, light/sepia/dark, book/serif/sans font, size, line height, margins), arrow/PageUp/PageDown/space keys, T and S for the panels, and wheel paging in paginated mode. WebView2 goes to the low memory level while minimised.
 - `abs-reader <file> [location]` still opens a book directly for testing.
 - Core: `ebooks` finds the book in a finished download, else fetches it through `/api/items/:id/ebook/:ino` (no download permission needed) into `<cache>/<account>/ebooks/` (newest 10 kept), else uses a cached copy when offline. `Command::OpenEbook` answers with `EbookReady`/`EbookFailed`.
-- `Command::SaveEbookProgress` stores the position locally and puts it in `pending_sync` before sending, so a quit mid-request loses nothing. Queued positions are sent (newest per item) at the start of every offline flush; a network error leaves them queued, a refusal drops them. No conflict prompt for reading positions: last write wins.
+- `Command::SaveEbookProgress` stores the position locally and puts it in `pending_sync` before sending, so a quit mid-request loses nothing. Queued positions are sent (newest per item) at the start of every offline flush; only a 4xx refusal drops them; network errors, 5xx answers and expired logins leave them queued. No conflict prompt for reading positions: last write wins.
 - Downloads include the ebook file (`manifest.ebook`); ebook-only items can be downloaded.
 - App: the item page shows Read when the item has an EPUB, PDF, CBZ, MOBI, AZW3 or FB2, and "N % read". The app debounces `relocate` for 5 s and saves on close, on switching books and on quit. The reader is `abs-reader` next to the app exe, or `ABS_READER_PATH`; in development run `cargo build -p abs-reader` once so it exists in `target/debug`.
 - Packaging: both scripts build `abs-reader` and copy foliate-js without tests, build files and source maps (5.6 MB, `scripts/copy-foliate.*`). `THIRD-PARTY-LICENSES.html` now covers the whole workspace; license texts of foliate-js, pdf.js, zip.js and fflate are in `packaging/licenses`. The Windows script builds and packs; the Linux one has not run.
@@ -189,6 +189,15 @@ Implemented, not yet tried by hand.
 - Mini player: frameless, 440 x 184 by default, dragged by its top strip (`WindowMoveArea`). Cover, a display with the time in the number font and accent, title, chapter and time left, the book bar with chapter markers, compact transport, volume and speed (a button that steps through the speeds, since a list does not fit the window). A pin keeps it on top (setting `mini_on_top`); its position and size are kept in `mini_geometry`, also when the app quits in it. Going back restores the main window's place, size and maximized state.
 - Full screen: the playing cover blurred (the copy the Glass style already uses) under a gradient of the theme's base color, so text keeps the theme's colors. Large cover with the theme's cover radius and shadow, chapter, title in the heading weight, author, the book bar with chapter markers (and the chapter bar when the progress setting asks for it), speed and sleep timer, a 64 px play button and volume.
 - F11 toggles full screen, Esc leaves it; the player keys work in all three views. The player bar, the player page and the player panel have buttons for both views; in a narrow window the bar drops volume to make room for them.
+
+## Failure handling
+
+Fixed after a code review on 2026-10-30. `contract_recovery` covers most of it, with a proxy in front of the server that can answer 502.
+
+- A token refresh runs in its own task, so a cancelled caller cannot lose a rotated token. Reconnecting an account within a run shares the previous client's tokens (`AbsClient::with_auth_of`), so running playback and downloads keep working.
+- The HTTP client fails a request after 60 s of silence on an open connection.
+- Local progress is stamped on the server's clock, using the last offset seen for the account. An account that has been offline since the app started has no offset and uses the local clock. Taking the server's position in a conflict overwrites the local row.
+- Two tests need extra setup and are skipped otherwise: `stalled_server_times_out` (`ABS_TEST_PAUSE_CONTAINER`, pauses the server, run it alone) and `old_session_survives_a_reconnect` (`ABS_TEST_SHORT_GRACE_SERVER`, a 2.37 server with `REFRESH_TOKEN_GRACE_PERIOD=2`).
 
 ## Phase 5
 
