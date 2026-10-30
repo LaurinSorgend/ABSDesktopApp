@@ -21,6 +21,12 @@ thiserror = "2.0.21"
 unicode-normalization = "0.1.24"
 tokio = { version = "1.54.1", features = ["rt", "sync", "time", "macros", "fs", "io-util"] }
 uuid = { version = "1.26.1", features = ["v4"] }
+lofty = "0.25.5"
+mp4ameta = "0.13.0"
+id3 = "1.17.2"
+regex = "1"
+roxmltree = "0.21"
+zip = { version = "8", default-features = false, features = ["deflate"] }
 
 [lints]
 workspace = true
