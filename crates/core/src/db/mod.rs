@@ -3,6 +3,7 @@
 mod accounts;
 mod catalog;
 mod downloads;
+mod local;
 mod local_sessions;
 mod progress;
 mod queue;
@@ -19,6 +20,7 @@ use rusqlite_migration::{M, Migrations};
 pub use accounts::{Account, Accounts, NewAccount};
 pub use catalog::{Catalog, ItemQuery, ItemRow, ItemSort, ItemSummary, LibraryRow, ProgressFilter};
 pub use downloads::{DownloadFile, DownloadRow, DownloadState, Downloads, NewDownload};
+pub use local::{Local, LocalBook, LocalFolder, LocalTrack};
 pub use local_sessions::{Decision, LocalSessionRow, LocalSessions};
 pub use progress::{BookmarkRow, Progress, ProgressRow};
 pub use queue::{PendingSync, Queue};
@@ -33,6 +35,7 @@ static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
         M::up(include_str!("sql/0004_account_enabled.sql")),
         M::up(include_str!("sql/0005_works.sql")),
         M::up(include_str!("sql/0006_account_api_key.sql")),
+        M::up(include_str!("sql/0007_local_folders.sql")),
     ])
 });
 
@@ -105,6 +108,10 @@ impl<'a> Store<'a> {
 
     pub fn downloads(&self) -> Downloads<'a> {
         Downloads::new(self.conn)
+    }
+
+    pub fn local(&self) -> Local<'a> {
+        Local::new(self.conn)
     }
 
     pub fn local_sessions(&self) -> LocalSessions<'a> {

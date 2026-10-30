@@ -17,6 +17,8 @@ pub struct Account {
     pub enabled: bool,
     /// Logs in with an API key from the keyring instead of a refresh token.
     pub api_key: bool,
+    /// The account of the folders on this computer; it never connects.
+    pub local: bool,
 }
 
 /// Data for [`Accounts::add_account`].
@@ -108,6 +110,7 @@ impl<'a> Accounts<'a> {
             created_at: now_ms(),
             enabled: true,
             api_key: false,
+            local: false,
         };
         self.conn.execute(
             "INSERT INTO account(id, server_id, user_id, username, device_id, created_at)
@@ -122,6 +125,27 @@ impl<'a> Accounts<'a> {
             ],
         )?;
         Ok(account)
+    }
+
+    /// The account of the local folders, created on first use.
+    pub fn local_account(&self) -> DbResult<Account> {
+        let sql = format!("{SELECT_ACCOUNT} WHERE local = 1");
+        if let Some(account) = self.conn.query_row(&sql, [], account_row).optional()? {
+            return Ok(account);
+        }
+        let server_id = self.add_server(LOCAL_NAME, &[])?;
+        let new = NewAccount {
+            server_id: &server_id,
+            user_id: "local",
+            username: LOCAL_NAME,
+        };
+        let account = self.add_account(&new)?;
+        self.conn
+            .execute("UPDATE account SET local = 1 WHERE id = ?1", [&account.id])?;
+        Ok(Account {
+            local: true,
+            ..account
+        })
     }
 
     pub fn account(&self, id: &str) -> DbResult<Option<Account>> {
@@ -170,8 +194,10 @@ impl<'a> Accounts<'a> {
     }
 }
 
-const SELECT_ACCOUNT: &str =
-    "SELECT id, server_id, user_id, username, device_id, created_at, enabled, api_key FROM account";
+const LOCAL_NAME: &str = "This computer";
+
+const SELECT_ACCOUNT: &str = "SELECT id, server_id, user_id, username, device_id, created_at,
+    enabled, api_key, local FROM account";
 
 fn account_row(row: &Row<'_>) -> rusqlite::Result<Account> {
     Ok(Account {
@@ -183,6 +209,7 @@ fn account_row(row: &Row<'_>) -> rusqlite::Result<Account> {
         created_at: row.get(5)?,
         enabled: row.get(6)?,
         api_key: row.get(7)?,
+        local: row.get(8)?,
     })
 }
 
