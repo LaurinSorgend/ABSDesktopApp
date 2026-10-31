@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-10-30.
+Last updated 2026-10-31.
 
 ## Phase 0: done on Windows, Linux open
 
@@ -197,7 +197,7 @@ Implemented; the reasons are in ADR 0006. The first-run page and Settings can ad
 - `abs_core::local`: `group` (files to books), `names` (folder names), `order` (track order, chapters), `probe` (tags, chapters), `metadata` (precedence, OPF, EPUB, sidecars), `book` (the stored item) and `scan`. The engine side is `engine/local.rs`.
 - Tests: unit tests in those modules, and `contract_local`, which uses `fixtures/media` directly and checks the folder stays unchanged. Only its last test needs a server.
 - Tried in the real app on Windows, seeded with the fixture folders: Home, library, item page, M4B playback with a chapter jump, the Settings list and the Authors view.
-- Not tried in the real app: the native folder dialog (the tests send `AddLocalFolder`), the reader window, and an MP3 book playing across a file boundary. One pause click in that session seemed not to register; the next one worked. It was a synthetic window message and has not been looked into.
+- Laurin tested local folders by hand before 0.3.0. One pause click in an earlier session seemed not to register; the next one worked. It was a synthetic window message and has not been looked into.
 ## Switching accounts
 
 The active account in the sidebar or top bar is a button (`ui/accounts.slint`). It opens a list of all accounts with their state and "Add account"; picking one does what "Use" in Settings does, including going to Home. Arrow keys and Enter work in the list. Tried in the real app with two accounts; `screens` also renders the list.
