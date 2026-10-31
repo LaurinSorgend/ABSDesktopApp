@@ -13,7 +13,7 @@ use slint::{
 };
 
 use crate::theme::{Catalog, ThemeChoice, ThemeFile, resolve};
-use crate::{AppWindow, Page, Theme, Ui};
+use crate::{AccountData, AppWindow, Page, Theme, Ui};
 
 struct Offscreen(Rc<MinimalSoftwareWindow>);
 
@@ -32,7 +32,7 @@ struct Shot {
     click_from_corner: Option<(f32, f32)>,
 }
 
-const SHOTS: [Shot; 4] = [
+const SHOTS: [Shot; 5] = [
     Shot {
         name: "player",
         view: 0,
@@ -44,6 +44,12 @@ const SHOTS: [Shot; 4] = [
         view: 0,
         size: (1280, 800),
         click_from_corner: Some((40.0, 62.0)),
+    },
+    Shot {
+        name: "account-list",
+        view: 0,
+        size: (1280, 800),
+        click_from_corner: Some((1180.0, 743.0)),
     },
     Shot {
         name: "mini",
@@ -180,6 +186,19 @@ fn fill_player(ui: &Ui<'_>, view: i32) {
     ui.set_skip_back_text("10 s".into());
     ui.set_skip_forward_text("30 s".into());
     ui.set_account_label("laurin @ books.example".into());
+    let account = |username: &str, server: &str, status: &str, active: bool| AccountData {
+        id: username.into(),
+        username: username.into(),
+        server: server.into(),
+        status: status.into(),
+        active,
+        enabled: true,
+        ..AccountData::default()
+    };
+    ui.set_accounts(ModelRc::new(VecModel::from(vec![
+        account("laurin", "books.example", "Connected", true),
+        account("family", "home.example", "Offline", false),
+    ])));
     ui.set_now_cover(cover(256, false));
     ui.set_now_has_cover(true);
     ui.set_now_backdrop(cover(96, true));

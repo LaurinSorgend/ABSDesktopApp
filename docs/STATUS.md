@@ -190,6 +190,10 @@ Implemented, not yet tried by hand.
 - Full screen: the playing cover blurred (the copy the Glass style already uses) under a gradient of the theme's base color, so text keeps the theme's colors. Large cover with the theme's cover radius and shadow, chapter, title in the heading weight, author, the book bar with chapter markers (and the chapter bar when the progress setting asks for it), speed and sleep timer, a 64 px play button and volume.
 - F11 toggles full screen, Esc leaves it; the player keys work in all three views. The player bar, the player page and the player panel have buttons for both views; in a narrow window the bar drops volume to make room for them.
 
+## Switching accounts
+
+The active account in the sidebar or top bar is a button (`ui/accounts.slint`). It opens a list of all accounts with their state and "Add account"; picking one does what "Use" in Settings does, including going to Home. Arrow keys and Enter work in the list. Tried in the real app with two accounts; `screens` also renders the list.
+
 ## Failure handling
 
 Fixed after a code review on 2026-10-30. `contract_recovery` covers most of it, with a proxy in front of the server that can answer 502.
