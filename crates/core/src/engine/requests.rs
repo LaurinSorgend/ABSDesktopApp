@@ -9,7 +9,7 @@ use super::worker::{Shared, is_local, sessions};
 use super::{COVER_CACHE_SETTING, Command, Event, Group, GroupKind, Shelf};
 use crate::account::{AccountError, Session, lock};
 use crate::cover_cache::Slot;
-use crate::db::{BookmarkRow, ProgressRow, now_ms};
+use crate::db::{BookmarkRow, DbResult, ProgressRow, now_ms};
 
 const SHELF_LIMIT: u32 = 12;
 const SEARCH_LIMIT: u32 = 25;
@@ -66,12 +66,54 @@ async fn run_online(shared: Arc<Shared>, command: Command) {
     }
 }
 
-/// Edits of books in local folders, which only the database knows about. Everything else
-/// these requests ask for is on a server, and the stored item already has it.
+/// The error apart from the value, which is empty after a failure.
+fn split_result<T: Default>(result: DbResult<T>) -> (DbResult<()>, T) {
+    match result {
+        Ok(value) => (Ok(()), value),
+        Err(e) => (Err(e), T::default()),
+    }
+}
+
+/// Books in local folders, which only the database knows about. Everything else these
+/// requests ask for is on a server, and the stored item already has it.
 fn run_local(shared: &Shared, account_id: &str, command: Command) {
     let db = lock(&shared.db);
     let progress = db.store().progress();
     let (stored, event) = match command {
+        Command::LoadGroups {
+            library_id, kind, ..
+        } => {
+            let groups = super::local::groups(&db.store(), account_id, &library_id, kind);
+            let (stored, groups) = split_result(groups);
+            (
+                stored,
+                Event::GroupsLoaded {
+                    account_id: account_id.to_owned(),
+                    library_id,
+                    kind,
+                    groups,
+                },
+            )
+        }
+        Command::LoadAuthorItems {
+            library_id,
+            author_id,
+            ..
+        } => {
+            let items = db
+                .store()
+                .catalog()
+                .items_by_author(account_id, &library_id, &author_id);
+            let (stored, items) = split_result(items);
+            (
+                stored,
+                Event::GroupItems {
+                    account_id: account_id.to_owned(),
+                    group_id: author_id,
+                    item_ids: items.into_iter().map(|i| i.remote_id).collect(),
+                },
+            )
+        }
         Command::SetFinished {
             item_id, finished, ..
         } => (

@@ -7,6 +7,7 @@ mod conflicts;
 mod detail;
 mod downloads;
 mod home;
+mod local;
 mod player;
 mod preferences;
 mod reading;
@@ -43,6 +44,8 @@ pub enum Conn {
     Offline,
     NeedsLogin,
     Disabled,
+    /// The account of the local folders: always there, never connected.
+    Local,
 }
 
 pub struct App {
@@ -63,6 +66,7 @@ pub struct App {
     browse: browse::Browse,
     detail: detail::Detail,
     downloads: downloads::Downloads,
+    local_folders: local::LocalFolders,
     conflicts: Vec<abs_core::offline::Conflict>,
     playback: Option<Playback>,
     player_view: PlayerView,
@@ -116,6 +120,7 @@ impl App {
             browse: browse::Browse::new(),
             detail: detail::Detail::new(),
             downloads: downloads::Downloads::new(),
+            local_folders: local::LocalFolders::new(),
             conflicts: Vec::new(),
             playback: parts.playback,
             player_view: PlayerView::new(),
@@ -154,6 +159,7 @@ impl App {
             ui.set_works_rows(self.works.grid.model());
             ui.set_detail_chapters(self.detail.model());
             ui.set_downloads(self.downloads.model());
+            ui.set_local_folders(self.local_folders.model());
             ui.set_chapters(self.player_view.model());
             crate::playback::view::fill_options(ui, strings);
         });
@@ -257,6 +263,15 @@ impl App {
             } => self.download_progress(&account_id, &item_id),
             Event::EbookReady(open) => self.ebook_ready(*open),
             Event::EbookFailed { message, .. } => self.ebook_failed(&message),
+            Event::LocalFoldersChanged => self.refresh_local_folders(),
+            Event::LocalScanProgress {
+                library_id,
+                done,
+                total,
+            } => self.local_scan_progress(library_id, done, total),
+            Event::LocalScanFinished { library_id, report } => {
+                self.local_scan_finished(&library_id, report)
+            }
             _ => {}
         }
     }
@@ -304,6 +319,7 @@ impl App {
         if page == Page::Settings {
             self.refresh_settings();
             self.refresh_downloads();
+            self.refresh_local_folders();
         }
         if page == Page::Home {
             self.refresh_home();

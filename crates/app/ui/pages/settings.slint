@@ -1,7 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Ui } from "../state.slint";
-import { AccountData, DownloadData } from "../data.slint";
+import { AccountData, DownloadData, LocalFolderData } from "../data.slint";
 import { Button, Card, Dropdown, Heading, Label, Segmented, TextField } from "../widgets.slint";
 import { Appearance, DropdownSetting, Setting, SectionTitle, SettingsLayout } from "appearance.slint";
 
@@ -23,7 +23,7 @@ component AccountRow inherits Card {
                 overflow: elide;
             }
             Label {
-                text: root.account.server + " · " + root.account.status;
+                text: root.account.server == "" ? root.account.status : root.account.server + " · " + root.account.status;
             }
         }
         if root.account.needs-login: Button {
@@ -138,6 +138,67 @@ component Downloads inherits VerticalLayout {
     }
     for download in Ui.downloads: DownloadRow {
         download: download;
+    }
+}
+
+component LocalFolderRow inherits Card {
+    in property <LocalFolderData> folder;
+    min-height: 56px;
+    HorizontalLayout {
+        padding: Theme.gap;
+        padding-left: Theme.pad;
+        spacing: Theme.gap;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.folder.path;
+                color: Theme.text;
+                font-weight: 500;
+                overflow: elide;
+            }
+            Label {
+                text: root.folder.status;
+                color: root.folder.available ? Theme.subtext : Theme.red;
+                overflow: elide;
+            }
+        }
+        Button {
+            text: @tr("Scan again");
+            enabled: !root.folder.scanning;
+            clicked => {
+                Ui.rescan-local-folder(root.folder.library-id);
+            }
+        }
+        Button {
+            text: @tr("Remove");
+            clicked => {
+                Ui.remove-local-folder(root.folder.library-id);
+            }
+        }
+    }
+}
+
+component LocalFolders inherits VerticalLayout {
+    spacing: SettingsLayout.spacing;
+    SectionTitle {
+        text: @tr("Local folders");
+    }
+    Label {
+        text: @tr("Books in these folders play and open without a server. The app only reads them; removing a folder here leaves its files where they are.");
+        wrap: word-wrap;
+    }
+    for folder in Ui.local-folders: LocalFolderRow {
+        folder: folder;
+    }
+    HorizontalLayout {
+        alignment: start;
+        Button {
+            text: @tr("Add folder…");
+            clicked => {
+                Ui.add-local-folder();
+            }
+        }
     }
 }
 
@@ -338,6 +399,7 @@ export component SettingsPage inherits Rectangle {
                 key: "cover_cache";
             }
             Downloads { }
+            LocalFolders { }
         }
     }
 }
@@ -459,6 +521,12 @@ export component AddAccountPage inherits Rectangle {
                 HorizontalLayout {
                     spacing: Theme.gap;
                     alignment: end;
+                    if Ui.add-offers-folder: Button {
+                        text: @tr("Use a folder on this computer…");
+                        clicked => {
+                            Ui.add-local-folder();
+                        }
+                    }
                     if Ui.add-can-cancel: Button {
                         text: @tr("Cancel");
                         clicked => {

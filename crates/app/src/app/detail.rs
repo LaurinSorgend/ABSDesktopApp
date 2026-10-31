@@ -140,12 +140,17 @@ impl App {
             .collect();
         self.detail.chapters.set_vec(rows);
         let connected = self.is_account_connected(&account_id);
+        let local = self.is_local_account(&account_id);
         let download = self.download_view(&account_id, item_id);
         let (work_id, copies) = self.work_of(&account_id, item_id);
         self.ui(|ui, s| {
             let mut data = detail_data(item_id, &detail, progress.as_ref(), cover, connected, s);
             data.account_id = account_id.as_str().into();
             data.can_download = connected && (detail.has_audio || detail.ebook_format.is_some());
+            if local {
+                data.on_this_computer = true;
+                data.chapters_note = "".into();
+            }
             data.work_id = work_id as i32;
             data.copies = copies as i32;
             set_download(&mut data, download);

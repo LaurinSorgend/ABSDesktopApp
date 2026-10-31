@@ -49,6 +49,15 @@ export global Strings {
     public pure function continue-listening() -> string {
         @tr("Continue listening")
     }
+    public pure function status-on-this-computer() -> string {
+        @tr("On this computer")
+    }
+    public pure function local-scanning(done: int, total: int) -> string {
+        @tr("Scanning, {} of {} books", done, total)
+    }
+    public pure function local-unreachable() -> string {
+        @tr("Cannot be reached. Its books come back when the folder does.")
+    }
     public pure function downloaded-shelf() -> string {
         @tr("Downloaded")
     }

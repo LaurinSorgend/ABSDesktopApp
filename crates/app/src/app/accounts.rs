@@ -49,7 +49,8 @@ impl App {
 
     pub(super) fn account_added(&mut self, account: Account) {
         self.accounts.retain(|a| a.id != account.id);
-        self.conns.insert(account.id.clone(), Conn::Connecting);
+        self.conns
+            .insert(account.id.clone(), initial_conn(&account));
         let id = account.id.clone();
         self.accounts.push(account);
         self.relogin = None;
@@ -186,6 +187,7 @@ impl App {
             ui.set_add_method(method);
             ui.set_add_error("".into());
             ui.set_add_can_cancel(true);
+            ui.set_add_offers_folder(false);
         });
         self.navigate(Page::AddAccount);
     }
@@ -202,6 +204,7 @@ impl App {
             ui.set_add_method(0);
             ui.set_add_error("".into());
             ui.set_add_can_cancel(can_cancel);
+            ui.set_add_offers_folder(true);
         });
         if can_cancel {
             self.navigate(Page::AddAccount);
@@ -248,6 +251,7 @@ impl App {
 
     fn account_label(&self) -> String {
         match self.active_account() {
+            Some(a) if a.local => a.username.clone(),
             Some(a) => format!("{} @ {}", a.username, self.server_label()),
             None => String::new(),
         }
@@ -342,6 +346,7 @@ impl App {
                 Some(Conn::Offline) => s.invoke_status_offline(),
                 Some(Conn::NeedsLogin) => s.invoke_status_needs_login(),
                 Some(Conn::Disabled) => s.invoke_status_disabled(),
+                Some(Conn::Local) => s.invoke_status_on_this_computer(),
                 _ => s.invoke_status_connecting(),
             })
             .unwrap_or_default();
@@ -362,10 +367,10 @@ impl App {
 }
 
 fn initial_conn(account: &Account) -> Conn {
-    if account.enabled {
-        Conn::Connecting
-    } else {
-        Conn::Disabled
+    match (account.enabled, account.local) {
+        (false, _) => Conn::Disabled,
+        (true, true) => Conn::Local,
+        (true, false) => Conn::Connecting,
     }
 }
 

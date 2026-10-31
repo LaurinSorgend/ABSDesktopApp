@@ -219,7 +219,7 @@ impl App {
             return;
         }
         self.show_groups(&[]);
-        let note = if self.is_connected() {
+        let note = if self.is_connected() || self.is_local_active() {
             self.browse.waiting_for_groups = true;
             self.engine.send(Command::LoadGroups {
                 account_id,
@@ -429,6 +429,9 @@ impl App {
             return;
         }
         let had_library = self.library.is_some();
+        if self.is_local_active() {
+            self.browse.groups.clear();
+        }
         self.load_libraries();
         if !had_library {
             self.request_shelves();

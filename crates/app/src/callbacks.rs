@@ -137,6 +137,13 @@ fn connect_downloads(ui: &Ui<'_>) {
     ui.on_resolve_conflict(on(|app, keep_local: bool| app.resolve_conflict(keep_local)));
     ui.on_choose_download_folder(|| with_app(|app| app.choose_download_folder()));
     ui.on_reset_download_folder(|| with_app(|app| app.reset_download_folder()));
+    ui.on_add_local_folder(|| with_app(|app| app.add_local_folder()));
+    ui.on_remove_local_folder(on(|app, id: slint::SharedString| {
+        app.remove_local_folder(&id)
+    }));
+    ui.on_rescan_local_folder(on(|app, id: slint::SharedString| {
+        app.rescan_local_folder(&id)
+    }));
 }
 
 fn connect_accounts(ui: &Ui<'_>) {

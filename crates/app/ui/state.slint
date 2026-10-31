@@ -2,7 +2,7 @@
 
 import {
     TileData, TileRow, ShelfData, NamedId, GroupData, ChapterData, BookmarkData, AccountData,
-    DetailData, DownloadData, Page, LibraryView, LibraryChoice, MemberData, MatchData, ThemeCard,
+    DetailData, DownloadData, LocalFolderData, Page, LibraryView, LibraryChoice, MemberData, MatchData, ThemeCard,
 } from "data.slint";
 
 export global Ui {
@@ -141,6 +141,12 @@ export global Ui {
     callback choose-download-folder();
     callback reset-download-folder();
 
+    // Local folders
+    in property <[LocalFolderData]> local-folders;
+    callback add-local-folder();
+    callback remove-local-folder(string);
+    callback rescan-local-folder(string);
+
     // Player
     in property <bool> has-media;
     in property <bool> loading-media;
@@ -213,6 +219,8 @@ export global Ui {
     in property <bool> add-busy;
     in property <string> add-error;
     in property <bool> add-can-cancel;
+    /// False while logging in again, when only the login is in question.
+    in property <bool> add-offers-folder;
     in property <string> add-title;
     callback add-account(string, string, string);
     callback add-account-with-key(string, string);

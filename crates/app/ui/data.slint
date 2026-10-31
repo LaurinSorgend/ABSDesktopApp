@@ -117,6 +117,17 @@ export struct DetailData {
     work-id: int,
     /// Copies of the same book across accounts, this one included.
     copies: int,
+    /// The book is in a local folder, so there is nothing to download.
+    on-this-computer: bool,
+}
+
+/// A row of the local folders list in the settings.
+export struct LocalFolderData {
+    library-id: string,
+    path: string,
+    status: string,
+    available: bool,
+    scanning: bool,
 }
 
 /// A row of the downloads list in the settings.

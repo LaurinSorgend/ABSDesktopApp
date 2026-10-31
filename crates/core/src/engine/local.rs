@@ -1,18 +1,23 @@
 //! The engine's side of local folders: adding and removing them, and scans.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
 use uuid::Uuid;
 
+use abs_api::models::LibraryItem;
+
 use super::worker::{Shared, is_enabled, lock_map, sync_interval};
-use super::{Command, Event, works};
+use super::{Command, Event, Group, GroupKind, works};
 use crate::account::lock;
-use crate::db::{LocalFolder, now_ms};
+use crate::db::{DbResult, ItemQuery, ItemSummary, LocalFolder, Store, now_ms};
 use crate::local::{ScanReport, folder_name, scan_folder};
 
 /// Progress is sent every so many books.
 const PROGRESS_STEP: usize = 10;
+/// More books than a folder will have, to read a whole library.
+const ALL_ITEMS: u64 = 1_000_000;
 
 pub(super) fn handle(shared: &Arc<Shared>, command: Command) {
     match command {
@@ -25,6 +30,57 @@ pub(super) fn handle(shared: &Arc<Shared>, command: Command) {
         }
         _ => {}
     }
+}
+
+/// A folder's series and authors, from the stored items. There are no collections.
+pub(super) fn groups(
+    store: &Store<'_>,
+    account_id: &str,
+    library_id: &str,
+    kind: GroupKind,
+) -> DbResult<Vec<Group>> {
+    let catalog = store.catalog();
+    let query = ItemQuery::new(library_id);
+    let items = catalog.items_page(account_id, &query, 0, ALL_ITEMS)?;
+    let mut groups: BTreeMap<String, Vec<(f64, &ItemSummary)>> = BTreeMap::new();
+    for item in &items {
+        let json = catalog.item_json(account_id, &item.remote_id)?;
+        let parsed = json.and_then(|j| serde_json::from_str::<LibraryItem>(&j).ok());
+        let Some(parsed) = parsed else {
+            continue;
+        };
+        let metadata = parsed.media.metadata;
+        match kind {
+            GroupKind::Series => {
+                for series in metadata.series {
+                    let place = series.sequence.and_then(|s| s.parse().ok());
+                    let entry = (place.unwrap_or(f64::MAX), item);
+                    groups.entry(series.name).or_default().push(entry);
+                }
+            }
+            GroupKind::Authors => {
+                for author in metadata.authors {
+                    groups.entry(author.name).or_default().push((0.0, item));
+                }
+            }
+            GroupKind::Collections => {}
+        }
+    }
+    Ok(groups
+        .into_iter()
+        .map(|(name, mut members)| {
+            members.sort_by(|a, b| a.0.total_cmp(&b.0));
+            Group {
+                id: name.clone(),
+                name,
+                count: members.len() as u64,
+                item_ids: match kind {
+                    GroupKind::Authors => Vec::new(),
+                    _ => members.iter().map(|m| m.1.remote_id.clone()).collect(),
+                },
+            }
+        })
+        .collect())
 }
 
 fn add_folder(shared: &Arc<Shared>, path: &Path) {
@@ -145,7 +201,7 @@ fn start_scan(shared: &Arc<Shared>, folder: LocalFolder) {
 
 fn scan(shared: &Shared, folder: &LocalFolder) -> Option<ScanReport> {
     let progress = |done: usize, total: usize| {
-        if done % PROGRESS_STEP == 0 || done == total {
+        if done.is_multiple_of(PROGRESS_STEP) || done == total {
             (shared.emit)(Event::LocalScanProgress {
                 library_id: folder.library_id.clone(),
                 done,

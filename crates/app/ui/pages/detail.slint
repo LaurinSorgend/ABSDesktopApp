@@ -203,7 +203,7 @@ component DetailHeader inherits HorizontalLayout {
                 }
             }
         }
-        if Ui.detail.has-audio || Ui.detail.has-ebook: DownloadControls { }
+        if !Ui.detail.on-this-computer && (Ui.detail.has-audio || Ui.detail.has-ebook): DownloadControls { }
     }
 }
 
