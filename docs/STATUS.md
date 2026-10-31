@@ -202,6 +202,10 @@ Implemented; the reasons are in ADR 0006. The first-run page and Settings can ad
 
 The active account in the sidebar or top bar is a button (`ui/accounts.slint`). It opens a list of all accounts with their state and "Add account"; picking one does what "Use" in Settings does, including going to Home. Arrow keys and Enter work in the list. Tried in the real app with two accounts; `screens` also renders the list.
 
+## Generated covers
+
+A book without a cover image gets a drawn one: a framed square in a color from its title (`covers::title_hue`), with the title and author in the theme's font (`GeneratedCover` in `ui/tiles.slint`). Below 100 px it leaves the text out. `Cover` waits 300 ms before showing it, so a cover that is still loading does not flash it, and a cover that fails to load gets it too. Tried in the real app with the fixture folders (tiles, player page, player bar); `screens` renders long titles, no author and Japanese text. Not tried: the work page, the mini player and full screen with a generated cover.
+
 ## Failure handling
 
 Fixed after a code review on 2026-10-30. `contract_recovery` covers most of it, with a proxy in front of the server that can answer 502.

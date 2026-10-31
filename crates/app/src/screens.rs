@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::time::Duration;
 
 use slint::platform::software_renderer::{
     MinimalSoftwareWindow, PremultipliedRgbaColor, RepaintBufferType,
@@ -13,7 +14,10 @@ use slint::{
 };
 
 use crate::theme::{Catalog, ThemeChoice, ThemeFile, resolve};
-use crate::{AccountData, AppWindow, DetailData, Page, Theme, Ui};
+use crate::{AccountData, AppWindow, DetailData, Page, ShelfData, Theme, TileData, Ui};
+
+/// Longer than a cover without an image waits before it shows the generated one.
+const GENERATED_COVER_WAIT: Duration = Duration::from_millis(350);
 
 struct Offscreen(Rc<MinimalSoftwareWindow>);
 
@@ -33,7 +37,7 @@ struct Shot {
     click_from_corner: Option<(f32, f32)>,
 }
 
-const SHOTS: [Shot; 6] = [
+const SHOTS: [Shot; 7] = [
     Shot {
         name: "player",
         page: Page::Player,
@@ -66,6 +70,13 @@ const SHOTS: [Shot; 6] = [
         name: "full",
         page: Page::Player,
         view: 2,
+        size: (1280, 800),
+        click_from_corner: None,
+    },
+    Shot {
+        name: "home",
+        page: Page::Home,
+        view: 0,
         size: (1280, 800),
         click_from_corner: None,
     },
@@ -125,10 +136,15 @@ fn render(
     globals.set_motion(false);
     fill_player(&app.global::<Ui>(), shot.view);
     fill_detail(&app.global::<Ui>());
+    fill_shelves(&app.global::<Ui>());
+    app.global::<Ui>()
+        .on_cover_hue(|title| crate::covers::title_hue(&title));
     app.global::<Ui>().set_page(shot.page);
     let (width, height) = shot.size;
     window.set_size(slint::PhysicalSize::new(width, height));
     app.show().unwrap();
+    slint::platform::update_timers_and_animations();
+    std::thread::sleep(GENERATED_COVER_WAIT);
     slint::platform::update_timers_and_animations();
     if let Some((dx, dy)) = shot.click_from_corner {
         let position = LogicalPosition::new(width as f32 - dx, height as f32 - dy);
@@ -234,6 +250,35 @@ fn fill_detail(ui: &Ui<'_>) {
         .into(),
         ..DetailData::default()
     });
+}
+
+/// Tiles without covers: short and long titles, and one without an author.
+fn fill_shelves(ui: &Ui<'_>) {
+    let tile = |title: &str, author: &str| TileData {
+        id: title.into(),
+        title: title.into(),
+        author: author.into(),
+        ..TileData::default()
+    };
+    let tiles = vec![
+        tile("Emma", "Jane Austen"),
+        tile("The Hound of the Baskervilles", "Arthur Conan Doyle"),
+        tile(
+            "Twenty Thousand Leagues Under the Sea and Other Stories of the Deep Ocean",
+            "Jules Verne",
+        ),
+        tile(
+            "Antidisestablishmentarianism",
+            "A Very Long Author Name Indeed, Editor",
+        ),
+        tile("Untitled recording", ""),
+        tile("吾輩は猫である", "夏目漱石"),
+    ];
+    ui.set_shelves(ModelRc::new(VecModel::from(vec![ShelfData {
+        id: "recent".into(),
+        title: "Recently added".into(),
+        tiles: ModelRc::new(VecModel::from(tiles)),
+    }])));
 }
 
 /// A warm painted-looking cover, or its blurred copy.

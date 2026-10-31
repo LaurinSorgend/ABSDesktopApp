@@ -7,16 +7,82 @@ import { TileData, TileRow, ShelfData } from "data.slint";
 import { Heading } from "widgets.slint";
 import { DownloadIcon } from "icons.slint";
 
-/// A cover image, or the title on a plain square while there is none.
+/// A framed square with the title and author, for a book without a cover.
+component GeneratedCover inherits Rectangle {
+    in property <string> title;
+    in property <string> author;
+
+    property <float> hue: Ui.cover-hue(root.title);
+    property <color> ink: hsv(root.hue, 0.2, 0.93);
+    property <length> inset: self.width * 0.04;
+    property <bool> has-text: self.width >= 100px;
+
+    background: hsv(root.hue, 0.45, 0.3);
+
+    Rectangle {
+        x: root.inset;
+        y: root.inset;
+        width: parent.width - 2 * root.inset;
+        height: parent.height - 2 * root.inset;
+        border-width: max(1px, root.width * 0.006);
+        border-color: root.ink;
+    }
+    if root.has-text: Text {
+        x: root.width * 0.1;
+        y: root.height * 0.1;
+        width: root.width * 0.8;
+        height: root.height * 0.62;
+        text: root.title;
+        color: root.ink;
+        font-size: root.width * (root.title.character-count > 40 ? 0.075 : 0.105);
+        font-weight: Theme.heading-weight;
+        wrap: word-wrap;
+        overflow: elide;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+    if root.has-text: Text {
+        x: root.width * 0.1;
+        y: root.height * 0.76;
+        width: root.width * 0.8;
+        height: root.height * 0.12;
+        text: root.author;
+        color: root.ink;
+        font-size: root.width * 0.055;
+        overflow: elide;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+}
+
+/// A cover image, or a generated one when none arrives. The wait keeps covers
+/// that are still loading from flashing the generated one first.
 export component Cover inherits Rectangle {
     in property <image> source;
     in property <bool> has-image;
     in property <string> title;
+    in property <string> author;
+
+    property <bool> waited;
+
+    changed title => {
+        self.waited = false;
+    }
+    changed has-image => {
+        self.waited = false;
+    }
 
     background: Theme.surface0;
     border-radius: min(Theme.cover-radius, self.width / 6);
     clip: true;
 
+    Timer {
+        interval: 300ms;
+        running: !root.has-image && !root.waited;
+        triggered => {
+            root.waited = true;
+        }
+    }
     if has-image: Image {
         source: root.source;
         width: parent.width;
@@ -25,16 +91,13 @@ export component Cover inherits Rectangle {
         accessible-role: image;
         accessible-label: root.title;
     }
-    if !has-image: Text {
-        x: 10px;
-        width: parent.width - 20px;
+    if !has-image && waited: GeneratedCover {
+        width: parent.width;
         height: parent.height;
-        text: root.title;
-        color: Theme.subtext;
-        font-size: Theme.text-sm;
-        wrap: word-wrap;
-        vertical-alignment: center;
-        horizontal-alignment: center;
+        title: root.title;
+        author: root.author;
+        accessible-role: image;
+        accessible-label: root.title;
     }
 }
 
@@ -92,6 +155,7 @@ export component Tile inherits Rectangle {
                 source: root.data.cover;
                 has-image: root.data.has-cover;
                 title: root.data.title;
+                author: root.data.author;
                 border-radius: 0px;
                 transform-scale: root.lifted && Theme.cover-zoom ? 106% : 100%;
                 animate transform-scale { duration: Theme.arrive; easing: ease-out-expo; }

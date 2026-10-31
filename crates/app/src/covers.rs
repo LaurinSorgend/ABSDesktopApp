@@ -107,6 +107,14 @@ impl Covers {
     }
 }
 
+/// The hue in degrees of a title's generated cover, so a book keeps its color.
+pub fn title_hue(title: &str) -> f32 {
+    let hash = title.bytes().fold(0x811c_9dc5_u32, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
+    });
+    (hash % 360) as f32
+}
+
 /// Bytes from the engine, decoded off the UI thread.
 pub struct Encoded {
     pub item_id: String,
@@ -154,4 +162,16 @@ fn blur(cover: &image::DynamicImage) -> SharedPixelBuffer<Rgba8Pixel> {
         )
         .into_rgba8();
     pixels(&image::imageops::blur(&small, 6.0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::title_hue;
+
+    #[test]
+    fn a_title_keeps_its_hue_and_titles_differ() {
+        assert_eq!(title_hue("Emma"), title_hue("Emma"));
+        assert_ne!(title_hue("Emma"), title_hue("Dracula"));
+        assert!((0.0..360.0).contains(&title_hue("")));
+    }
 }

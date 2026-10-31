@@ -21,6 +21,7 @@ pub fn connect(window: &AppWindow) {
 }
 
 fn connect_works(ui: &Ui<'_>) {
+    ui.on_cover_hue(|title| crate::covers::title_hue(&title));
     ui.on_set_works_merged(on(|app, merged: bool| app.set_works_merged(merged)));
     ui.on_toggle_works_library(on(|app, index: i32| {
         app.toggle_works_library(index.max(0) as usize)

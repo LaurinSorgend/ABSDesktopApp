@@ -51,6 +51,8 @@ export global Ui {
     in-out property <length> peek-y;
     in property <DetailData> peek;
     callback peek-item(string);
+    /// The hue, in degrees, of the generated cover of a title.
+    pure callback cover-hue(string) -> float;
 
     // Home
     in property <[ShelfData]> shelves;
