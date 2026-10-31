@@ -7,6 +7,7 @@
 mod downloads;
 mod ebooks;
 mod live;
+mod local;
 mod offline;
 mod playback;
 mod requests;
@@ -212,6 +213,18 @@ pub enum Command {
         location: abs_api::models::EbookLocation,
         progress: f64,
     },
+    /// Adds a folder of this computer as a library and scans it. The first one also creates
+    /// the local account, announced with `AccountAdded`.
+    AddLocalFolder {
+        path: PathBuf,
+    },
+    /// Forgets a local folder and its books. The files stay.
+    RemoveLocalFolder {
+        library_id: String,
+    },
+    RescanLocalFolder {
+        library_id: String,
+    },
 }
 
 /// Ways to group a library.
@@ -362,6 +375,17 @@ pub enum Event {
         account_id: String,
         item_id: String,
         message: String,
+    },
+    /// Local folders were added, removed or scanned.
+    LocalFoldersChanged,
+    LocalScanProgress {
+        library_id: String,
+        done: usize,
+        total: usize,
+    },
+    LocalScanFinished {
+        library_id: String,
+        report: crate::local::ScanReport,
     },
     /// A request other than sync or playback failed.
     RequestFailed {

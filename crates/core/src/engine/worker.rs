@@ -10,6 +10,7 @@ use tokio::task::JoinHandle;
 use super::downloads;
 use super::ebooks;
 use super::live::{Followup, LiveState};
+use super::local;
 use super::offline;
 use super::playback::{self, PlaybackCommand};
 use super::requests;
@@ -63,6 +64,8 @@ pub(super) struct Shared {
     pub(super) running_local: Mutex<Option<String>>,
     /// Conflicts the UI was told about, by account and item.
     pub(super) conflicts_shown: Mutex<HashSet<(String, String)>>,
+    /// Local folders being scanned, by library.
+    pub(super) scanning: Mutex<HashSet<String>>,
     /// Set when the works need matching again.
     pub(super) works_dirty: Notify,
     /// Set when a realtime event changed someone's progress.
@@ -95,6 +98,7 @@ pub(super) fn run(parts: Parts, commands: mpsc::UnboundedReceiver<Command>, emit
         download_tasks: Mutex::default(),
         running_local: Mutex::default(),
         conflicts_shown: Mutex::default(),
+        scanning: Mutex::default(),
         works_dirty: Notify::new(),
         progress_moved: Notify::new(),
         credentials: parts.credentials,
@@ -118,6 +122,7 @@ async fn main_loop(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Co
     downloads::recover(&shared);
     (shared.emit)(Event::AccountsLoaded(accounts.clone()));
     connect_staggered(&shared, accounts);
+    local::scan_all(&shared);
     let (playback, playback_commands) = mpsc::unbounded_channel();
     let playback_task = tokio::spawn(playback::run(shared.clone(), playback_commands));
     let works_task = tokio::spawn(works::run(shared.clone()));
@@ -204,7 +209,13 @@ fn handle(
             for session in sessions(shared, account_id.as_deref()) {
                 tokio::spawn(sync(shared.clone(), session));
             }
+            if account_id.is_none_or(|id| is_local(shared, &id)) {
+                local::scan_all(shared);
+            }
         }
+        command @ (Command::AddLocalFolder { .. }
+        | Command::RemoveLocalFolder { .. }
+        | Command::RescanLocalFolder { .. }) => local::handle(shared, command),
         command @ (Command::Download { .. }
         | Command::PauseDownload { .. }
         | Command::ResumeDownload { .. }
@@ -259,6 +270,9 @@ async fn added(shared: &Arc<Shared>, result: Result<Session, AccountError>) {
 fn connect_staggered(shared: &Arc<Shared>, accounts: Vec<Account>) {
     let mut per_server: HashMap<String, u32> = HashMap::new();
     for account in accounts {
+        if account.local {
+            continue;
+        }
         if !account.enabled {
             set_conn(shared, &account.id, Conn::Disabled);
             continue;
@@ -281,6 +295,9 @@ fn start_connect(shared: &Arc<Shared>, account: Account) {
 }
 
 async fn connect(shared: Arc<Shared>, account: Account) {
+    if account.local {
+        return;
+    }
     let account_id = account.id.clone();
     if !is_enabled(&shared, &account_id) {
         set_conn(&shared, &account_id, Conn::Disabled);
@@ -410,13 +427,20 @@ async fn remove(shared: Arc<Shared>, account_id: String) {
         let _ = session.client.logout().await;
     }
     let _ = shared.credentials.delete(&account_id);
-    let removed = lock(&shared.db)
-        .store()
-        .accounts()
-        .remove_account(&account_id);
+    let removed = remove_stored(&shared, &account_id);
     if removed.is_ok() {
         works::request(&shared);
         (shared.emit)(Event::AccountRemoved { account_id });
+    }
+}
+
+/// Removes an account's rows; the local account's server has no other use and goes too.
+fn remove_stored(shared: &Shared, account_id: &str) -> crate::db::DbResult<()> {
+    let db = lock(&shared.db);
+    let accounts = db.store().accounts();
+    match accounts.account(account_id)? {
+        Some(account) if account.local => accounts.remove_server(&account.server_id),
+        _ => accounts.remove_account(account_id),
     }
 }
 
@@ -435,6 +459,12 @@ async fn set_enabled(shared: Arc<Shared>, account_id: String, enabled: bool) {
     };
     (shared.emit)(Event::AccountUpdated(account.clone()));
     works::request(&shared);
+    if account.local {
+        if enabled {
+            local::scan_all(&shared);
+        }
+        return;
+    }
     if enabled {
         start_connect(&shared, account);
         return;
@@ -446,7 +476,7 @@ async fn set_enabled(shared: Arc<Shared>, account_id: String, enabled: bool) {
     downloads::suspend_account(&shared, &account_id);
 }
 
-fn is_enabled(shared: &Shared, account_id: &str) -> bool {
+pub(super) fn is_enabled(shared: &Shared, account_id: &str) -> bool {
     lock(&shared.db)
         .store()
         .accounts()
@@ -454,6 +484,17 @@ fn is_enabled(shared: &Shared, account_id: &str) -> bool {
         .ok()
         .flatten()
         .is_some_and(|a| a.enabled)
+}
+
+/// True for the account of the local folders.
+pub(super) fn is_local(shared: &Shared, account_id: &str) -> bool {
+    lock(&shared.db)
+        .store()
+        .accounts()
+        .account(account_id)
+        .ok()
+        .flatten()
+        .is_some_and(|a| a.local)
 }
 
 /// Catalog then progress sync. Skipped while the account is already syncing.
@@ -510,6 +551,7 @@ async fn on_tick(shared: Arc<Shared>) {
     }
     reconnect_offline(&shared);
     downloads::schedule(&shared);
+    local::scan_due(&shared);
 }
 
 /// Keeps the token fresh, checks the server, flushes offline sessions, re-syncs when due.
@@ -614,7 +656,8 @@ fn reconnect_offline(shared: &Arc<Shared>) {
         let conns = lock_map(&shared.conns);
         accounts
             .into_iter()
-            .filter(|a| a.enabled && matches!(conns.get(&a.id), None | Some(Conn::Offline)))
+            .filter(|a| !a.local && a.enabled)
+            .filter(|a| matches!(conns.get(&a.id), None | Some(Conn::Offline)))
             .collect()
     };
     for account in offline {
@@ -622,7 +665,7 @@ fn reconnect_offline(shared: &Arc<Shared>) {
     }
 }
 
-fn sync_interval(shared: &Shared) -> Duration {
+pub(super) fn sync_interval(shared: &Shared) -> Duration {
     let minutes = lock(&shared.db)
         .store()
         .settings()
