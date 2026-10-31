@@ -1,4 +1,4 @@
-//! Renders the player views in every bundled theme to PNG files, to look at by eye:
+//! Renders the player views and the book page in every bundled theme to PNG files, to look at by eye:
 //! `SCREENS_DIR=<folder> cargo test -p abs-desktop screens -- --ignored`.
 
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use slint::{
 };
 
 use crate::theme::{Catalog, ThemeChoice, ThemeFile, resolve};
-use crate::{AccountData, AppWindow, Page, Theme, Ui};
+use crate::{AccountData, AppWindow, DetailData, Page, Theme, Ui};
 
 struct Offscreen(Rc<MinimalSoftwareWindow>);
 
@@ -23,43 +23,56 @@ impl Platform for Offscreen {
     }
 }
 
-/// One shot: a view at a window size, optionally with a click before rendering.
+/// One shot: a page and view at a window size, optionally with a click before rendering.
 struct Shot {
     name: &'static str,
+    page: Page,
     view: i32,
     size: (u32, u32),
     /// Where to click, measured from the bottom right corner.
     click_from_corner: Option<(f32, f32)>,
 }
 
-const SHOTS: [Shot; 5] = [
+const SHOTS: [Shot; 6] = [
     Shot {
         name: "player",
+        page: Page::Player,
         view: 0,
         size: (1280, 800),
         click_from_corner: None,
     },
     Shot {
         name: "speed-list",
+        page: Page::Player,
         view: 0,
         size: (1280, 800),
         click_from_corner: Some((40.0, 62.0)),
     },
     Shot {
         name: "account-list",
+        page: Page::Player,
         view: 0,
         size: (1280, 800),
         click_from_corner: Some((1180.0, 743.0)),
     },
     Shot {
         name: "mini",
+        page: Page::Player,
         view: 1,
         size: (440, 184),
         click_from_corner: None,
     },
     Shot {
         name: "full",
+        page: Page::Player,
         view: 2,
+        size: (1280, 800),
+        click_from_corner: None,
+    },
+    Shot {
+        name: "detail",
+        page: Page::Detail,
+        view: 0,
         size: (1280, 800),
         click_from_corner: None,
     },
@@ -111,6 +124,8 @@ fn render(
     globals.set_mode(mode as i32);
     globals.set_motion(false);
     fill_player(&app.global::<Ui>(), shot.view);
+    fill_detail(&app.global::<Ui>());
+    app.global::<Ui>().set_page(shot.page);
     let (width, height) = shot.size;
     window.set_size(slint::PhysicalSize::new(width, height));
     app.show().unwrap();
@@ -203,6 +218,22 @@ fn fill_player(ui: &Ui<'_>, view: i32) {
     ui.set_now_has_cover(true);
     ui.set_now_backdrop(cover(96, true));
     ui.set_now_has_backdrop(true);
+}
+
+/// A book whose description wraps over several lines.
+fn fill_detail(ui: &Ui<'_>) {
+    ui.set_detail(DetailData {
+        title: "The Mesopotamian Riddle".into(),
+        author: "Agatha Christie".into(),
+        description: concat!(
+            "A nurse travels to an archaeological dig in Iraq to look after the leader's wife, ",
+            "who has been afraid of something she will not name. Within days the wife is ",
+            "dead in a room nobody could have entered, and everyone on the dig had a reason. ",
+            "This last sentence has to be visible on the page."
+        )
+        .into(),
+        ..DetailData::default()
+    });
 }
 
 /// A warm painted-looking cover, or its blurred copy.
