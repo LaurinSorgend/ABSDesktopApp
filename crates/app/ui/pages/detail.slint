@@ -215,12 +215,14 @@ export component DetailPage inherits Rectangle {
             spacing: 2 * Theme.pad;
             alignment: start;
             DetailHeader { }
-            if Ui.detail.description != "": Text {
-                text: Ui.detail.description;
-                color: Theme.text;
-                font-size: Theme.text-base;
-                wrap: word-wrap;
-                max-width: 66 * 0.5rem;
+            if Ui.detail.description != "": VerticalLayout {
+                padding-right: max(0px, root.width - 2 * Theme.page-pad - 66 * 0.5rem);
+                Text {
+                    text: Ui.detail.description;
+                    color: Theme.text;
+                    font-size: Theme.text-base;
+                    wrap: word-wrap;
+                }
             }
             Heading {
                 text: @tr("Chapters");
