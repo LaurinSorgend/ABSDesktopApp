@@ -1,0 +1,212 @@
+// The active account in the navigation: clicking it opens the list of accounts.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Ui } from "state.slint";
+import { AccountData } from "data.slint";
+import { Label } from "widgets.slint";
+import { DownChevron } from "pickers.slint";
+import { FocusRing } from "focus.slint";
+
+component AccountOption inherits Rectangle {
+    in property <string> title;
+    in property <string> detail;
+    in property <bool> chosen;
+    /// Marked by the arrow keys.
+    in property <bool> marked;
+    callback clicked;
+
+    property <bool> filled: Theme.nav-kind == 0;
+    border-radius: Theme.nav-kind == 0 ? 0px : Theme.radius;
+    background: chosen ? (filled ? Theme.accent : Theme.accent-soft)
+        : touch.has-hover || marked ? Theme.control-hover : transparent;
+    animate background { duration: Theme.quick; easing: ease-out; }
+    accessible-role: button;
+    accessible-label: detail == "" ? title : title + ", " + detail;
+    accessible-item-selected: chosen;
+    accessible-action-default => {
+        root.clicked();
+    }
+    VerticalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+        Text {
+            text: root.title;
+            color: root.chosen ? (root.filled ? Theme.on-accent : Theme.on-accent-soft) : Theme.text;
+            font-size: Theme.control-text;
+            overflow: elide;
+        }
+        if root.detail != "": Text {
+            text: root.detail;
+            color: root.chosen ? (root.filled ? Theme.on-accent : Theme.on-accent-soft) : Theme.subtext;
+            font-size: Theme.text-sm;
+            overflow: elide;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Shows `user @ address`. The list has every account and a way to add one.
+export component AccountSwitcher inherits Rectangle {
+    /// Where the text starts, to line up with what is above it.
+    in property <length> text-inset;
+    /// The list ends at the right edge of the button, for a button at the window's right.
+    in property <bool> list-at-end;
+
+    property <length> row-height: 48px;
+    property <length> add-row-height: Theme.control-height;
+    property <int> shown-rows: min(Ui.accounts.length, 6);
+    property <string> text: Ui.syncing ? @tr("{} · syncing", Ui.account-label) : Ui.account-label;
+
+    function open() {
+        popup.show();
+    }
+
+    min-height: max(26px, label.preferred-height + 8px);
+    horizontal-stretch: 0;
+    accessible-role: button;
+    accessible-label: @tr("Switch account, now {}", Ui.account-label);
+    accessible-action-default => {
+        root.open();
+    }
+
+    Rectangle {
+        x: max(0px, root.text-inset - 6px);
+        width: root.width - self.x - 2px;
+        height: root.height;
+        border-radius: Theme.radius;
+        background: touch.pressed ? Theme.control-press : touch.has-hover ? Theme.control-hover : transparent;
+        animate background { duration: Theme.quick; easing: ease-out; }
+    }
+    HorizontalLayout {
+        padding-left: root.text-inset;
+        padding-right: 8px;
+        spacing: 6px;
+        label := Label {
+            text: root.text;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+        VerticalLayout {
+            alignment: center;
+            DownChevron {
+                stroke: Theme.subtext;
+            }
+        }
+    }
+    focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == " " || event.text == Key.Return {
+                root.open();
+                return accept;
+            }
+            reject
+        }
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.open();
+            }
+        }
+    }
+    if focus.has-focus: FocusRing {
+        target-width: root.width;
+        target-height: root.height;
+        target-radius: Theme.radius;
+    }
+
+    popup := PopupWindow {
+        property <length> list-width: 300px;
+        x: root.list-at-end ? root.width - self.width : max(0px, root.text-inset - 6px);
+        y: root.height + 4px;
+        width: list-width;
+        height: root.shown-rows * root.row-height + root.add-row-height + 8px + 5px;
+        Rectangle {
+            background: Theme.popup;
+            border-width: max(1px, Theme.border);
+            border-color: Theme.rim;
+            border-radius: Theme.panel-radius;
+            drop-shadow-offset-y: 4px;
+            drop-shadow-blur: Theme.panel-shadow / 2;
+            drop-shadow-color: Theme.shadow;
+        }
+        keys := FocusScope {
+            property <int> mark: -1;
+            init => {
+                self.focus();
+            }
+            key-pressed(event) => {
+                if event.text == Key.DownArrow {
+                    self.mark = min(self.mark + 1, Ui.accounts.length);
+                    return accept;
+                }
+                if event.text == Key.UpArrow {
+                    self.mark = max(self.mark - 1, 0);
+                    return accept;
+                }
+                if event.text == Key.Escape {
+                    popup.close();
+                    return accept;
+                }
+                if (event.text == " " || event.text == Key.Return) && self.mark >= 0 {
+                    if self.mark == Ui.accounts.length {
+                        Ui.add-another-account();
+                    } else if !Ui.accounts[self.mark].active {
+                        Ui.use-account(Ui.accounts[self.mark].id);
+                    }
+                    popup.close();
+                    return accept;
+                }
+                reject
+            }
+            list := ScrollView {
+                x: 4px;
+                y: 4px;
+                width: parent.width - 8px;
+                height: root.shown-rows * root.row-height;
+                content-height: Ui.accounts.length * root.row-height;
+                for account[index] in Ui.accounts: AccountOption {
+                    y: index * root.row-height;
+                    width: list.visible-width;
+                    height: root.row-height;
+                    title: account.server == "" ? account.username : @tr("{} @ {}", account.username, account.server);
+                    detail: account.status;
+                    chosen: account.active;
+                    marked: keys.mark == index;
+                    clicked => {
+                        if !account.active {
+                            Ui.use-account(account.id);
+                        }
+                        popup.close();
+                    }
+                }
+            }
+            Rectangle {
+                x: 4px;
+                y: 4px + list.height + 2px;
+                width: parent.width - 8px;
+                height: 1px;
+                background: Theme.rim;
+            }
+            AccountOption {
+                x: 4px;
+                y: 4px + list.height + 5px;
+                width: parent.width - 8px;
+                height: root.add-row-height;
+                title: @tr("Add account");
+                marked: keys.mark == Ui.accounts.length;
+                clicked => {
+                    Ui.add-another-account();
+                    popup.close();
+                }
+            }
+        }
+    }
+}

@@ -5,6 +5,7 @@ import { Ui } from "state.slint";
 import { Page } from "data.slint";
 import { Label } from "widgets.slint";
 import { Sheen } from "glass.slint";
+import { AccountSwitcher } from "accounts.slint";
 
 component NavItem inherits Rectangle {
     in property <string> text;
@@ -152,8 +153,8 @@ export component Sidebar inherits Rectangle {
             padding-bottom: Theme.pad;
             spacing: 2px;
             Brand { }
-            SideLabel {
-                text: Ui.syncing ? @tr("{} · syncing", Ui.account-label) : Ui.account-label;
+            AccountSwitcher {
+                text-inset: Theme.nav-text-x;
             }
             Rectangle {
                 height: Theme.pad;
@@ -281,11 +282,13 @@ export component TopNav inherits Rectangle {
             Rectangle {
                 horizontal-stretch: 1;
             }
-            Label {
-                text: Ui.syncing ? @tr("{} · syncing", Ui.account-label) : Ui.account-label;
-                vertical-alignment: center;
-                overflow: elide;
-                max-width: 220px;
+            VerticalLayout {
+                alignment: center;
+                AccountSwitcher {
+                    text-inset: 6px;
+                    list-at-end: true;
+                    max-width: 240px;
+                }
             }
             NavItem {
                 horizontal: true;
