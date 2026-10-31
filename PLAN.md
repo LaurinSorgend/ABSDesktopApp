@@ -368,7 +368,7 @@ Goal: a good single-view player on a data model that already supports many accou
 - [x] Package-manager builds (winget, Flatpak, deb, AUR, scoop) never self-update.
 
 ### 5.5 Docs and release
-- [ ] README with screenshots, install instructions per channel, minimum server version. Written without screenshots; they need real libraries.
+- [x] README with screenshots, install instructions per channel, minimum server version.
 - [x] CONTRIBUTING with the dev setup (Docker ABS, fixtures, libmpv on Windows).
 - [x] Changelog generated from commits or kept by hand (by hand).
 
