@@ -271,7 +271,7 @@ impl<'a> Works<'a> {
             "SELECT m.account_id, m.item_id, i.duration,
                     CASE WHEN p.position > 0 OR p.is_finished = 1
                          OR coalesce(p.ebook_progress, 0) > 0 THEN p.updated_at END,
-                    dl.item_id IS NOT NULL
+                    dl.item_id IS NOT NULL OR a.local = 1
              FROM work_member m
              JOIN account a ON a.id = m.account_id
              JOIN item i ON i.account_id = m.account_id AND i.remote_id = m.item_id

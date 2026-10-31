@@ -230,6 +230,18 @@ async fn check_remote(shared: &Shared, active: Option<&mut Active>) {
 }
 
 async fn start(shared: &Shared, account_id: &str, item_id: &str) -> Option<Active> {
+    match playback::library_start(&shared.db, account_id, item_id) {
+        Some(Ok(start)) => {
+            let active = start_local(shared, start);
+            (shared.emit)(Event::PlaybackStarted(Box::new(active.start.clone())));
+            return Some(active);
+        }
+        Some(Err(message)) => {
+            (shared.emit)(Event::PlaybackFailed { message });
+            return None;
+        }
+        None => {}
+    }
     let local = playback::local_start(&shared.db, account_id, item_id);
     let session = sessions(shared, Some(account_id)).into_iter().next();
     let result = match (session, local) {

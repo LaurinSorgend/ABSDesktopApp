@@ -55,6 +55,8 @@ pub enum EbookError {
     Unsupported(String),
     #[error("the ebook is not downloaded and the server is not connected")]
     Offline,
+    #[error("{0} cannot be reached")]
+    Unreachable(String),
 }
 
 impl From<abs_api::Error> for EbookError {
@@ -93,6 +95,27 @@ pub fn from_download(db: &Mutex<Db>, account_id: &str, item_id: &str) -> Option<
     let ebook = downloads::read_manifest(&row.dir).ok()?.ebook?;
     let path = row.dir.join(&ebook.file_name);
     path.is_file().then_some((path, ebook.format))
+}
+
+/// The ebook of a book in a local folder, as path and format. `None` for other items.
+pub fn from_local_folder(
+    db: &Mutex<Db>,
+    account_id: &str,
+    item_id: &str,
+) -> Option<Result<(PathBuf, String), EbookError>> {
+    let book = lock(db).store().local().book(account_id, item_id).ok()??;
+    let Some(path) = book.ebook_path else {
+        return Some(Err(EbookError::NoEbook));
+    };
+    if !path.is_file() {
+        return Some(Err(EbookError::Unreachable(path.display().to_string())));
+    }
+    let format = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    Some(Ok((path, format)))
 }
 
 /// Any cached copy of the item's ebook, for when the server is away.

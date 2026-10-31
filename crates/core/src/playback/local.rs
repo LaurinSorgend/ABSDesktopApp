@@ -1,5 +1,6 @@
-//! Playing without a server session: from downloaded files, or after the server went
-//! away. Listening is recorded as a local session and sent on reconnect.
+//! Playing without a server session: from downloaded files, from a local folder, or after
+//! the server went away. Listening is recorded as a local session and sent on reconnect,
+//! except for local folders, which have no server to send it to.
 
 use std::path::Path;
 use std::sync::Mutex;
@@ -10,7 +11,12 @@ use abs_api::models::Chapter;
 use super::{ListenTracker, PlayStart, TrackSource, store_local};
 use crate::account::{AccountError, lock};
 use crate::db::{Db, DownloadState, LocalSessionRow, now_ms};
+use crate::detail::ItemDetail;
 use crate::downloads::{self, Manifest};
+
+/// A book in a local folder counts as finished this close to its end, in seconds, the
+/// default of ABS.
+const FINISHED_REMAINING: f64 = 10.0;
 
 /// Playback recorded as a local session.
 pub struct LocalPlayback {
@@ -18,6 +24,7 @@ pub struct LocalPlayback {
     record: LocalSessionRow,
     /// Server time minus local time, as last seen.
     clock_offset: Option<i64>,
+    on_this_computer: bool,
 }
 
 impl LocalPlayback {
@@ -49,6 +56,7 @@ impl LocalPlayback {
             tracker,
             record,
             clock_offset,
+            on_this_computer: start.on_this_computer,
         }
     }
 
@@ -78,11 +86,70 @@ impl LocalPlayback {
         self.record.position = sync.current_time;
         self.record.time_listening += sync.time_listened;
         self.record.updated_at = now_ms();
-        if self.record.time_listening > 0.0 {
+        if self.on_this_computer {
+            if sync.duration > 0.0 && sync.duration - sync.current_time <= FINISHED_REMAINING {
+                lock(db).store().progress().set_finished(
+                    &self.record.account_id,
+                    &self.record.item_id,
+                    true,
+                    now_ms(),
+                )?;
+            }
+        } else if self.record.time_listening > 0.0 {
             lock(db).store().local_sessions().save(&self.record)?;
         }
         Ok(())
     }
+}
+
+/// The player data for a book in a local folder, starting at the stored position. `None`
+/// for other items; the error says why the book cannot play.
+pub fn library_start(
+    db: &Mutex<Db>,
+    account_id: &str,
+    item_id: &str,
+) -> Option<Result<PlayStart, String>> {
+    let db = lock(db);
+    let store = db.store();
+    store.local().book(account_id, item_id).ok()??;
+    let tracks = store.local().tracks(account_id, item_id).ok()?;
+    if tracks.is_empty() {
+        return Some(Err("this book has no audio".to_owned()));
+    }
+    if let Some(missing) = tracks.iter().find(|t| !t.path.is_file()) {
+        return Some(Err(format!("{} cannot be reached", missing.path.display())));
+    }
+    let items = store.catalog().items_by_ids(account_id, &[item_id]).ok()?;
+    let item = items.into_iter().next()?;
+    let json = store.catalog().item_json(account_id, item_id).ok()??;
+    let detail = ItemDetail::from_json(&json).ok()?;
+    let position = store
+        .progress()
+        .get(account_id, item_id)
+        .ok()
+        .flatten()
+        .map_or(0.0, |p| p.current_time);
+    Some(Ok(PlayStart {
+        account_id: account_id.to_owned(),
+        item_id: item_id.to_owned(),
+        library_id: item.library_id,
+        title: item.title,
+        author: item.author,
+        duration: tracks.iter().map(|t| t.duration).sum(),
+        tracks: tracks
+            .into_iter()
+            .map(|t| TrackSource {
+                url: t.path.to_string_lossy().into_owned(),
+                start_offset: t.start_offset,
+                duration: t.duration,
+            })
+            .collect(),
+        chapters: detail.chapters,
+        start_time: position,
+        http_headers: Vec::new(),
+        local: true,
+        on_this_computer: true,
+    }))
 }
 
 /// The player data for a complete download, starting at the stored position.
@@ -138,5 +205,6 @@ fn from_manifest(dir: &Path, manifest: Manifest, position: f64) -> PlayStart {
         duration: manifest.duration,
         http_headers: Vec::new(),
         local: true,
+        on_this_computer: false,
     }
 }

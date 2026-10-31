@@ -5,11 +5,11 @@ use std::sync::Arc;
 use abs_api::models::{LibraryItem, ShelfContent};
 use abs_api::{ItemFilter, ItemsQuery};
 
-use super::worker::{Shared, sessions};
+use super::worker::{Shared, is_local, sessions};
 use super::{COVER_CACHE_SETTING, Command, Event, Group, GroupKind, Shelf};
 use crate::account::{AccountError, Session, lock};
 use crate::cover_cache::Slot;
-use crate::db::{BookmarkRow, ProgressRow};
+use crate::db::{BookmarkRow, ProgressRow, now_ms};
 
 const SHELF_LIMIT: u32 = 12;
 const SEARCH_LIMIT: u32 = 25;
@@ -44,6 +44,10 @@ async fn run_online(shared: Arc<Shared>, command: Command) {
     let Some(account_id) = account_of(&command) else {
         return;
     };
+    if is_local(&shared, &account_id) {
+        run_local(&shared, &account_id, command);
+        return;
+    }
     let Some(session) = sessions(&shared, Some(&account_id)).into_iter().next() else {
         (shared.emit)(Event::RequestFailed {
             account_id,
@@ -59,6 +63,60 @@ async fn run_online(shared: Arc<Shared>, command: Command) {
             account_id,
             message: e.to_string(),
         });
+    }
+}
+
+/// Edits of books in local folders, which only the database knows about. Everything else
+/// these requests ask for is on a server, and the stored item already has it.
+fn run_local(shared: &Shared, account_id: &str, command: Command) {
+    let db = lock(&shared.db);
+    let progress = db.store().progress();
+    let (stored, event) = match command {
+        Command::SetFinished {
+            item_id, finished, ..
+        } => (
+            progress.set_finished(account_id, &item_id, finished, now_ms()),
+            Event::ProgressChanged {
+                account_id: account_id.to_owned(),
+                item_ids: vec![item_id],
+            },
+        ),
+        Command::AddBookmark {
+            item_id,
+            time,
+            title,
+            ..
+        } => {
+            let bookmark = BookmarkRow {
+                item_id: item_id.clone(),
+                time,
+                title,
+            };
+            (
+                progress.put_bookmark(account_id, &bookmark),
+                local_bookmarks_changed(account_id, item_id),
+            )
+        }
+        Command::RemoveBookmark { item_id, time, .. } => (
+            progress.remove_bookmark(account_id, &item_id, time),
+            local_bookmarks_changed(account_id, item_id),
+        ),
+        _ => return,
+    };
+    drop(db);
+    match stored {
+        Ok(()) => (shared.emit)(event),
+        Err(e) => (shared.emit)(Event::RequestFailed {
+            account_id: account_id.to_owned(),
+            message: e.to_string(),
+        }),
+    }
+}
+
+fn local_bookmarks_changed(account_id: &str, item_id: String) -> Event {
+    Event::BookmarksChanged {
+        account_id: account_id.to_owned(),
+        item_id,
     }
 }
 
@@ -127,6 +185,9 @@ async fn cover_bytes(shared: &Arc<Shared>, slot: &Slot, etag: &str) -> Option<Ve
     if let Some(bytes) = shared.covers.get(slot, etag) {
         return Some(bytes);
     }
+    if is_local(shared, &slot.account_id) {
+        return local_cover(shared, slot, etag).await;
+    }
     let session = sessions(shared, Some(&slot.account_id))
         .into_iter()
         .next()?;
@@ -134,6 +195,22 @@ async fn cover_bytes(shared: &Arc<Shared>, slot: &Slot, etag: &str) -> Option<Ve
     let bytes = session
         .client
         .cover(&slot.item_id, slot.width)
+        .await
+        .ok()??;
+    let _ = shared.covers.put(slot, etag, &bytes);
+    Some(bytes)
+}
+
+/// A local book's cover from its image, audio file or EPUB.
+async fn local_cover(shared: &Arc<Shared>, slot: &Slot, etag: &str) -> Option<Vec<u8>> {
+    let book = lock(&shared.db)
+        .store()
+        .local()
+        .book(&slot.account_id, &slot.item_id)
+        .ok()??;
+    let path = book.cover_path?;
+    let _permit = shared.cover_downloads.acquire().await.ok()?;
+    let bytes = tokio::task::spawn_blocking(move || crate::local::read_cover(&path))
         .await
         .ok()??;
     let _ = shared.covers.put(slot, etag, &bytes);

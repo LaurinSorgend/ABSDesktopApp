@@ -8,7 +8,7 @@ use std::sync::Arc;
 use abs_api::models::EbookLocation;
 use abs_api::reqwest::StatusCode;
 
-use super::worker::{Shared, clock_offset, sessions, went_offline};
+use super::worker::{Shared, clock_offset, is_local, sessions, went_offline};
 use super::{Command, Event};
 use crate::account::{AccountError, Session, lock};
 use crate::db::now_ms;
@@ -36,6 +36,14 @@ pub(super) fn handle(shared: &Arc<Shared>, command: Command) {
                 location,
                 progress,
             };
+            if is_local(shared, &account_id) {
+                store_position(shared, &account_id, &position);
+                (shared.emit)(Event::ProgressChanged {
+                    account_id,
+                    item_ids: vec![position.item_id],
+                });
+                return;
+            }
             let Some(id) = store(shared, &account_id, &position) else {
                 return;
             };
@@ -68,12 +76,17 @@ async fn open(shared: Arc<Shared>, account_id: String, item_id: String) {
     (shared.emit)(event);
 }
 
-/// The download first, then the server (which refreshes the cache), then the cache.
+/// A local folder's own file; else the download, then the server (which refreshes the
+/// cache), then the cache.
 async fn locate(
     shared: &Arc<Shared>,
     account_id: &str,
     item_id: &str,
 ) -> Result<(PathBuf, String, String), EbookError> {
+    if let Some(found) = ebooks::from_local_folder(&shared.db, account_id, item_id) {
+        let (path, format) = found?;
+        return Ok((path, format, stored_title(shared, account_id, item_id)));
+    }
     if let Some((path, format)) = ebooks::from_download(&shared.db, account_id, item_id) {
         return Ok((path, format, stored_title(shared, account_id, item_id)));
     }
@@ -109,22 +122,28 @@ fn stored_location(shared: &Shared, account_id: &str, item_id: &str) -> Option<S
 /// Stores the position and queues it at once, so it survives the app quitting
 /// mid-request.
 fn store(shared: &Shared, account_id: &str, position: &PendingPosition) -> Option<i64> {
+    let payload = serde_json::to_string(position).ok()?;
+    store_position(shared, account_id, position);
+    let db = lock(&shared.db);
+    db.store()
+        .queue()
+        .push(account_id, QUEUE_KIND, &payload)
+        .ok()
+}
+
+fn store_position(shared: &Shared, account_id: &str, position: &PendingPosition) {
     let stored = match &position.location {
         EbookLocation::Cfi(cfi) => cfi.clone(),
         EbookLocation::Page(page) => page.to_string(),
     };
-    let payload = serde_json::to_string(position).ok()?;
     let updated_at = crate::offline::server_time(now_ms(), clock_offset(shared, account_id));
-    let db = lock(&shared.db);
-    let store = db.store();
-    let _ = store.progress().set_ebook(
+    let _ = lock(&shared.db).store().progress().set_ebook(
         account_id,
         &position.item_id,
         &stored,
         position.progress,
         updated_at,
     );
-    store.queue().push(account_id, QUEUE_KIND, &payload).ok()
 }
 
 /// True when the server answered that it will not take this position, so sending it

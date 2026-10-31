@@ -17,6 +17,16 @@ pub use order::{AudioFacts, chapters, natural, smart_order};
 pub use probe::{AudioProbe, AudioTags, album_of, embedded_cover, probe};
 pub use scan::{ScanReport, folder_name, scan_folder};
 
+/// The bytes of a cover: an image file, or the picture inside an audio file or EPUB.
+pub fn read_cover(path: &std::path::Path) -> Option<Vec<u8>> {
+    let extension = path.extension()?.to_str()?.to_ascii_lowercase();
+    match extension.as_str() {
+        "epub" => epub_cover(path),
+        "png" | "jpg" | "jpeg" | "webp" => std::fs::read(path).ok(),
+        _ => embedded_cover(path),
+    }
+}
+
 #[cfg(all(test, feature = "integration"))]
 mod fixture_tests {
     use std::path::{Path, PathBuf};

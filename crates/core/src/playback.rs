@@ -11,7 +11,7 @@ use abs_api::reqwest::StatusCode;
 
 use crate::account::{AccountError, Session, lock};
 use crate::db::{Db, now_ms};
-pub use local::{LocalPlayback, local_start};
+pub use local::{LocalPlayback, library_start, local_start};
 pub use tracker::{ListenTracker, SYNC_INTERVAL};
 
 /// Audio types libmpv plays; sent so the server can choose direct play.
@@ -60,6 +60,8 @@ pub struct PlayStart {
     pub http_headers: Vec<String>,
     /// True when the tracks are downloaded files.
     pub local: bool,
+    /// True for a book in a local folder, which no server will ever hear about.
+    pub on_this_computer: bool,
 }
 
 /// A running server session for the item in the player.
@@ -238,6 +240,7 @@ fn play_start(
         duration: server.duration,
         http_headers: vec![format!("Authorization: Bearer {token}")],
         local: false,
+        on_this_computer: false,
     })
 }
 

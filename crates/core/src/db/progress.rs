@@ -120,6 +120,25 @@ impl<'a> Progress<'a> {
         Ok(())
     }
 
+    /// Marks a book finished, or not finished and back at the start. For books with no server.
+    pub fn set_finished(
+        &self,
+        account_id: &str,
+        item_id: &str,
+        finished: bool,
+        updated_at: i64,
+    ) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT INTO progress(account_id, item_id, position, progress, is_finished,
+                 ebook_location, ebook_progress, updated_at)
+             VALUES (?1, ?2, 0, ?3, ?3, NULL, NULL, ?4)
+             ON CONFLICT DO UPDATE SET is_finished = ?3, progress = ?3, updated_at = ?4,
+                 position = CASE WHEN ?3 = 1 THEN position ELSE 0 END",
+            params![account_id, item_id, finished, updated_at],
+        )?;
+        Ok(())
+    }
+
     /// Stores a reading position from this machine; the audio position stays.
     /// `updated_at` is on the server's clock.
     pub fn set_ebook(
