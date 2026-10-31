@@ -8,6 +8,7 @@ It works with Audiobookshelf 2.26.0 or later.
 
 - Several servers and accounts at once. A book that is on more than one of them shows up once, and you can play it from whichever copy you like.
 - Streaming, plus downloads for offline listening. Listening time recorded offline is sent to the server once it is reachable again. If another device moved the position in the meantime, the app asks which one to keep.
+- Folders on your computer. Add one and its audiobooks and ebooks show up as a library, with or without a server: books split into many MP3 files, single M4B files, EPUB, PDF and CBZ. Books are recognised from folder names, tags and files like `metadata.opf`, following the rules of the Audiobookshelf scanner. The app only reads these folders.
 - Progress stays in sync through the server's realtime events. When you pause, the app picks up progress made on other devices.
 - An ebook reader for EPUB, PDF and comic archives (CBZ), based on [foliate-js](https://github.com/johnfactotum/foliate-js). It runs in a separate window and remembers the reading position.
 - Chapters, bookmarks, playback speed, a sleep timer that can stop at the end of a chapter, a mini player and a full screen player.

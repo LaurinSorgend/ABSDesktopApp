@@ -190,6 +190,15 @@ Implemented, not yet tried by hand.
 - Full screen: the playing cover blurred (the copy the Glass style already uses) under a gradient of the theme's base color, so text keeps the theme's colors. Large cover with the theme's cover radius and shadow, chapter, title in the heading weight, author, the book bar with chapter markers (and the chapter bar when the progress setting asks for it), speed and sleep timer, a 64 px play button and volume.
 - F11 toggles full screen, Esc leaves it; the player keys work in all three views. The player bar, the player page and the player panel have buttons for both views; in a narrow window the bar drops volume to make room for them.
 
+## Local folders
+
+Implemented; the reasons are in ADR 0006. The first-run page and Settings can add a folder, and the app works with no server.
+
+- `abs_core::local`: `group` (files to books), `names` (folder names), `order` (track order, chapters), `probe` (tags, chapters), `metadata` (precedence, OPF, EPUB, sidecars), `book` (the stored item) and `scan`. The engine side is `engine/local.rs`.
+- Tests: unit tests in those modules, and `contract_local`, which uses `fixtures/media` directly and checks the folder stays unchanged. Only its last test needs a server.
+- Tried in the real app on Windows, seeded with the fixture folders: Home, library, item page, M4B playback with a chapter jump, the Settings list and the Authors view.
+- Not tried in the real app: the native folder dialog (the tests send `AddLocalFolder`), the reader window, and an MP3 book playing across a file boundary. One pause click in that session seemed not to register; the next one worked. It was a synthetic window message and has not been looked into.
+
 ## Failure handling
 
 Fixed after a code review on 2026-10-30. `contract_recovery` covers most of it, with a proxy in front of the server that can answer 502.
