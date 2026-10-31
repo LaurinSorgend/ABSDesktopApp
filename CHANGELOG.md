@@ -2,6 +2,14 @@
 
 Kept by hand. Each release lists what changed for people using the app.
 
+## 0.3.0 (2026-10-31)
+
+- Local folders: add folders of audiobooks and ebooks on the first-run page or in Settings, and play and read them without a server. Tags, chapters and ebook metadata are read from the files, and the folders stay unchanged.
+- Switch accounts from the account name in the navigation.
+- Home has a row of downloaded items.
+- A book without a cover image gets a drawn cover with its title and author.
+- The book page shows the whole description instead of cutting it off.
+
 ## 0.2.1 (2026-10-30)
 
 - A damaged download can be repaired. The missing files are fetched again at start instead of the download ending as failed, and a file that was fully fetched but not yet renamed no longer fails it.
