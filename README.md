@@ -4,6 +4,18 @@ A desktop client for [Audiobookshelf](https://www.audiobookshelf.org/) on Window
 
 It works with Audiobookshelf 2.26.0 or later.
 
+![Home page in the WinUI 3 theme](docs/screenshots/home.png)
+
+## Screenshots
+
+These show the WinUI 3 theme in dark mode with a demo library. The books are public domain, and the covers were made for these pictures.
+
+| | |
+|---|---|
+| ![Library with filters and sorting](docs/screenshots/library.png) | ![Book page with chapters](docs/screenshots/item.png) |
+| ![Player page with chapters and bookmarks](docs/screenshots/player.png) | ![Full screen player](docs/screenshots/full-screen.png) |
+| ![Theme settings](docs/screenshots/themes.png) | ![Mini player](docs/screenshots/mini.png) |
+
 ## What it does
 
 - Several servers and accounts at once. A book that is on more than one of them shows up once, and you can play it from whichever copy you like.
