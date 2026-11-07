@@ -1,14 +1,21 @@
-"""Download and generate the public domain test media under fixtures/media.
+"""Generate the test media under fixtures/media.
 
-Needs ffmpeg on PATH. Rerunning skips files that already exist.
+By default every file is generated, so CI needs no download. With --real the
+multi-file book and the Alice ebooks are the public domain originals from
+LibriVox, Project Gutenberg and archive.org instead.
 
-Usage: python fixtures/fetch_fixtures.py
+Needs ffmpeg on PATH, and curl for --real. Rerunning skips files that already exist.
+
+Usage: python fixtures/fetch_fixtures.py [--real]
 """
 
+import argparse
 import shutil
 import subprocess
 import zipfile
 from pathlib import Path
+
+import fake_ebooks
 
 MEDIA = Path(__file__).parent / "media"
 AUDIO = MEDIA / "audiobooks"
@@ -19,6 +26,15 @@ MATCHING = MEDIA / "matching"
 LIBRIVOX_ID = "thehappyprinceandothertales_1411_librivox"
 LIBRIVOX_FILES = [f"thehappyprinceandothertales_{n:02}_wilde_64kb.mp3" for n in range(1, 6)]
 LIBRIVOX_COVER = "happy_prince_and_other_tales_1411.jpg"
+MULTI_FILE_ALBUM = "The Happy Prince and Other Tales"
+# Track title and length in seconds of the LibriVox files, copied by the generated ones.
+MULTI_FILE_TRACKS = [
+    ("The Happy Prince", 1440.78),
+    ("The Nightingale and the Rose", 956.03),
+    ("The Selfish Giant", 680.78),
+    ("The Devoted Friend", 1651.98),
+    ("The Remarkable Rocket", 1952.71),
+]
 EPUB_URL = "https://www.gutenberg.org/ebooks/11.epub3.images"
 PDF_URL = "https://archive.org/download/alicesadventur00carr/alicesadventur00carr_bw.pdf"
 
@@ -57,13 +73,58 @@ def ffmpeg(*args):
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args], check=True)
 
 
-def fetch_multi_file_book():
+def download_multi_file_book(folder):
     """Multi-file MP3 book from LibriVox, no ASIN/ISBN."""
-    folder = AUDIO / "Oscar Wilde" / "The Happy Prince and Other Tales"
     for name in LIBRIVOX_FILES:
         download(f"https://archive.org/download/{LIBRIVOX_ID}/{name}", folder / name)
     download(f"https://archive.org/download/{LIBRIVOX_ID}/{LIBRIVOX_COVER}", folder / "cover.jpg")
+
+
+def generate_multi_file_book(folder):
+    """Noise in place of the LibriVox files: same names, lengths, format and tags."""
+    folder.mkdir(parents=True, exist_ok=True)
+    for number, (name, (title, seconds)) in enumerate(zip(LIBRIVOX_FILES, MULTI_FILE_TRACKS), 1):
+        target = folder / name
+        if target.exists():
+            continue
+        part = target.with_name(target.stem + ".part.mp3")
+        ffmpeg(
+            "-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.05:sample_rate=22050",
+            "-t", str(seconds), "-ac", "1", "-c:a", "libmp3lame", "-b:a", "64k",
+            "-id3v2_version", "3", "-write_id3v1", "1",
+            "-metadata", f"title={number:02} - {title}", "-metadata", "artist=Oscar Wilde",
+            "-metadata", f"album={MULTI_FILE_ALBUM}", "-metadata", f"track={number}",
+            str(part),
+        )
+        part.rename(target)
+    cover = folder / "cover.jpg"
+    if not cover.exists():
+        ffmpeg("-f", "lavfi", "-i", "testsrc2=size=300x300", "-frames:v", "1", str(cover))
+
+
+def multi_file_book(real):
+    """The multi-file book's folder, downloaded or generated."""
+    folder = AUDIO / "Oscar Wilde" / MULTI_FILE_ALBUM
+    if real:
+        download_multi_file_book(folder)
+    else:
+        generate_multi_file_book(folder)
     return folder
+
+
+def alice_ebooks(real):
+    """Alice as EPUB and PDF, downloaded or generated."""
+    epub = EBOOKS / "Lewis Carroll" / "Alice EPUB" / "Alice's Adventures in Wonderland.epub"
+    pdf = EBOOKS / "Lewis Carroll" / "Alice PDF" / "Alice's Adventures in Wonderland.pdf"
+    if real:
+        download(EPUB_URL, epub)
+        download(PDF_URL, pdf)
+        return
+    title, author = "Alice's Adventures in Wonderland", "Lewis Carroll"
+    if not epub.exists():
+        fake_ebooks.write_epub(epub, title, author)
+    if not pdf.exists():
+        fake_ebooks.write_pdf(pdf, title)
 
 
 def write_chapter_metadata(path, title):
@@ -167,10 +228,12 @@ def build_matching_library():
 
 
 def main():
-    source = fetch_multi_file_book()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--real", action="store_true", help="download the public domain originals")
+    args = parser.parse_args()
+    source = multi_file_book(args.real)
     build_long_m4b(source)
-    download(EPUB_URL, EBOOKS / "Lewis Carroll" / "Alice EPUB" / "Alice's Adventures in Wonderland.epub")
-    download(PDF_URL, EBOOKS / "Lewis Carroll" / "Alice PDF" / "Alice's Adventures in Wonderland.pdf")
+    alice_ebooks(args.real)
     build_comic()
     build_grid_library()
     build_matching_library()

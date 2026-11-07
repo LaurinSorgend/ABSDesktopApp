@@ -20,7 +20,7 @@ use abs_core::works::MIRROR_PROGRESS_SETTING;
 const SERVERS: [&str; 2] = ["http://localhost:13378", "http://localhost:13379"];
 /// Different narrators on the two servers: two works.
 const PER_SERVER: &[&str] = &["Matching/Fixture Author/Two Narrators"];
-/// Same work, but 2.26.3 cuts the title short, so nothing can match it.
+/// Same work, but with the LibriVox files 2.26.3 cuts the title short, so nothing can match it.
 const KNOWN_MISSES: &[&str] = &["Audiobooks/Oscar Wilde/The Happy Prince and Other Tales"];
 
 #[test]
