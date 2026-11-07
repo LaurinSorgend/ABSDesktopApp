@@ -7,11 +7,13 @@ use std::time::{Duration, Instant};
 use libmpv2::events::{Event, PropertyData};
 use libmpv2::{Format, Mpv};
 
-use super::{State, backend, lock};
+use super::{State, backend, lock, reopen};
 use crate::player::{PlaybackState, PlayerError, PlayerEvent};
 use crate::timeline::global_time;
 
 const POSITION_INTERVAL: Duration = Duration::from_millis(250);
+/// How long playback may wait for network data before the track is opened again.
+const STALL_TIMEOUT: Duration = Duration::from_secs(10);
 const END_FILE_EOF: u32 = 0;
 const END_FILE_ERROR: u32 = 4;
 const PROPERTIES: &[(&str, Format)] = &[
@@ -44,6 +46,8 @@ struct Reader {
     state: Arc<Mutex<State>>,
     emit: Emit,
     last_position: Instant,
+    /// Since when mpv has been waiting for network data.
+    stalled_since: Option<Instant>,
 }
 
 impl Reader {
@@ -53,6 +57,7 @@ impl Reader {
             state,
             emit,
             last_position: Instant::now() - POSITION_INTERVAL,
+            stalled_since: None,
         }
     }
 
@@ -68,6 +73,23 @@ impl Reader {
                 }
                 _ => {}
             }
+            self.recover_stall();
+        }
+    }
+
+    /// Opens the track again when playback has waited too long for data. The
+    /// stream does not recover by itself once a reconnect failed or the
+    /// connection hangs.
+    fn recover_stall(&mut self) {
+        let Some(since) = self.stalled_since else {
+            return;
+        };
+        if since.elapsed() < STALL_TIMEOUT || lock(&self.state).paused {
+            return;
+        }
+        self.stalled_since = Some(Instant::now());
+        if let Err(e) = reopen(&self.mpv, &self.state) {
+            (self.emit)(PlayerEvent::Error(e.to_string()));
         }
     }
 
@@ -91,6 +113,7 @@ impl Reader {
                 (self.emit)(PlayerEvent::State(state));
             }
             ("paused-for-cache", PropertyData::Flag(waiting)) => {
+                self.stalled_since = waiting.then(Instant::now);
                 let paused = lock(&self.state).paused;
                 let state = match (waiting, paused) {
                     (true, _) => PlaybackState::Buffering,

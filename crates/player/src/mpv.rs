@@ -117,8 +117,18 @@ impl Player for MpvPlayer {
         Ok(())
     }
 
+    /// Unpauses. When mpv went idle after a failed track, the track is opened again
+    /// at the last position.
     fn play(&self) -> Result<(), PlayerError> {
-        self.mpv.set_property("pause", false).map_err(backend)
+        self.mpv.set_property("pause", false).map_err(backend)?;
+        if self
+            .mpv
+            .get_property::<bool>("idle-active")
+            .unwrap_or(false)
+        {
+            reopen(&self.mpv, &self.state).map_err(backend)?;
+        }
+        Ok(())
     }
 
     fn pause(&self) -> Result<(), PlayerError> {
@@ -210,6 +220,20 @@ fn create(config: &MpvConfig) -> libmpv2::Result<Mpv> {
         }
         Ok(())
     })
+}
+
+/// Opens the track at the last known position again, with a new connection.
+pub(crate) fn reopen(mpv: &Mpv, state: &Mutex<State>) -> libmpv2::Result<()> {
+    let index = {
+        let mut state = lock(state);
+        if state.tracks.is_empty() {
+            return Ok(());
+        }
+        let (index, offset) = locate(&state.tracks, state.position);
+        state.pending_seek = (offset > 0.0).then_some((index, offset));
+        index
+    };
+    mpv.command("playlist-play-index", &[&index.to_string()])
 }
 
 pub(crate) fn lock(state: &Mutex<State>) -> MutexGuard<'_, State> {
