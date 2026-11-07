@@ -30,7 +30,7 @@ Then `cargo run -p abs-desktop`.
 
 ## Test servers
 
-Two Audiobookshelf servers run in Docker: the oldest supported version (2.26.3) on port 13378 and the newest tested version (2.37.2) on port 13379. The fixtures are public-domain audiobooks and ebooks.
+Two Audiobookshelf servers run in Docker: the oldest supported version (2.26.3) on port 13378 and the newest tested version (2.37.2) on port 13379. The fixtures are generated audiobooks and ebooks; `python fixtures/fetch_fixtures.py --real` downloads public domain originals instead (see `fixtures/README.md`).
 
 ```
 python fixtures/fetch_fixtures.py
