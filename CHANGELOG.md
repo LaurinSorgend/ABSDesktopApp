@@ -2,6 +2,10 @@
 
 Kept by hand. Each release lists what changed for people using the app.
 
+## 0.3.1 (2026-11-07)
+
+- Playback no longer gets stuck when the connection to the server drops for a moment. After 10 seconds without data the book is opened again where it stopped, and pressing play after a failed track starts it again.
+
 ## 0.3.0 (2026-10-31)
 
 - Local folders: add folders of audiobooks and ebooks on the first-run page or in Settings, and play and read them without a server. Tags, chapters and ebook metadata are read from the files, and the folders stay unchanged.
