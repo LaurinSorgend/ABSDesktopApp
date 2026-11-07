@@ -18,8 +18,8 @@ CONTAINER = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
-def write_epub(path, title, author):
-    """EPUB 3 with a nav document and EPUB_CHAPTERS chapters of filler text."""
+def write_epub(path, title, author, cover_jpeg):
+    """EPUB 3 with a JPEG cover, a nav document and EPUB_CHAPTERS chapters of filler text."""
     path.parent.mkdir(parents=True, exist_ok=True)
     chapters = [f"chapter{n:02}.xhtml" for n in range(1, EPUB_CHAPTERS + 1)]
     part = path.with_name(path.name + ".part")
@@ -28,6 +28,7 @@ def write_epub(path, title, author):
         epub.writestr("META-INF/container.xml", CONTAINER, compress_type=zipfile.ZIP_DEFLATED)
         epub.writestr("OEBPS/content.opf", _opf(title, author, chapters), compress_type=zipfile.ZIP_DEFLATED)
         epub.writestr("OEBPS/nav.xhtml", _nav(title, chapters), compress_type=zipfile.ZIP_DEFLATED)
+        epub.writestr("OEBPS/cover.jpg", cover_jpeg, compress_type=zipfile.ZIP_STORED)
         for number, name in enumerate(chapters, 1):
             epub.writestr(f"OEBPS/{name}", _chapter(number), compress_type=zipfile.ZIP_DEFLATED)
     part.replace(path)
@@ -47,9 +48,11 @@ def _opf(title, author, chapters):
     <dc:creator>{escape(author)}</dc:creator>
     <dc:language>en</dc:language>
     <meta property="dcterms:modified">2026-01-01T00:00:00Z</meta>
+    <meta name="cover" content="cover"/>
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="cover" href="cover.jpg" media-type="image/jpeg" properties="cover-image"/>
 {items}
   </manifest>
   <spine>

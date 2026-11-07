@@ -102,6 +102,16 @@ def generate_multi_file_book(folder):
         ffmpeg("-f", "lavfi", "-i", "testsrc2=size=300x300", "-frames:v", "1", str(cover))
 
 
+def test_pattern_jpeg(size):
+    """One ffmpeg test pattern frame as JPEG bytes."""
+    result = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", f"testsrc2=size={size}",
+         "-frames:v", "1", "-f", "image2pipe", "-c:v", "mjpeg", "-"],
+        check=True, capture_output=True,
+    )
+    return result.stdout
+
+
 def multi_file_book(real):
     """The multi-file book's folder, downloaded or generated."""
     folder = AUDIO / "Oscar Wilde" / MULTI_FILE_ALBUM
@@ -122,7 +132,7 @@ def alice_ebooks(real):
         return
     title, author = "Alice's Adventures in Wonderland", "Lewis Carroll"
     if not epub.exists():
-        fake_ebooks.write_epub(epub, title, author)
+        fake_ebooks.write_epub(epub, title, author, test_pattern_jpeg("600x900"))
     if not pdf.exists():
         fake_ebooks.write_pdf(pdf, title)
 
